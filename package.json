@@ -1,0 +1,37 @@
+{
+  "name": "bfs-clicker",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Web 资产探索与本地操作面板（Playwright，BFS/DFS，预算控制与断点续跑）",
+  "files": [
+    "src/",
+    "view/",
+    "demo/",
+    "config.json",
+    "README.md",
+    "docs/implementation-status.md",
+    "docs/project-review.md",
+    "docs/tencent-deploy.md",
+    "scripts/dedup-traffic.mjs"
+  ],
+  "scripts": {
+    "run": "node src/index.js run",
+    "doctor": "node src/index.js doctor",
+    "login": "node src/index.js login",
+    "crawl": "node src/index.js crawl",
+    "resume": "node src/index.js resume",
+    "demo": "node src/index.js demo",
+    "view": "node view/server.js",
+    "dedup-traffic": "node scripts/dedup-traffic.mjs",
+    "test:unit": "node scripts/test-urlshape.mjs && node scripts/test-paper-scripts.mjs",
+    "test:integration": "node scripts/test-route-discovery.mjs && node scripts/test-api-surface.mjs",
+    "test:python": "node scripts/test-python.mjs",
+    "test:e2e": "node scripts/test-asset-workflow.mjs && node scripts/test-local-panel.mjs",
+    "test": "npm run test:unit && npm run test:integration && npm run test:python && npm run test:e2e"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "playwright": "^1.62.1",
+    "ws": "^8.21.0"
+  }
+}

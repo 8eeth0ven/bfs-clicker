@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bfs-clicker · 本地资产探索</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div><p class="eyebrow">BFS CLICKER · LOCAL</p><h1>给一个资产，开始探索。</h1><p class="subtitle">选择探索预算，查看进度，随时停止并续跑。</p></div>
+      <span class="local-tag">仅本机访问</span>
+    </header>
+    <div class="layout">
+      <section class="card settings" aria-labelledby="settings-title">
+        <h2 id="settings-title">探索设置</h2>
+        <form id="run-form">
+          <label class="field-label" for="asset">资产 URL</label>
+          <input id="asset" name="asset" type="url" placeholder="https://example.com/" required autocomplete="off" spellcheck="false">
+          <p class="hint">默认匿名探索入口所在来源；需要登录的资产可用 CLI 保存会话后，通过配置启动面板。</p>
+          <fieldset class="mode-fieldset">
+            <legend>探索预算</legend>
+            <div class="mode-options">
+              <label class="mode-option"><input name="limitMode" type="radio" value="default" checked><span><b>默认上限</b><small>开箱即用</small></span></label>
+              <label class="mode-option"><input name="limitMode" type="radio" value="custom"><span><b>自定义上限</b><small>滑块 / 数字</small></span></label>
+              <label class="mode-option"><input name="limitMode" type="radio" value="unlimited"><span><b>直到跑完</b><small>不限探索预算</small></span></label>
+            </div>
+          </fieldset>
+          <p id="budget-note" class="budget-note" aria-live="polite">默认探索 50 个状态、深度 3、5 分钟、1500 次请求、500 次动作。达到任一上限保存进度。</p>
+          <fieldset id="limit-fields" class="limits" disabled>
+            <legend class="sr-only">可调上限</legend>
+            <div class="limit-field"><div class="limit-heading"><label for="maxStates">状态数</label><span>个</span></div><div class="slider-row"><input id="maxStates-range" data-limit="maxStates" type="range" min="1" max="1000" step="1" value="50" aria-label="滑动选择状态数上限"><input id="maxStates" data-number="maxStates" type="number" min="1" step="1" value="50" aria-label="状态数上限"></div></div>
+            <div class="limit-field"><div class="limit-heading"><label for="maxDepth">探索深度</label><span>层，0 为根状态</span></div><div class="slider-row"><input id="maxDepth-range" data-limit="maxDepth" type="range" min="0" max="30" step="1" value="3" aria-label="滑动选择探索深度"><input id="maxDepth" data-number="maxDepth" type="number" min="0" step="1" value="3" aria-label="探索深度上限"></div></div>
+            <div class="limit-field"><div class="limit-heading"><label for="maxDurationMs">运行时长</label><span>分钟</span></div><div class="slider-row"><input id="maxDurationMs-range" data-limit="maxDurationMs" type="range" min="1" max="120" step="1" value="5" aria-label="滑动选择时长上限"><input id="maxDurationMs" data-number="maxDurationMs" type="number" min="1" step="1" value="5" aria-label="时长上限（分钟）"></div></div>
+            <div class="limit-field"><div class="limit-heading"><label for="maxRequests">请求数</label><span>次 / 本轮</span></div><div class="slider-row"><input id="maxRequests-range" data-limit="maxRequests" type="range" min="1" max="15000" step="1" value="1500" aria-label="滑动选择请求数上限"><input id="maxRequests" data-number="maxRequests" type="number" min="1" step="1" value="1500" aria-label="请求数上限"></div></div>
+            <div class="limit-field"><div class="limit-heading"><label for="maxActions">动作数</label><span>次 / 本轮，含路径重放</span></div><div class="slider-row"><input id="maxActions-range" data-limit="maxActions" type="range" min="1" max="5000" step="1" value="500" aria-label="滑动选择动作数上限"><input id="maxActions" data-number="maxActions" type="number" min="1" step="1" value="500" aria-label="动作数上限"></div></div>
+            <div class="limit-field"><div class="limit-heading"><label for="maxStatesPerHost">每个主机状态数</label><span>个</span></div><div class="slider-row"><input id="maxStatesPerHost-range" data-limit="maxStatesPerHost" type="range" min="1" max="1000" step="1" value="50" aria-label="滑动选择单主机状态数上限"><input id="maxStatesPerHost" data-number="maxStatesPerHost" type="number" min="1" step="1" value="50" aria-label="单主机状态数上限"></div></div>
+          </fieldset>
+          <details class="advanced"><summary>浏览器与请求设置</summary><div class="advanced-body">
+            <label class="check"><input id="headless" type="checkbox" checked>后台浏览器</label>
+            <label for="order">遍历顺序</label><select id="order"><option value="bfs">广度优先 BFS</option><option value="dfs">深度优先 DFS</option></select>
+            <label for="resourcePolicy">资源范围</label><select id="resourcePolicy"><option value="strict">严格：仅配置范围内的请求</option><option value="flexible">兼容：允许外部静态资源，去掉凭证</option></select>
+            <label for="requestDelayMs">同主机请求间隔（毫秒）</label><input id="requestDelayMs" type="number" min="0" step="1" value="50">
+          </div></details>
+          <div class="buttons"><button id="start" type="submit" class="primary">开始新任务</button><button id="resume" type="button" disabled>按当前预算续跑</button><button id="stop" type="button" class="stop" disabled>停止并保存</button></div>
+        </form>
+        <p id="message" role="status" aria-live="polite"></p>
+      </section>
+      <section class="card progress-panel" aria-labelledby="progress-title">
+        <div class="section-heading"><h2 id="progress-title">任务进度</h2><span id="status" class="badge">等待开始</span></div>
+        <label class="field-label" for="runs">历史任务</label><select id="runs"><option value="">暂无任务</option></select>
+        <p id="current-asset" class="current-asset">输入 URL 后开始新任务。</p>
+        <div class="metrics"><div><b id="states">0</b><span>已发现状态</span></div><div><b id="requests">0</b><span>本轮请求</span></div><div><b id="actions">0</b><span>本轮动作</span></div><div><b id="elapsed">0:00</b><span>运行时长</span></div></div>
+        <div class="budget-progress"><div><span id="budget-caption">默认上限</span><span id="budget-value">0 / 50 状态</span></div><progress id="state-progress" max="50" value="0" aria-label="状态预算使用量"></progress></div>
+        <p id="result-note" class="result-note">运行后会显示停止原因与待探索动作。</p>
+        <p id="output-dir" class="hint output-dir"></p>
+        <div id="report-links" class="report-links" hidden><a id="report-link" target="_blank" rel="noopener">打开结果报告 ↗</a><a id="apis-link" target="_blank" rel="noopener">API 清单</a><a id="pending-link" target="_blank" rel="noopener">未探索动作</a></div>
+        <details class="logs" open><summary>运行日志</summary><pre id="logs" aria-live="off">等待任务。</pre></details>
+      </section>
+    </div>
+    <footer>“跑完”表示当前范围与动作策略下的发现队列耗尽。持续生成新状态的页面可能一直运行，可随时停止；浏览器资源、单次操作超时和控件采样约束仍生效。结果报告会列出覆盖缺口。</footer>
+  </main>
+</body>
+</html>

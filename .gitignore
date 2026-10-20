@@ -1,0 +1,7 @@
+node_modules/
+output*/
+output-runs/
+output-demo-*/
+*.log
+private/
+.DS_Store
