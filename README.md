@@ -18,6 +18,7 @@ npm run view
 ```
 
 打开终端显示的 [http://127.0.0.1:4177/](http://127.0.0.1:4177/)，输入已授权的 HTTP(S) URL，即可开始匿名探索。默认结果保存在 `output-runs/<runId>/`。账号、验证码和站点特殊交互需要相应会话或配置，工具会在报告中说明缺口。
+<img width="3024" height="1712" alt="c8fb782ccf47a3d7a48e2e9263e584db" src="https://github.com/user-attachments/assets/5ab5ccca-670e-4e36-a125-9ccb31c2afeb" />
 
 本地演示无需账号：
 
