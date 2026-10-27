@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "endpoint-inventory": {
+      "command": "/absolute/path/to/node",
+      "args": ["/absolute/path/to/bfs-clicker-public/gateway/dist/server.js", "--config", "/absolute/path/to/bfs-clicker-public/gateway/examples/gateway.yaml"]
+    }
+  }
+}

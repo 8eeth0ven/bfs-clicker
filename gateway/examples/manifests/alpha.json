@@ -1,0 +1,5 @@
+[
+  {"method":"GET","url":"https://api.alpha.test/users/{id}","headers":{},"query":{"expand":"profile"},"body":null,"categories":["observed","users"],"description":"查询用户资料"},
+  {"method":"POST","url":"https://api.alpha.test/users/{id}","headers":{"content-type":"application/json"},"query":{},"body":{"display_name":"sample"},"categories":["static_candidate","users"],"description":"修改用户资料"},
+  {"method":"GET","url":"https://api.alpha.test/search?q={q}","headers":{},"query":{"page":"1"},"body":null,"categories":["static_candidate","search"],"description":"搜索用户"}
+]

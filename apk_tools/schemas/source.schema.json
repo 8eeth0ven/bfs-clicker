@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Source descriptor 1.1",
+  "type": "object",
+  "required": ["format", "schema_version", "kind", "source_id", "inventory"],
+  "properties": {
+    "format": {"const": "endpoint-inventory"},
+    "schema_version": {"enum": ["1.1"]},
+    "kind": {"enum": ["web", "apk"]},
+    "source_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "inventory": {"type": "string", "minLength": 1},
+    "static_inventory": {"type": "string"},
+    "app": {
+      "type": "object",
+      "properties": {
+        "package_name": {"type": "string"},
+        "apk_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  },
+  "additionalProperties": true
+}

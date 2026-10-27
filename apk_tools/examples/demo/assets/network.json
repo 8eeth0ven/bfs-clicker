@@ -1,0 +1,7 @@
+{
+  "requests": [
+    {"method":"GET","url":"http://127.0.0.1:8765/items","query":{"page":"1","tag":["blue","new"]}},
+    {"method":"POST","url":"http://127.0.0.1:8765/items","body":{"title":"test item"}},
+    {"method":"GET","url":"http://127.0.0.1:8765/items/{id}"}
+  ]
+}

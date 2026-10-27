@@ -1,0 +1,4 @@
+[
+  {"method":"GET","url":"https://api.gamma.test/items","headers":{},"query":{"page":"1"},"body":null,"categories":["static_candidate"],"source":"hermes","package":"assets/index.android.bundle#string:418","body_capture":"unknown","description":"移动端商品目录"},
+  {"method":null,"url":"https://api.gamma.test/profile","headers":{},"query":{},"body":null,"categories":["static_candidate"],"source":"dex","package":"classes2.dex#string:32","body_capture":"unknown"}
+]

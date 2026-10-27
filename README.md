@@ -4,6 +4,24 @@
 
 [本地操作面板](#本地操作面板) · [命令行](#命令行) · [认证](#认证与范围) · [输出](#结果与完成状态) · [修复与验收](docs/implementation-status.md) · [竞品对比](docs/project-review.md) · [Agent 任务书](docs/agent-implementation-prompt.md) · [English](#english)
 
+## APK 接口清单与 MCP 网关（beta）
+
+新增独立的 APK → 接口提取 → 可选 mitmdump 验证 → MCP 链路。Web 与 APK 的统一六字段清单共用固定四个工具（list/search/call/add_source）、按来源绑定的凭据和 GET-only 护栏。
+
+- [APK CLI、依赖与运行时验证](apk_tools/README.md)
+- [TypeScript MCP 网关、三来源模板与 Claude/Cursor 配置](gateway/README.md)
+- [架构](docs/apk-mcp-architecture.md) · [测试与能力边界](docs/apk-mcp-verification.md)
+
+主爬虫仍要求 Node.js ≥20；可选 MCP 网关要求 Node.js ≥22，APK 提取要求 Python ≥3.11，动态验证 extra 要求 Python ≥3.12。
+
+```bash
+npm --prefix gateway ci
+npm run gateway:build
+node gateway/examples/client-config.mjs --cursor --config /absolute/path/gateway.yaml
+```
+
+网关接收规范化的 method/url/headers/query/body/categories 清单；v2 原始 API 账本的分类与样本结构保持不变。真实凭据、APK、抓包和运行报告留在本地，仓库只发布源码与合成夹具。
+
 ## 安装与快速开始
 
 要求 Node.js ≥ 20。默认使用 Playwright 自带 Chromium；核心工具和网页面板无需 Python。

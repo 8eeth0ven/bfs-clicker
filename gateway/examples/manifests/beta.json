@@ -1,0 +1,4 @@
+[
+  {"method":"GET","url":"https://api.beta.test/projects","headers":{},"query":{"page":"1","tag":["blue","new"]},"body":null,"categories":["observed","projects"],"description":"项目目录"},
+  {"method":"GET","url":"https://api.beta.test/projects/{project_id}/issues","headers":{},"query":{"status":"open"},"body":null,"categories":["static_candidate","issues"],"description":"项目问题列表"}
+]

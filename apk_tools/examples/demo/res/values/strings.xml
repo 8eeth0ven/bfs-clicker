@@ -1,0 +1,5 @@
+<resources>
+  <string name="app_name">Inventory Demo</string>
+  <string name="demo_url">http://127.0.0.1:8765/items?page=1</string>
+  <string name="staging_url">https://stg.api.example.test/v1/items</string>
+</resources>

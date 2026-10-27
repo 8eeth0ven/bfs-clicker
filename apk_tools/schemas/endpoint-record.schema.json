@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.test/schemas/endpoint-record-1.1.json",
+  "title": "Endpoint inventory record 1.1",
+  "type": "object",
+  "required": ["method", "url", "headers", "query", "body", "categories"],
+  "properties": {
+    "method": {"enum": [null, "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]},
+    "url": {"type": "string", "pattern": "^https?://", "maxLength": 16384},
+    "headers": {"type": "object", "additionalProperties": {"type": "string"}},
+    "query": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {"type": ["string", "number", "boolean", "null"]},
+          {"type": "array", "items": {"type": ["string", "number", "boolean"]}}
+        ]
+      }
+    },
+    "body": {},
+    "categories": {
+      "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+      "oneOf": [
+        {"contains": {"const": "static_candidate"}, "not": {"contains": {"const": "observed"}}},
+        {"contains": {"const": "observed"}, "not": {"contains": {"const": "static_candidate"}}}
+      ]
+    },
+    "source": {"enum": ["manifest", "strings", "hermes", "dex", "asset", "network", "static_candidate", "observed"]},
+    "package": {"type": ["string", "null"]},
+    "body_capture": {"enum": ["absent", "complete", "shape_only", "truncated", "unknown"]},
+    "body_shape": {"type": ["object", "null"]},
+    "query_shape": {"type": ["object", "null"]},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,1 @@
+{"format":"endpoint-inventory","schema_version":"1.1","kind":"apk","source_id":"apk_gamma","inventory":"endpoints.static.json","app":{"package_name":"com.example.gamma","version_name":"1.0-fixture","apk_sha256":"0000000000000000000000000000000000000000000000000000000000000000"}}

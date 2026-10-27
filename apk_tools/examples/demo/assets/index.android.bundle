@@ -1,0 +1,3 @@
+// Plain JavaScript RN-style fixture; this file is not Hermes bytecode.
+const api = {baseURL: 'http://127.0.0.1:8765', method: 'GET', url: '/items'};
+const unusedCandidate = 'https://dev.api.example.test/v1/profile?lang=zh';

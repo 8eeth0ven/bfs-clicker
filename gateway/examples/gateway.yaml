@@ -1,0 +1,27 @@
+manifest_roots: [./manifests]
+state_dir: ../state
+timeout_ms: 10000
+max_body_bytes: 32768
+max_catalog_bytes: 131072
+success_threshold: 3
+missing_threshold: 3
+methods:
+  allow_non_get: false
+  allow: []
+sources:
+  - id: alpha
+    manifest: ./manifests/alpha.json
+    credentials: ./credentials/alpha.yaml
+    allowed_origins: [https://api.alpha.test]
+    credential_origins: [https://api.alpha.test]
+  - id: beta
+    manifest: ./manifests/beta.json
+    credentials: ./credentials/beta.yaml
+    allowed_origins: [https://api.beta.test]
+    credential_origins: [https://api.beta.test]
+  - id: apk_gamma
+    kind: apk
+    manifest: ./manifests/apk_gamma
+    credentials: ./credentials/gamma.yaml
+    allowed_origins: [https://api.gamma.test]
+    credential_origins: [https://api.gamma.test]

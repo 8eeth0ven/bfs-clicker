@@ -4,6 +4,10 @@
   "type": "module",
   "description": "Web 资产探索与本地操作面板（Playwright，BFS/DFS，预算控制与断点续跑）",
   "files": [
+    "gateway/",
+    "apk_tools/",
+    "docs/apk-mcp-architecture.md",
+    "docs/apk-mcp-verification.md",
     "src/",
     "view/",
     "demo/",
@@ -15,6 +19,10 @@
     "scripts/dedup-traffic.mjs"
   ],
   "scripts": {
+    "gateway:build": "npm --prefix gateway run build",
+    "test:gateway": "npm --prefix gateway test",
+    "test:apk": "python3 -m unittest discover -s apk_tools/tests",
+    "demo:apk-mcp": "node gateway/examples/apk-e2e.mjs",
     "run": "node src/index.js run",
     "doctor": "node src/index.js doctor",
     "login": "node src/index.js login",

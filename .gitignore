@@ -5,3 +5,63 @@ output-demo-*/
 *.log
 private/
 .DS_Store
+
+# APK/MCP 与本地认证材料
+# 爬取产物（含真实会话/流量/截图，绝不上传）
+output/
+output-demo/
+output-crawl.log
+output-demo.log
+# 调试/探针脚本
+probe-*.mjs
+# 日志
+# 系统
+Thumbs.db
+# IDE
+.vscode/
+.idea/
+# 真实爬取产物全族兜底（output-* 一律不上传：登录态/流量/截图/断点）
+output-*/
+# 会话/登录态兜底（任何位置命中都不入库）
+session*.json
+ctx_handoff_*.json
+*.har
+*.bak_*
+# Python 编译产物
+__pycache__/
+*.pyc
+# APK/MCP 本地构建、会话及抓包产物
+gateway/dist/
+gateway/state/
+.apk-inventory/
+.mitmproxy/
+.venv/
+*.egg-info/
+*.apk
+*.keystore
+*.jks
+*.mitm
+*.local.yaml
+# 本地环境与认证材料；发布模板使用 .example/.sample 命名
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.p12
+*.pfx
+storageState*.json
+storage-state*.json
+cookie*.txt
+token*.txt
+capture*.jsonl
+*.sqlite
+*.sqlite3
+*.pcap
+*.pcapng
+*.hbc
+*.apks
+*.apkm
+*.xapk
+*.aab
