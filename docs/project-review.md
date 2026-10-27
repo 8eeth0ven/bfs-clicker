@@ -1,5 +1,7 @@
 # bfs-clicker 项目评估、竞品对比与补全路线
 
+> 本文侧重 Web 探索的设计复核与工具比较；当前项目的 Android APK 提取、受控验证和 MCP 网关入口见 [项目首页](../README.md) 与 [APK/MCP 架构](apk-mcp-architecture.md)。
+
 评估日期：2026-10-19。代码基线：`6b1cf55`（main，2026-10-16）。范围：Node Web 爬虫、报告与相关测试；Android 工具仅检查目录定位。本文保存修复前的审计与复现，表中“当前”均指该基线；新实现和实际验收见 [implementation-status.md](implementation-status.md)。竞品部分为官方功能对照，未执行竞品跑分。
 
 项目已经具备可配置的动态发现引擎。距离“输入一个资产就稳定交付结果”，主要缺少统一入口、请求/动作策略、认证管理、可靠持久化和诚实的完成判定。产物数量不能直接当作覆盖率，也不能证明漏洞成立。
@@ -160,5 +162,5 @@ node output-review/report-check.mjs
 
 最小验收必须包含：匿名 URL 一条命令出结果；无凭证登录页返回 needs_auth；外域注入令牌为零；危险确认不执行；12 态预算不超；换目标拒绝旧断点；放宽深度继续；中断续跑与整轮发现集合一致；未处理控件不显示已点；报告恶意标签不能执行。
 
-完整可直接交给 agent 的实施 prompt 见 [agent-implementation-prompt.md](agent-implementation-prompt.md)。需要 LLM 时只用于候选动作分类与解释；范围、预算、凭证和完成判定由可测试的确定性代码执行。闭环质量可先通过这些实现提升。
+完整可直接交给 agent 的实施 prompt 见 `agent-implementation-prompt.md`（历史文档，未随公开基线提供）。需要 LLM 时只用于候选动作分类与解释；范围、预算、凭证和完成判定由可测试的确定性代码执行。闭环质量可先通过这些实现提升。
 

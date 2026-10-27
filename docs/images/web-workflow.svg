@@ -1,0 +1,85 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Web 控制台探索">
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1">
+      <stop stop-color="#f5faff"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#e8f0f9" stroke-width="0.6"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#008c91"/>
+    </marker>
+  </defs>
+  <g font-family="PingFang SC, STHeiti, Noto Sans CJK SC, Arial, sans-serif">
+    <rect width="1600" height="900" fill="url(#bg)"/>
+    <rect width="1600" height="900" fill="url(#grid)" opacity="0.55"/>
+    <text x="64" y="94" font-size="48" font-weight="700" fill="#102747" text-anchor="start">Web 控制台探索</text>
+    <text x="64" y="144" font-size="24" font-weight="400" fill="#526780" text-anchor="start">输入 URL，让真实浏览器遍历界面并保留请求证据</text>
+    <rect x="1125" y="60" width="411" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="1330.5" y="83" font-size="17" font-weight="600" fill="#3269cf" text-anchor="middle">PLAYWRIGHT  /  BFS · DFS</text>
+    <text x="64" y="217" font-size="24" font-weight="500" fill="#008c91" text-anchor="start">从入口到证据，探索过程可复查、可停止、可续跑</text>
+    <rect x="64" y="260" width="344" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="106" cy="303" r="21" fill="#e8f5f8"/>
+    <text x="106" y="311" font-size="21" font-weight="700" fill="#008c91" text-anchor="middle">01</text>
+    <text x="140" y="312" font-size="26" font-weight="700" fill="#102747" text-anchor="start">输入与范围</text>
+    <rect x="90" y="341" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="146.0" y="364" font-size="17" font-weight="600" fill="#008c91" text-anchor="middle">INPUT</text>
+    <path d="M90 396H382" stroke="#d8e5f2"/>
+    <text x="90" y="438" font-size="22" font-weight="400" fill="#526780" text-anchor="start">入口 URL · 会话 / Profile</text>
+    <text x="90" y="474" font-size="22" font-weight="400" fill="#526780" text-anchor="start">Origin 白名单 · 探索预算</text>
+    <text x="90" y="510" font-size="19" font-weight="400" fill="#526780" text-anchor="start">代理与认证按任务配置</text>
+    <path d="M412 398 L434 398" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="440" y="260" width="344" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="482" cy="303" r="21" fill="#e8f5f8"/>
+    <text x="482" y="311" font-size="21" font-weight="700" fill="#3269cf" text-anchor="middle">02</text>
+    <text x="516" y="312" font-size="26" font-weight="700" fill="#102747" text-anchor="start">浏览器遍历</text>
+    <rect x="466" y="341" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="522.0" y="364" font-size="17" font-weight="600" fill="#3269cf" text-anchor="middle">UI STATES</text>
+    <path d="M466 396H758" stroke="#d8e5f2"/>
+    <text x="466" y="438" font-size="22" font-weight="400" fill="#526780" text-anchor="start">点击 · 标签页 · 页面跳转</text>
+    <text x="466" y="474" font-size="22" font-weight="400" fill="#526780" text-anchor="start">iframe · 开放 Shadow DOM</text>
+    <text x="466" y="510" font-size="19" font-weight="400" fill="#526780" text-anchor="start">滚动与代表性控件采样</text>
+    <path d="M788 398 L810 398" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="816" y="260" width="344" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="858" cy="303" r="21" fill="#e8f5f8"/>
+    <text x="858" y="311" font-size="21" font-weight="700" fill="#6554c0" text-anchor="middle">03</text>
+    <text x="892" y="312" font-size="26" font-weight="700" fill="#102747" text-anchor="start">捕获与提取</text>
+    <rect x="842" y="341" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="898.0" y="364" font-size="17" font-weight="600" fill="#6554c0" text-anchor="middle">EVIDENCE</text>
+    <path d="M842 396H1134" stroke="#d8e5f2"/>
+    <text x="842" y="438" font-size="22" font-weight="400" fill="#526780" text-anchor="start">网络请求 · 动态 JS 线索</text>
+    <text x="842" y="474" font-size="22" font-weight="400" fill="#526780" text-anchor="start">有界正文 · 接口候选</text>
+    <text x="842" y="510" font-size="19" font-weight="400" fill="#526780" text-anchor="start">静态线索与实抓分类保留</text>
+    <path d="M1164 398 L1186 398" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="1192" y="260" width="344" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="1234" cy="303" r="21" fill="#e8f5f8"/>
+    <text x="1234" y="311" font-size="21" font-weight="700" fill="#008c91" text-anchor="middle">04</text>
+    <text x="1268" y="312" font-size="26" font-weight="700" fill="#102747" text-anchor="start">保存与续跑</text>
+    <rect x="1218" y="341" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="1274.0" y="364" font-size="17" font-weight="600" fill="#008c91" text-anchor="middle">REPORTS</text>
+    <path d="M1218 396H1510" stroke="#d8e5f2"/>
+    <text x="1218" y="438" font-size="22" font-weight="400" fill="#526780" text-anchor="start">报告 · 路由图 · 接口账本</text>
+    <text x="1218" y="474" font-size="22" font-weight="400" fill="#526780" text-anchor="start">停止保存 · 断点续跑</text>
+    <text x="1218" y="510" font-size="19" font-weight="400" fill="#526780" text-anchor="start">未探索动作与原因可见</text>
+    <rect x="64" y="600" width="464" height="160" rx="20" fill="#f7faff" stroke="#d8e5f2"/>
+    <rect x="88" y="627" width="5" height="28" rx="2" fill="#3269cf"/>
+    <text x="108" y="650" font-size="26" font-weight="700" fill="#102747" text-anchor="start">本地面板</text>
+    <text x="88" y="693" font-size="21" font-weight="400" fill="#526780" text-anchor="start">预算设置 · 任务进度 · 日志</text>
+    <text x="88" y="728" font-size="21" font-weight="400" fill="#526780" text-anchor="start">默认 / 自定义 / 不限预算</text>
+    <rect x="568" y="600" width="464" height="160" rx="20" fill="#f7faff" stroke="#d8e5f2"/>
+    <rect x="592" y="627" width="5" height="28" rx="2" fill="#008c91"/>
+    <text x="612" y="650" font-size="26" font-weight="700" fill="#102747" text-anchor="start">证据与报告</text>
+    <text x="592" y="693" font-size="21" font-weight="400" fill="#526780" text-anchor="start">HTML / Markdown · 请求事件</text>
+    <text x="592" y="728" font-size="21" font-weight="400" fill="#526780" text-anchor="start">API 分类 · 参数样本 · 覆盖缺口</text>
+    <rect x="1072" y="600" width="464" height="160" rx="20" fill="#f7faff" stroke="#d8e5f2"/>
+    <rect x="1096" y="627" width="5" height="28" rx="2" fill="#6554c0"/>
+    <text x="1116" y="650" font-size="26" font-weight="700" fill="#102747" text-anchor="start">范围与动作策略</text>
+    <text x="1096" y="693" font-size="21" font-weight="400" fill="#526780" text-anchor="start">严格 Origin · 凭据范围</text>
+    <text x="1096" y="728" font-size="21" font-weight="400" fill="#526780" text-anchor="start">safe 动作 · 表单明确白名单</text>
+    <path d="M64 812H1536" stroke="#d8e5f2"/>
+    <text x="64" y="852" font-size="20" font-weight="400" fill="#526780" text-anchor="start">Web 原始账本接入 MCP 前，需显式适配为统一清单。</text>
+    <text x="1536" y="852" font-size="18" font-weight="400" fill="#526780" text-anchor="end">功能示意 · 非产品截图</text>
+  </g>
+</svg>

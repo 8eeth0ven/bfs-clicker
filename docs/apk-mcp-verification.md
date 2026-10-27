@@ -1,5 +1,7 @@
 # APK → 清单 → MCP 验收记录
 
+[项目总览](../README.md) · [APK CLI](../apk_tools/README.md) · [MCP 网关](../gateway/README.md) · [实现架构](apk-mcp-architecture.md)
+
 验证日期：2026-10-27。源码、样例与测试在仓库内；构建包、运行报告、清单和补丁保存在被gitignore的output-apk-demo目录。只对自建fixture App和loopback API执行动态请求。
 
 ## 结果

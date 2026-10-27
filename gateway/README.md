@@ -1,21 +1,36 @@
 # 接口清单 → MCP 网关（beta）
 
+[项目总览](../README.md) · [APK 提取与验证](../apk_tools/README.md) · [实现架构](../docs/apk-mcp-architecture.md) · [验收记录](../docs/apk-mcp-verification.md)
+
 TypeScript + `@modelcontextprotocol/sdk` + stdio。Web 清单与 APK 产出使用同一个调用层，客户端始终只看到 **4 个工具**：`list_endpoints`、`search_endpoints`、`call_endpoint`、`add_source`，另有每个来源的只读 resource。
 
 ## 安装与启动
 
-需要 Node.js >=22。
+需要 Node.js >=22。本文命令均从仓库根目录执行。
 
 ```bash
-cd gateway
-npm ci
-npm run build
-npm start -- --config /absolute/path/to/gateway.yaml
+npm --prefix gateway ci
+npm --prefix gateway run build
+node gateway/dist/server.js --config /absolute/path/to/gateway.yaml
 ```
 
 仓库提供 [三来源样例配置](examples/gateway.yaml)，包括两个 Web 清单和一个 APK 目录，以及 headers、cookie、storageState 三种凭据模板。`.test` 是示例域；实际使用时替换成本地允许的来源。真实凭据放在被 gitignore 的 `*.local.yaml` 中。
 
 配置中的路径相对于配置文件解析，不依赖 MCP 客户端的工作目录。
+
+## 接入哪种清单
+
+Web 来源接收已经规范化的端点 JSON 数组，或包含 `endpoints` 数组的对象。每条记录使用 `method/url/headers/query/body/categories`；`static_candidate` 表示静态候选，`observed` 表示网络实抓。认证值留在独立凭据文件中。
+
+```json
+[
+  {"method":"GET","url":"https://api.example.test/items","headers":{},"query":{"page":1},"body":null,"categories":["static_candidate"]}
+]
+```
+
+Web 爬虫 v2 的原始 API 账本还包含采样和业务分类结构，当前网关不会自动把它转换为该端点格式；需要先生成符合上述契约的清单。不要把原账本、HAR 或验收报告直接传给 `add_source`。
+
+APK 来源可直接使用 `apk_extract` 的产出目录：`source.json` 指向静态原单，`apk_verify` 完成后指向派生清单。两种来源共用发现、调用、凭据与护栏，APK 的 `source=hermes/dex/...` 溯源仍可检索。
 
 ## 配置
 
@@ -99,7 +114,7 @@ source 省略或 `*` 表示所有已注册来源。filter 支持 `endpoint_id/pa
   "source":"mobile_demo",
   "endpoint_id":"ep_由目录返回的64位哈希",
   "expected_revision":"目录返回的版本",
-  "params":{"method":"GET","path":{"id":"42"},"query":{"page":"2","tag":["blue","new"]}}
+  "params":{"method":"GET","path":{"id":"42"},"query":{"page":2,"tag":["blue","new"]}}
 }
 ```
 

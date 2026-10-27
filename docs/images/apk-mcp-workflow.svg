@@ -1,0 +1,97 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="APK → 接口清单 → MCP">
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1">
+      <stop stop-color="#f5faff"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#e8f0f9" stroke-width="0.6"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#008c91"/>
+    </marker>
+  </defs>
+  <g font-family="PingFang SC, STHeiti, Noto Sans CJK SC, Arial, sans-serif">
+    <rect width="1600" height="900" fill="url(#bg)"/>
+    <rect width="1600" height="900" fill="url(#grid)" opacity="0.55"/>
+    <text x="64" y="94" font-size="48" font-weight="700" fill="#102747" text-anchor="start">APK → 接口清单 → MCP</text>
+    <text x="64" y="144" font-size="24" font-weight="400" fill="#526780" text-anchor="start">从安装包线索到运行时证据，再到受控的结构化工具调用</text>
+    <rect x="1125" y="60" width="411" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="1330.5" y="83" font-size="17" font-weight="600" fill="#3269cf" text-anchor="middle">APK EVIDENCE  /  MCP BETA</text>
+    <path d="M512 246V197H1100V246" fill="none" stroke="#008c91" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrow)"/>
+    <text x="806" y="184" font-size="21" font-weight="500" fill="#008c91" text-anchor="middle">可跳过验证：保留 static_candidate</text>
+    <rect x="64" y="250" width="272" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="106" cy="293" r="21" fill="#e8f5f8"/>
+    <text x="106" y="301" font-size="21" font-weight="700" fill="#3269cf" text-anchor="middle">01</text>
+    <text x="140" y="302" font-size="26" font-weight="700" fill="#102747" text-anchor="start">APK 解析</text>
+    <rect x="90" y="331" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="146.0" y="354" font-size="17" font-weight="600" fill="#3269cf" text-anchor="middle">PACKAGE</text>
+    <path d="M90 386H310" stroke="#d8e5f2"/>
+    <text x="90" y="428" font-size="22" font-weight="400" fill="#526780" text-anchor="start">Manifest · 资源</text>
+    <text x="90" y="464" font-size="22" font-weight="400" fill="#526780" text-anchor="start">多 DEX · assets</text>
+    <text x="90" y="500" font-size="19" font-weight="400" fill="#526780" text-anchor="start">类 / 资源位置保留</text>
+    <path d="M340 388 L358 388" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="364" y="250" width="272" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="406" cy="293" r="21" fill="#e8f5f8"/>
+    <text x="406" y="301" font-size="21" font-weight="700" fill="#008c91" text-anchor="middle">02</text>
+    <text x="440" y="302" font-size="26" font-weight="700" fill="#102747" text-anchor="start">静态提取</text>
+    <rect x="390" y="331" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="446.0" y="354" font-size="17" font-weight="600" fill="#008c91" text-anchor="middle">STATIC</text>
+    <path d="M390 386H610" stroke="#d8e5f2"/>
+    <text x="390" y="428" font-size="22" font-weight="400" fill="#526780" text-anchor="start">Androguard / JADX</text>
+    <text x="390" y="464" font-size="22" font-weight="400" fill="#526780" text-anchor="start">Hermes 可切换后端</text>
+    <text x="390" y="500" font-size="19" font-weight="400" fill="#526780" text-anchor="start">有界扫描与预算</text>
+    <path d="M640 388 L658 388" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="664" y="250" width="272" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="706" cy="293" r="21" fill="#e8f5f8"/>
+    <text x="706" y="301" font-size="21" font-weight="700" fill="#6554c0" text-anchor="middle">03</text>
+    <text x="740" y="302" font-size="26" font-weight="700" fill="#102747" text-anchor="start">动态验证</text>
+    <rect x="690" y="331" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="746.0" y="354" font-size="17" font-weight="600" fill="#6554c0" text-anchor="middle">OPTIONAL</text>
+    <path d="M690 386H910" stroke="#d8e5f2"/>
+    <text x="690" y="428" font-size="22" font-weight="400" fill="#526780" text-anchor="start">ADB · mitmdump</text>
+    <text x="690" y="464" font-size="22" font-weight="400" fill="#526780" text-anchor="start">人工操作专用设备</text>
+    <text x="690" y="500" font-size="19" font-weight="400" fill="#526780" text-anchor="start">记录真实 HTTP</text>
+    <path d="M940 388 L958 388" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="964" y="250" width="272" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="1006" cy="293" r="21" fill="#e8f5f8"/>
+    <text x="1006" y="301" font-size="21" font-weight="700" fill="#3269cf" text-anchor="middle">04</text>
+    <text x="1040" y="302" font-size="26" font-weight="700" fill="#102747" text-anchor="start">统一清单</text>
+    <rect x="990" y="331" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="1046.0" y="354" font-size="17" font-weight="600" fill="#3269cf" text-anchor="middle">MANIFEST</text>
+    <path d="M990 386H1210" stroke="#d8e5f2"/>
+    <text x="990" y="428" font-size="22" font-weight="400" fill="#526780" text-anchor="start">method · url · query</text>
+    <text x="990" y="464" font-size="22" font-weight="400" fill="#526780" text-anchor="start">headers · body</text>
+    <text x="990" y="500" font-size="19" font-weight="400" fill="#526780" text-anchor="start">categories · 溯源</text>
+    <path d="M1240 388 L1258 388" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="1264" y="250" width="272" height="276" rx="20" fill="white" stroke="#d8e5f2"/>
+    <circle cx="1306" cy="293" r="21" fill="#e8f5f8"/>
+    <text x="1306" y="301" font-size="21" font-weight="700" fill="#008c91" text-anchor="middle">05</text>
+    <text x="1340" y="302" font-size="26" font-weight="700" fill="#102747" text-anchor="start">MCP 网关</text>
+    <rect x="1290" y="331" width="112" height="34" rx="17" fill="#eef8fa" stroke="none"/>
+    <text x="1346.0" y="354" font-size="17" font-weight="600" fill="#008c91" text-anchor="middle">4 TOOLS</text>
+    <path d="M1290 386H1510" stroke="#d8e5f2"/>
+    <text x="1290" y="428" font-size="22" font-weight="400" fill="#526780" text-anchor="start">list / search / call</text>
+    <text x="1290" y="464" font-size="22" font-weight="400" fill="#526780" text-anchor="start">add_source · 资源</text>
+    <text x="1290" y="500" font-size="19" font-weight="400" fill="#526780" text-anchor="start">Claude / Cursor</text>
+    <rect x="64" y="599" width="464" height="160" rx="20" fill="#f7faff" stroke="#d8e5f2"/>
+    <rect x="88" y="626" width="5" height="28" rx="2" fill="#008c91"/>
+    <text x="108" y="649" font-size="26" font-weight="700" fill="#102747" text-anchor="start">凭据在本地绑定</text>
+    <text x="88" y="692" font-size="21" font-weight="400" fill="#526780" text-anchor="start">headers / Cookie / token</text>
+    <text x="88" y="727" font-size="21" font-weight="400" fill="#526780" text-anchor="start">storageState · 响应脱敏</text>
+    <rect x="568" y="599" width="464" height="160" rx="20" fill="#f7faff" stroke="#d8e5f2"/>
+    <rect x="592" y="626" width="5" height="28" rx="2" fill="#3269cf"/>
+    <text x="612" y="649" font-size="26" font-weight="700" fill="#102747" text-anchor="start">调用有护栏</text>
+    <text x="592" y="692" font-size="21" font-weight="400" fill="#526780" text-anchor="start">GET-only beta · Origin 校验</text>
+    <text x="592" y="727" font-size="21" font-weight="400" fill="#526780" text-anchor="start">超时 · 一次重试 · 32 KiB 默认截断</text>
+    <rect x="1072" y="599" width="464" height="160" rx="20" fill="#f7faff" stroke="#d8e5f2"/>
+    <rect x="1096" y="626" width="5" height="28" rx="2" fill="#6554c0"/>
+    <text x="1116" y="649" font-size="26" font-weight="700" fill="#102747" text-anchor="start">证据与健康状态分开</text>
+    <text x="1096" y="692" font-size="21" font-weight="400" fill="#526780" text-anchor="start">static_candidate = 静态未验证</text>
+    <text x="1096" y="727" font-size="21" font-weight="400" fill="#526780" text-anchor="start">observed = 网络层实抓</text>
+    <path d="M64 812H1536" stroke="#d8e5f2"/>
+    <text x="64" y="852" font-size="20" font-weight="400" fill="#526780" text-anchor="start">静态原单保留；验证生成派生清单，网关学习写入旁车文件。</text>
+    <text x="1536" y="852" font-size="18" font-weight="400" fill="#526780" text-anchor="end">功能示意 · 非产品截图</text>
+  </g>
+</svg>

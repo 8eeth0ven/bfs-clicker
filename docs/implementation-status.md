@@ -1,10 +1,12 @@
 # 实现与验收记录
 
-日期：2026-10-19。仓库基线 `6b1cf55`，本地分支 `codex/readme-review`。修复位于当前未提交工作树；没有推送或 PR。基线审计保留在 [project-review.md](project-review.md)，独立验收复现与结论见 [acceptance-review.md](acceptance-review.md)，接手任务见 [next-agent-prompt.md](next-agent-prompt.md)。
+> 本页为 Web 开发阶段的历史验收记录。当前公开树缺少根 package.json 引用的 7 个测试脚本，不能据此认定整仓回归已通过；本次 APK/MCP 的独立验收见 [验收记录](apk-mcp-verification.md)，当前使用入口见 [项目首页](../README.md)。
+
+日期：2026-10-19。仓库基线 `6b1cf55`，本地分支 `codex/readme-review`。修复位于当前未提交工作树；没有推送或 PR。基线审计保留在 [project-review.md](project-review.md)，独立验收复现与结论见 `acceptance-review.md`（历史文档，未随公开基线提供），接手任务见 `next-agent-prompt.md`（历史文档，未随公开基线提供）。
 
 ## 第三轮结果（验收修复 F1/F2/F3）
 
-针对 [acceptance-review.md](acceptance-review.md) 复现的三个问题修复；每个回归都先在临时还原的旧逻辑上复现失败、再在修复后通过：
+针对 `acceptance-review.md`（历史文档，未随公开基线提供） 复现的三个问题修复；每个回归都先在临时还原的旧逻辑上复现失败、再在修复后通过：
 
 1. **F2/P1 双面板任务所有权**：worker 启动时经 `BFS_OWNER` 环境变量携带每 worker 随机令牌，`store.js` 在取得 `.run.lock` 时把 `{owner,pid}` 写入锁文件；面板 `launch` 后以 50ms 握手轮询确认"锁内 owner+PID 属于本 worker"才视为持锁。`stop` 只在持锁确认后写 STOP；启动期请求停止改为延迟语义——本 worker 拿到锁后立即落 STOP 并干净保存（单面板启动期停止行为保留），永远不写其他实例持有的任务。`stopTimer` 同样加持锁门；shutdown 走同一路径，未持锁 worker 由自身锁失败退出或超时 kill，只影响自己。新 W8 回归：A 不限续跑持锁后，B 面板 resume+立即 stop → B 不写 STOP、A 跑完 56 态 `completed/frontier_exhausted`、`attempts` 保持 2、配置保持 A 的 unlimited；随后单面板启动期立即 stop → `partial/STOP`。说明：启动期 stop 的 API 返回 202（延迟生效），不是验收记录猜测文案中的 409——语义是"取消自己的 worker"，而不是"拒绝请求"； refusal（409）只发生在该面板没有活动 worker 时。
 2. **F3/P1 开放 Shadow DOM 排除绕过**：`formfill.js` 新增 `crossHostExcluded`（沿 `getRootNode().host` 走祖先链，评估失败按排除处理），`prepareForm` 的字段/select 循环与 `pickOpenOption` 全部换用，并在填写/选择前执行与 `checkLiveAction` 同标准的 live policy（写词字段、excluded 字段一律不填）。夹具 `/form` 增加开放 shadow host `#protected-host`（内含 `#protected`），T06 用例断言：发现清单记 `skipped/excluded_selector`、即使 `formValues` 指定该值，提交体仍为 `{"protected":""}`、值不出现；普通允许字段与下拉不受影响。
@@ -112,4 +114,4 @@
 
 ## 交接重点
 
-本轮新增功能已可运行。下一轮优先收敛真实大站稳定性、配置合同与证据来源，不应再以增加接口数量代替结果可信度。具体可执行工作与禁止破坏的回归见 [next-agent-prompt.md](next-agent-prompt.md)。
+本轮新增功能已可运行。下一轮优先收敛真实大站稳定性、配置合同与证据来源，不应再以增加接口数量代替结果可信度。具体可执行工作与禁止破坏的回归见 `next-agent-prompt.md`（历史文档，未随公开基线提供）。

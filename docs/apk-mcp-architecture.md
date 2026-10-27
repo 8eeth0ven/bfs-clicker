@@ -1,5 +1,7 @@
 # APK / Web 清单到 MCP 的实现架构
 
+[项目总览](../README.md) · [APK CLI](../apk_tools/README.md) · [MCP 网关](../gateway/README.md) · [验收记录](apk-mcp-verification.md)
+
 ## 数据流
 
 ```mermaid
@@ -47,7 +49,7 @@ flowchart TD
 | TS credentials/executor | 选定operation+params | 自动凭据、护栏、结构化HTTP结果 |
 | TS learning | 一次逻辑调用的最终观察 | 仅健康旁车，不改采集来源 |
 
-Python CLI通过子进程/文件协议接入，stdout一行JSON，参数用argv数组；MCP add_source仅导入已产生的清单，不隐式启动设备或执行清单指定程序。
+Python CLI通过子进程/文件协议接入，stdout一行JSON，参数用argv数组；MCP add_source仅导入已产生的清单，不隐式启动设备或执行清单指定程序。Web输入须已符合六字段端点契约，v2原始API账本尚无自动适配器。Android动态验证使用adb和mitmdump；Frida hook与Activity自动跳转不是本模块已实现的流程。
 
 ## 身份与证据
 

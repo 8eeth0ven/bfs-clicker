@@ -1,6 +1,10 @@
 # APK 接口清单工具（beta）
 
+[项目总览](../README.md) · [MCP 网关与客户端配置](../gateway/README.md) · [实现架构](../docs/apk-mcp-architecture.md) · [验收记录](../docs/apk-mcp-verification.md)
+
 `APK → 静态证据 → 可选运行时观察 → 派生清单 → TypeScript MCP`。
+
+离线提取用资源/DEX 解析器与可切换 Hermes 后端，deep 模式按需调用 JADX；动态验证用 adb 编排隔离设备、mitmdump 采集人工操作 App 时的 HTTP 请求。这个 beta 不包含 Frida hook、Activity 自动跳转或真实 App 的自动界面遍历；当前操作入口与设备准备见下文。
 
 ## 安装
 
@@ -116,4 +120,14 @@ node gateway/examples/apk-e2e.mjs --python /path/to/venv/bin/python \
   --apk /absolute/path/demo.apk --verified-inventory /absolute/path/inventory
 ```
 
-第一条只自动点击本仓库com.example.inventorydemo的两个本地HTTP按钮，拒绝其他包名；第二条将同一份设备实抓产物接续到MCP。独立ADB server可加--adb-port。测试运行记录见[架构说明](../docs/apk-mcp-architecture.md)。fake设备测试只能证明编排逻辑，不能替代实际模拟器抓包证据。
+第一条只自动点击本仓库com.example.inventorydemo的两个本地HTTP按钮，拒绝其他包名；第二条将同一份设备实抓产物接续到MCP。独立ADB server可加--adb-port。测试运行记录见[验收记录](../docs/apk-mcp-verification.md)。fake设备测试只能证明编排逻辑，不能替代实际模拟器抓包证据。
+
+## 将产物接入 MCP
+
+在网关本地配置中注册 `kind: apk` 来源，`manifest` 指向提取目录，并明确 `allowed_origins`、凭据及 `credential_origins`。配置后可启动网关，或对已启动网关调用 `add_source` 热加载；仅将路径传给工具不会授予该来源调用权限。
+
+```json
+{"manifest_path":"/absolute/path/output-mobile/demo"}
+```
+
+随后按 `list_endpoints → search_endpoints → call_endpoint` 使用。静态未知方法只能发现；默认只执行已知 GET。凭据模板、完整工具参数和 Claude Desktop/Cursor 接入见 [MCP 网关](../gateway/README.md)。
