@@ -16,7 +16,7 @@ import tempfile
 import time
 import zipfile
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, fields
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -52,6 +52,11 @@ class ExtractOptions:
     chunk_bytes: int = 65536
     strict: bool = False
     base_url: str | None = None
+    native: bool = True
+    max_native_sections: int = 4096
+    max_native_symbols: int = 20000
+    max_native_slices: int = 32
+    max_native_scan_bytes: int = 128 * 1024 * 1024
 
 
 def scan_urls(stream, chunk_size=65536, max_url=8192):
@@ -111,7 +116,11 @@ def _worker(kind, data, connection, memory_limit):
         # Third-party warnings can contain package literals. Only our stable
         # diagnostic codes leave the worker, never parser debug/stdout text.
         with open(os.devnull, "w") as sink, contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-            value = {"manifest": parse_manifest, "arsc": parse_arsc, "dex": parse_dex}[kind](data)
+            if kind == "native":
+                from .native import analyze_native
+                value = analyze_native(Path(data["path"]), data["location"], ExtractOptions(**data["options"]))
+            else:
+                value = {"manifest": parse_manifest, "arsc": parse_arsc, "dex": parse_dex}[kind](data)
         encoded = json.dumps(value, ensure_ascii=False)
         if len(encoded.encode()) > 32 * 1024 * 1024:
             raise InventoryError("PARSER_OUTPUT_LIMIT", "Parser output exceeds budget")
@@ -196,7 +205,7 @@ class Collector:
         else:
             self.limited = True
 
-    def add(self, url, source, location, *, method=None, backend="stream_scan", backend_version=None, mode="strings", query=None, body=None, headers=None, body_present=False, parameters=None, candidate_kind="endpoint", offset=None):
+    def add(self, url, source, location, *, method=None, backend="stream_scan", backend_version=None, mode="strings", query=None, body=None, headers=None, body_present=False, parameters=None, candidate_kind="endpoint", offset=None, evidence_metadata=None):
         try:
             canonical, url_query = normalize_url(url)
         except InventoryError:
@@ -226,6 +235,10 @@ class Collector:
         evidence["backend_version"] = backend_version
         if offset is not None:
             evidence["offset"] = offset
+        if evidence_metadata:
+            # Format-aware locators only. URL/query values still go through the
+            # shared collector redactor, never into raw binary snippets.
+            evidence["native"] = redact(evidence_metadata)
         evid = stable_id("ev_", [canonical, method, safe_query, safe_body, evidence])
         if self.db.execute("SELECT 1 FROM evidence WHERE id=?", (evid,)).fetchone():
             return
@@ -354,6 +367,8 @@ def extract_apk(apk_path, out_dir, options=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     warnings, stages, frameworks, network_classes = [], [], set(), set()
+    native_libraries = []
+    native_metadata_bytes = 0
     app = {"package_name": "unknown", "apk_sha256": sha256_file(apk_path)}
     try:
         archive = zipfile.ZipFile(apk_path)
@@ -424,6 +439,41 @@ def extract_apk(apk_path, out_dir, options=None):
                     network_classes.update(result["network_classes"])
                     stages.append({"stage": name, "status": "partial" if result["diagnostics"] else "complete", "backend": result["backend"], "network_libraries": result["network_libraries"]})
                     frameworks.add("native")
+                elif name.endswith(".so"):
+                    if name.endswith("/libflutter.so"):
+                        frameworks.add("flutter")
+                        warnings.append("FLUTTER_AOT_NOT_RECOVERED")
+                    if not options.native:
+                        warnings.append("NATIVE_DISABLED")
+                        stages.append({"stage": name, "status": "skipped", "code": "NATIVE_DISABLED"})
+                        continue
+                    binary_path = temp / "native-input.so"
+                    used = 0
+                    with archive.open(info) as incoming, binary_path.open("wb") as outgoing:
+                        while chunk := incoming.read(options.chunk_bytes):
+                            used += len(chunk)
+                            if used > options.max_member_bytes:
+                                raise InventoryError("MEMBER_LIMIT", "Native member exceeds byte budget")
+                            outgoing.write(chunk)
+                    result = run_parser("native", {"path": str(binary_path), "location": name, "options": asdict(options)}, options)
+                    for endpoint in result.get("endpoints", []):
+                        collector.add(endpoint["url"], "native", endpoint.get("package", name),
+                                      method=endpoint.get("method"), backend=endpoint.get("backend", "native"),
+                                      backend_version=endpoint.get("backend_version"), mode=endpoint.get("mode", "native_strings"),
+                                      offset=endpoint.get("offset"), evidence_metadata={key: endpoint[key] for key in ("section", "architecture", "slice_offset", "virtual_address", "encoding") if key in endpoint})
+                    for fragment in result.get("fragments", []):
+                        collector.fragment(fragment)
+                    limitations = result.get("limitations", [])
+                    warnings.extend(item.get("code", "NATIVE_LIMITATION") for item in limitations)
+                    metadata = {"member": name, **redact(result.get("metadata", {})), "limitations": redact(limitations)}
+                    metadata_size = len(json.dumps(metadata, ensure_ascii=False).encode())
+                    if native_metadata_bytes + metadata_size <= min(options.max_tool_output, 32 * 1024 * 1024):
+                        native_libraries.append(metadata)
+                        native_metadata_bytes += metadata_size
+                    else:
+                        warnings.append("NATIVE_METADATA_LIMIT")
+                    stages.append({"stage": name, "status": "partial" if limitations else "complete", "backend": result.get("metadata", {}).get("backend", "native"), "endpoint_count": len(result.get("endpoints", []))})
+                    frameworks.add("native_library")
                 elif name.startswith(("assets/", "res/raw/", "res/values/")):
                     with archive.open(info) as stream:
                         header = stream.read(32)
@@ -506,9 +556,6 @@ def extract_apk(apk_path, out_dir, options=None):
                         stages.append({"stage": name, "status": "partial", "backend": "stream_scan", "code": "ASSET_STRUCTURE_BUDGET"})
                     if name.startswith(("assets/www/", "assets/public/")):
                         frameworks.add("webview")
-                elif "/libflutter.so" in name:
-                    frameworks.add("flutter")
-                    warnings.append("FLUTTER_NATIVE_NOT_ANALYZED")
             except Exception as error:
                 code = getattr(error, "code", "MEMBER_PARSE_FAILED")
                 warnings.append(code)
@@ -572,8 +619,9 @@ def extract_apk(apk_path, out_dir, options=None):
             for fragment in collector.fragments:
                 stream.write(json.dumps(fragment, ensure_ascii=False) + "\n")
         atomic_json(out_dir / "hosts_summary.json", {"schema_version": SCHEMA_VERSION, "hosts": sorted(collector.hosts.values(), key=lambda h: (-h["occurrence_count"], h["host"]))})
+        atomic_json(out_dir / "native_libraries.json", {"schema_version": SCHEMA_VERSION, "libraries": native_libraries})
         versions = {}
-        for library in ("androguard", "pyaxmlparser"):
+        for library in ("androguard", "pyaxmlparser", "pyelftools", "macholib"):
             try:
                 versions[library] = importlib.metadata.version(library)
             except importlib.metadata.PackageNotFoundError:
@@ -602,6 +650,7 @@ def main(argv=None):
     parser.add_argument("--hermes-executable")
     parser.add_argument("--jadx")
     parser.add_argument("--base-url", help="Explicit trusted base for relative Retrofit paths")
+    parser.add_argument("--no-native", action="store_true", help="Skip native shared-library analysis")
     parser.add_argument("--limits", help="JSON or YAML ExtractOptions overrides")
     parser.add_argument("--strict", action="store_true")
     arguments = parser.parse_args(argv)
@@ -624,7 +673,7 @@ def main(argv=None):
             if key not in {"worker_timeout", "max_ratio"} and not isinstance(val, int):
                 raise InventoryError("CONFIG_INVALID", "Byte/count limits must be integers")
         options = ExtractOptions(profile=arguments.profile, hermes=arguments.hermes, hermes_executable=arguments.hermes_executable,
-                                 jadx=arguments.jadx, base_url=arguments.base_url, strict=arguments.strict, **overrides)
+                                 jadx=arguments.jadx, base_url=arguments.base_url, native=not arguments.no_native, strict=arguments.strict, **overrides)
         summary = extract_apk(arguments.apk, arguments.out, options)
         print(json.dumps(summary, ensure_ascii=False))
         required_failed = options.hermes == "required" and any(code.startswith("HERMES_") for code in summary["warnings"])

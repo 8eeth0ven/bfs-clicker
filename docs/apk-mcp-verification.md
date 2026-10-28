@@ -1,17 +1,17 @@
-# APK → 清单 → MCP 验收记录
+# Web / Android / iOS → 清单 → MCP 验收记录
 
 [项目总览](../README.md) · [APK CLI](../apk_tools/README.md) · [MCP 网关](../gateway/README.md) · [实现架构](apk-mcp-architecture.md)
 
-验证日期：2026-10-27。源码、样例与测试在仓库内；构建包、运行报告、清单和补丁保存在被gitignore的output-apk-demo目录。只对自建fixture App和loopback API执行动态请求。
+首轮验证日期：2026-10-27；iOS/native 扩展验收：2026-10-28。源码、样例与测试在仓库内；构建包、运行报告、清单和补丁保存在被gitignore的output-apk-demo目录。只对自建fixture App和loopback API执行动态请求。
 
 ## 结果
 
 | 验收项 | 结果 / 证据 |
 |---|---|
 | TypeScript构建 | npm --prefix gateway run build通过 |
-| 网关测试 | 30/30通过，含目录/分页/方法隔离/多样例形态/凭据/UTF8截断/超时/重试/热加载/资源/真实SDK stdio |
-| Python测试 | 45/45通过，设置真实APK与HBC fixture，无skip |
-| 发布基线 | 基于远端 v2 整合；src/view/config.json/demo 与远端一致。远端原 package.json 引用的 7 个测试脚本缺失，整仓 npm test 未验收通过；本次独立模块共 75 项测试通过 |
+| 网关测试 | 33/33通过，含目录/分页/方法隔离/多样例形态/凭据/UTF8截断/超时/重试/热加载/资源/真实SDK stdio |
+| Python测试 | 80/80通过，设置真实APK与HBC fixture，无skip |
+| 发布基线 | 基于远端 v2 整合；src/view/config.json/demo 与远端一致。远端原 package.json 引用的 7 个测试脚本缺失，整仓 npm test 未验收通过；本次独立模块共 113 项测试通过 |
 | 运行依赖审计 | gateway npm audit --omit=dev为0 |
 | Python完整安装 | 独立Python3.13.7实际安装[verify]成功，Androguard4.1.4+mitmproxy12.3.1共存，pip check无冲突 |
 | 三来源样例 | 实际SDK启动，3 sources / 3 resources / 6 groups / 固定4 tools |
@@ -22,6 +22,15 @@
 | Hermes网络配置 | 官方hermesc0.11.0编译HBC84，经hermes-dec0.1.7恢复GET/POST配置，未执行bundle |
 | 大bundle内存 | 34MiB连续printable，Python分配峰值<3MiB；独立扫描进程RSS增量<8MiB回归通过 |
 | 差异补丁 | gateway新增文件patch已用git apply --check --reverse核对当前内容 |
+
+## iOS / native 新增验收（2026-10-28）
+
+- Python 全套 80/80、网关 33/33，当前测试环境无 skip；pip check 无依赖冲突。
+- ELF：真实 clang 编译 ARM32/AArch64/大端对象；本机 rust-lld 链接 AArch64 ET_DYN `.so`，验证动态依赖、curl 导入与 JNI 导出。APK 容器实测 worker/证据定位/脱敏/`--no-native`。
+- Mach-O：真实 clang 编译 arm64 iOS 对象，覆盖 IPA/.app/framework；thin/fat32/fat64、加密范围、损坏边界和剥离限制测试。34 MiB 字符串节的 Python 分配峰值测试通过（<4 MiB）。
+- `ios-e2e.mjs`：自建 IPA → native 静态未知方法 → 真实 mitmdump/loopback HTTP → 2 个 observed 操作 → 同一清单热加载 → SDK GET 200、POST 阻断；原单不变、敏感值不出返回、静态 native 溯源保留。
+- 该 iOS 示例是未签名的静态 Mach-O 夹具，未安装或启动 iOS App。实际 HTTP 由合成 loopback 客户端发送；真机签名/安装/启动、CA 信任与具体 App 的 HTTPS 可见性未验收。
+- 报告位于被忽略的 `output-ios-demo/final-chain/e2e-report.json`，可按 [iOS/原生指南](ios-native-guide.md) 重新生成。此处不发布 IPA、DSO、抓包或设备材料。
 
 ## 可复现产物（不纳入版本库）
 

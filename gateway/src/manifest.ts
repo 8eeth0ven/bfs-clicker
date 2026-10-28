@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import path from 'node:path';
 import { checkedPath, isDirectory, readJsonLimited, readJsonWithDigest, within } from './files.js';
-import { GatewayError, METHODS, type Endpoint, type GatewayConfig, type Method, type Operation, type Schema, type SourceBinding, type SourceSnapshot } from './types.js';
+import { GatewayError, METHODS, SOURCE_KINDS, EXTRACTION_SOURCES, type AppMetadata, type SourceKind, type Endpoint, type GatewayConfig, type Method, type Operation, type Schema, type SourceBinding, type SourceSnapshot } from './types.js';
 
 export const digest = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const endpointId = (source: string, origin: string, pathname: string): string => 'ep_' + digest(['endpoint-v1', source, origin, pathname]);
@@ -157,9 +157,35 @@ function unresolvedCandidate(record:any,url:URL,pathname:string,p:string[],chann
   const parameter_summary:any[]=[];
   for(const place of ['path','query'])for(const [name,spec]of Object.entries(schema.properties[place].properties))parameter_summary.push({in:place,name,type:(spec as Schema).type||'union',required:!!schema.properties[place].required?.includes(name)});
   for(const name of declaredNames(record.parameters?.headers))parameter_summary.push({in:'header',name,type:'string',required:false,managed:true});
-  const extraction_sources=unique([...(channel?[channel]:[]),...(Array.isArray(record.extraction_sources)?record.extraction_sources.filter((x:any)=>['manifest','strings','hermes','dex','asset','network'].includes(x)):[])]);
+  const extraction_sources=unique([...(channel?[channel]:[]),...(Array.isArray(record.extraction_sources)?record.extraction_sources.filter((x:any)=>(EXTRACTION_SOURCES as readonly string[]).includes(x)):[])]);
   const locations=unique([...(location?[location]:[]),...(Array.isArray(record.locations)?record.locations.filter((x:any)=>typeof x==='string').map((x:string)=>cap(x)):[])]).slice(0,100);
   return {provenance:p,extraction_source:channel||null,location:location||null,reason,description:cap(record.description||record.summary),categories:Array.isArray(record.categories)?unique(record.categories.filter((x:any)=>typeof x==='string').map((x:string)=>x.slice(0,128))):[],extraction_sources,locations,parameter_summary,params_schema:schema};
+}
+
+function appMetadata(raw: unknown, kind: SourceKind): AppMetadata | undefined {
+  if (!isObject(raw)) {
+    if (kind === 'ios') throw new GatewayError('MANIFEST_INVALID', 'iOS 来源必须有应用身份');
+    return undefined;
+  }
+  const packageName=cap(raw.package_name || (kind==='ios' ? raw.bundle_id : undefined));
+  const app:AppMetadata={package_name:packageName,version_name:cap(raw.version_name)};
+  if(kind==='ios'){
+    const bundleId=cap(raw.bundle_id || packageName);
+    if(!bundleId || bundleId!==packageName)throw new GatewayError('SOURCE_CONFLICT','iOS bundle_id 与 package_name 身份不一致');
+    app.bundle_id=bundleId;
+  }
+  for(const field of ['artifact_sha256','ipa_sha256','apk_sha256'] as const){
+    if(raw[field]===undefined || (kind==='ios' && field==='apk_sha256'))continue;
+    if(typeof raw[field]!=='string'||!/^[a-f0-9]{64}$/.test(raw[field]))throw new GatewayError('MANIFEST_INVALID','应用产物指纹必须为 SHA256');
+    app[field]=raw[field];
+  }
+  if(raw.artifact_type!==undefined){
+    if(!['ipa','app','apk'].includes(raw.artifact_type) || (kind==='ios' && raw.artifact_type==='apk') || (kind==='apk' && raw.artifact_type!=='apk'))throw new GatewayError('MANIFEST_INVALID','应用产物类型与来源不一致');
+    app.artifact_type=raw.artifact_type;
+  }
+  if(kind==='ios' && app.ipa_sha256 && app.artifact_sha256 && app.ipa_sha256!==app.artifact_sha256)throw new GatewayError('MANIFEST_INVALID','IPA 指纹与通用产物指纹不一致');
+  if(kind==='ios' && app.artifact_type==='app' && app.ipa_sha256)throw new GatewayError('MANIFEST_INVALID','App bundle 不得伪造 IPA 指纹');
+  return app;
 }
 
 export async function loadManifest(binding: SourceBinding, config: GatewayConfig): Promise<SourceSnapshot> {
@@ -167,16 +193,16 @@ export async function loadManifest(binding: SourceBinding, config: GatewayConfig
   const canonical = await checkedPath(binding.manifest, config.manifest_roots);
   const dir = await isDirectory(canonical);
   let raw = await readJsonLimited(dir ? await checkedPath(path.join(canonical, 'source.json'), [canonical]) : canonical);
-  let kind: 'web' | 'apk' = binding.kind || 'web'; let app: any;
+  let kind: SourceKind = binding.kind || 'web'; let app: AppMetadata | undefined;
   let sourceBase: string | undefined;
   if (isObject(raw) && raw.format === 'endpoint-inventory') {
     const root = dir ? canonical : path.dirname(canonical);
-    if (!['1', '1.0', '1.1'].includes(String(raw.schema_version)) || !['web', 'apk'].includes(raw.kind) || typeof raw.inventory !== 'string') throw new GatewayError('MANIFEST_INVALID', 'source.json 格式或版本不支持');
+    if (!['1', '1.0', '1.1'].includes(String(raw.schema_version)) || !(SOURCE_KINDS as readonly string[]).includes(raw.kind) || typeof raw.inventory !== 'string') throw new GatewayError('MANIFEST_INVALID', 'source.json 格式或版本不支持');
     if (raw.source_id !== binding.id) throw new GatewayError('SOURCE_CONFLICT', '清单 source_id 与可信绑定不一致');
     if (binding.kind && binding.kind !== raw.kind) throw new GatewayError('SOURCE_CONFLICT', '清单类型与绑定不一致');
     if (path.isAbsolute(raw.inventory) || !within(root, path.resolve(root, raw.inventory))) throw new GatewayError('MANIFEST_PATH_BLOCKED', 'inventory 引用必须位于产物目录内');
     const inventory = await checkedPath(path.join(root, raw.inventory), [root]);
-    kind = raw.kind; app = raw.app && { package_name: cap(raw.app.package_name), version_name: cap(raw.app.version_name), apk_sha256: cap(raw.app.apk_sha256, 64) };
+    kind = raw.kind; app = appMetadata(raw.app, kind);
     const document=await readJsonWithDigest(inventory);
     if(raw.inventory_sha256!==undefined&&(!/^[a-f0-9]{64}$/.test(raw.inventory_sha256)||raw.inventory_sha256!==document.sha256))throw new GatewayError('INVENTORY_CHANGED','源描述与库存指纹不一致，请重试加载');
     raw = document.data;
@@ -196,7 +222,7 @@ export async function loadManifest(binding: SourceBinding, config: GatewayConfig
     const id = endpointId(binding.id, url.origin, pathname);
     if (!groups.has(id)) groups.set(id, { id, source: binding.id, source_revision: '', origin: url.origin, path: pathname, methods: [], operations: {}, unresolved_candidates: [] });
     const group = groups.get(id)!;
-    const channel = ['manifest','strings','hermes','dex','asset','network'].includes(record.source) ? record.source : '';
+    const channel = (EXTRACTION_SOURCES as readonly string[]).includes(record.source) ? record.source : '';
     const location = cap(record.package);
     if (record.method === null || record.method === undefined) {
       group.unresolved_candidates.push(unresolvedCandidate(record,url,pathname,p,channel,location,'METHOD_UNRESOLVED'));
@@ -213,7 +239,7 @@ export async function loadManifest(binding: SourceBinding, config: GatewayConfig
     }
     op.provenance = unique([...op.provenance, ...p]);
     op.categories = unique([...op.categories, ...(Array.isArray(record.categories) ? record.categories.filter((x: any) => typeof x === 'string').map((x: string) => x.slice(0, 128)) : [])]);
-    const channels=Array.isArray(record.extraction_sources)?record.extraction_sources.filter((x:any)=>['manifest','strings','hermes','dex','asset','network'].includes(x)):[];
+    const channels=Array.isArray(record.extraction_sources)?record.extraction_sources.filter((x:any)=>(EXTRACTION_SOURCES as readonly string[]).includes(x)):[];
     const locations=Array.isArray(record.locations)?record.locations.filter((x:any)=>typeof x==='string').map((x:string)=>cap(x)):[];
     op.extraction_sources = unique([...op.extraction_sources, ...(channel ? [channel] : []), ...channels]);
     op.locations = unique([...op.locations, ...(location ? [location] : []), ...locations]).slice(0, 100);
@@ -272,7 +298,7 @@ export async function loadManifest(binding: SourceBinding, config: GatewayConfig
       }
       op.allowed = isAllowed(config, binding.id, ep.id, method, op.body_encoding) && (!binding.allowed_origins || binding.allowed_origins.includes(ep.origin));
       if (!op.allowed) op.blocked_reason = op.body_encoding === 'unsupported' ? 'UNSUPPORTED_BODY_ENCODING' : binding.allowed_origins && !binding.allowed_origins.includes(ep.origin) ? 'ORIGIN_BLOCKED' : 'METHOD_BLOCKED';
-      op.contract_revision = digest([ep.origin, ep.path, method, op.params_schema, op.body_encoding, binding.defaults?.[ep.id], binding.static_headers, binding.credential_origins]);
+      op.contract_revision = digest([kind, app, ep.origin, ep.path, method, op.params_schema, op.body_encoding, binding.defaults?.[ep.id], binding.static_headers, binding.credential_origins]);
     }
   }
   // Fingerprint the trusted invocation contract as well as discovery metadata. Never include credential-file values.

@@ -1,6 +1,6 @@
-# APK 接口清单工具（beta）
+# 移动端接口清单工具：APK / iOS / native（beta）
 
-[项目总览](../README.md) · [MCP 网关与客户端配置](../gateway/README.md) · [实现架构](../docs/apk-mcp-architecture.md) · [验收记录](../docs/apk-mcp-verification.md)
+[项目总览](../README.md) · [iOS 与原生层](../docs/ios-native-guide.md) · [MCP 网关与客户端配置](../gateway/README.md) · [实现架构](../docs/apk-mcp-architecture.md) · [验收记录](../docs/apk-mcp-verification.md)
 
 `APK → 静态证据 → 可选运行时观察 → 派生清单 → TypeScript MCP`。
 
@@ -36,6 +36,7 @@ apk_extract demo.apk --out output-mobile/hermes --hermes hermes-dec --hermes-exe
 - HBC魔数/版本探测；支持切换hermes-dec、旧版hbctool、匹配版本的官方hbcdump、显式指定的hermes_rs字符串CLI。
 - 无兼容工具时64KiB有界ASCII/UTF16扫描，34MB连续可打印bundle不整体累积。
 - deep只对网络相关类按需调用JADX，不要求每包全量反编译。
+- 默认解析 `.so` 的 ELF 节、架构、依赖、导入/导出/JNI 符号与有界 URL 字符串，输出 `source=native`，保留 offset/section/architecture；`--no-native` 可关闭。
 
 `--base-url` 是为已知相对Retrofit路径提供可信基址的显式校正，不表示从包内证明了服务绑定。未知方法始终null。
 
@@ -53,11 +54,12 @@ endpoints.static.json        # 六基础字段的静态原单
 evidence.jsonl               # backend/version/mode/资源或代码定位
 fragments.jsonl              # 未绑定相对路径、host、deep-link等线索
 hosts_summary.json           # 位置出现次数、唯一URL、环境词提示
+native_libraries.json        # APK native库的节/符号/依赖与限制
 extraction_report.json       # 阶段完成情况、预算、工具版本、限制
 verified/<session>/          # 实抓派生清单、去敏观察、覆盖率与恢复报告
 ```
 
-统一基础字段：method/url/headers/query/body/categories；记录source是manifest/strings/hermes/dex/asset，验证新增端点可为network。query保持dict，重复键为数组。url移出query和fragment，保留path大小写、尾斜杠与模板。
+统一基础字段：method/url/headers/query/body/categories；记录source是manifest/strings/hermes/dex/asset/native/plist，验证新增端点可为network。query保持dict，重复键为数组。url移出query和fragment，保留path大小写、尾斜杠与模板。
 
 method:null只可发现。package是类/资源定位；应用包名在source.app.package_name。body_capture区分未知、无体、仅形态、截断；body样例不自动发给目标。参数形态通过body_shape/query_shape保留。schema见 [endpoint-record](schemas/endpoint-record.schema.json) 与 [source descriptor](schemas/source.schema.json)。
 
@@ -131,3 +133,7 @@ node gateway/examples/apk-e2e.mjs --python /path/to/venv/bin/python \
 ```
 
 随后按 `list_endpoints → search_endpoints → call_endpoint` 使用。静态未知方法只能发现；默认只执行已知 GET。凭据模板、完整工具参数和 Claude Desktop/Cursor 接入见 [MCP 网关](../gateway/README.md)。
+
+## iOS 入口
+
+`ios_extract demo.ipa --out output-ios/demo` 或 `ios_extract /path/to/Demo.app --out output-ios/app`。复用相同六字段清单、Collector、Hermes 后端、native worker、凭据与 MCP 调用层；iOS `ios_verify` 的 HAR/事件导入和手动代理流程见 [iOS/原生层指南](../docs/ios-native-guide.md)。

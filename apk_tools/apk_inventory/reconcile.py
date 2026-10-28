@@ -540,13 +540,22 @@ def reconcile_records(static: list[dict[str, Any]], observations: list[dict[str,
 
 def finalize_inventory(directory: Path, apk: Path, events: Iterable[dict[str, Any]], *, session_id: str,
                        allowed_origins: set[str] | None = None, promote: bool = True,
-                       extra_report: dict[str, Any] | None = None) -> dict[str, Any]:
+                       extra_report: dict[str, Any] | None = None, source_kind: str = "apk") -> dict[str, Any]:
     directory, apk = Path(directory).resolve(), Path(apk).resolve()
     descriptor = read_json(directory / "source.json")
-    if not isinstance(descriptor, dict) or descriptor.get("format") != "endpoint-inventory" or descriptor.get("kind") != "apk":
-        raise VerificationError("INVENTORY_INVALID", "Input directory is not an APK endpoint inventory")
-    if descriptor.get("app", {}).get("apk_sha256") != sha256_file(apk):
-        raise VerificationError("APK_MISMATCH", "APK hash does not match the extraction inventory")
+    if source_kind not in {"apk", "ios"} or not isinstance(descriptor, dict) or descriptor.get("format") != "endpoint-inventory" or descriptor.get("kind") != source_kind:
+        raise VerificationError("INVENTORY_INVALID", "Input directory is not the expected mobile endpoint inventory")
+    if not isinstance(descriptor.get("app"), dict):
+        raise VerificationError("INVENTORY_INVALID", "Mobile inventory application metadata is invalid")
+    if source_kind == "ios":
+        from .ios import artifact_hash
+        expected_hash = descriptor.get("app", {}).get("artifact_sha256")
+        actual_hash = artifact_hash(apk)
+    else:
+        expected_hash = descriptor.get("app", {}).get("apk_sha256")
+        actual_hash = sha256_file(apk)
+    if expected_hash != actual_hash:
+        raise VerificationError("ARTIFACT_MISMATCH" if source_kind == "ios" else "APK_MISMATCH", "Input hash does not match the extraction inventory")
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", session_id):
         raise VerificationError("SESSION_INVALID", "Session identifier has an invalid format")
     # Always compare against the original static baseline, not a previous run.
@@ -558,12 +567,15 @@ def finalize_inventory(directory: Path, apk: Path, events: Iterable[dict[str, An
     observations, counters = collect_observations(events, allowed_origins)
     merged, report = reconcile_records(static, observations, allowed_origins)
     report.update(counters)
-    report.update({"schema_version": "1.1", "session_id": session_id, "apk_sha256": descriptor["app"]["apk_sha256"],
+    artifact_fields = ({"artifact_sha256": expected_hash, "artifact_type": descriptor["app"].get("artifact_type"),
+                        **({"ipa_sha256": expected_hash} if descriptor["app"].get("artifact_type") == "ipa" else {})}
+                       if source_kind == "ios" else {"apk_sha256": expected_hash})
+    report.update({"schema_version": "1.1", "session_id": session_id, "kind": source_kind, **artifact_fields,
                    "package_name": descriptor.get("app", {}).get("package_name"), "finished_at": utc_now(),
                    "static_sha256": sha256_file(baseline_path),
                    "run_status": "complete" if report["observed_unique_operations"] and not counters["capture_limit_count"] and not counters["tls_failed_count"] else "partial",
                    "limitations": ["observed is a captured request, not proof of HTTP or business success",
-                                   "session association is not Android process attribution"]})
+                                   "session association is not OS process attribution"]})
     if extra_report:
         report.update(extra_report)
     output = within(directory, "verified/" + session_id, must_exist=False)

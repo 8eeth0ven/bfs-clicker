@@ -1,0 +1,40 @@
+[
+  {
+    "method": null,
+    "url": "https://api.delta.test/native/status",
+    "headers": {},
+    "query": {},
+    "body": null,
+    "categories": [
+      "static_candidate"
+    ],
+    "source": "native",
+    "package": "Payload/Delta.app/Delta#__cstring@256"
+  },
+  {
+    "method": null,
+    "url": "https://api.delta.test/config",
+    "headers": {},
+    "query": {},
+    "body": null,
+    "categories": [
+      "static_candidate"
+    ],
+    "source": "plist",
+    "package": "Payload/Delta.app/Info.plist#APIURL"
+  },
+  {
+    "method": "GET",
+    "url": "https://api.delta.test/items",
+    "headers": {},
+    "query": {
+      "page": 1
+    },
+    "body": null,
+    "categories": [
+      "static_candidate"
+    ],
+    "source": "asset",
+    "package": "Payload/Delta.app/api-config.json#request"
+  }
+]

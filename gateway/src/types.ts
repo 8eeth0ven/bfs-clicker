@@ -1,4 +1,11 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+export const SOURCE_KINDS = ['web', 'apk', 'ios'] as const;
+export type SourceKind = typeof SOURCE_KINDS[number];
+export const EXTRACTION_SOURCES = ['manifest','strings','hermes','dex','asset','network','native','plist'] as const;
+export interface AppMetadata {
+  package_name: string; version_name: string; apk_sha256?: string;
+  bundle_id?: string; artifact_sha256?: string; ipa_sha256?: string; artifact_type?: 'ipa' | 'app' | 'apk';
+}
 export type Method = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
 export type Schema = Record<string, any>;
 export interface Health {
@@ -22,7 +29,7 @@ export interface SourceBinding {
   allowed_origins?: string[]; credential_origins?: string[];
   base_url?: string; static_headers?: Record<string, string>;
   defaults?: Record<string, any>; schema_overrides?: Record<string, Schema>;
-  public?: boolean; kind?: 'web' | 'apk';
+  public?: boolean; kind?: SourceKind;
 }
 export interface GatewayConfig {
   config_dir: string; manifest_roots: string[]; state_dir: string;
@@ -32,8 +39,8 @@ export interface GatewayConfig {
   methods: { allow_non_get: boolean; allow: {source: string; endpoint_id: string; method: Method}[] };
 }
 export interface SourceSnapshot {
-  id: string; kind: 'web' | 'apk'; revision: string; binding: SourceBinding;
-  manifest_path: string; endpoints: Endpoint[]; origins: string[]; app?: any;
+  id: string; kind: SourceKind; revision: string; binding: SourceBinding;
+  manifest_path: string; endpoints: Endpoint[]; origins: string[]; app?: AppMetadata;
   warnings: string[];
 }
 export interface CallParams {

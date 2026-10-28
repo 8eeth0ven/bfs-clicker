@@ -1,0 +1,17 @@
+{
+  "format": "endpoint-inventory",
+  "schema_version": "1.1",
+  "kind": "ios",
+  "source_id": "ios_delta",
+  "inventory": "static/example/endpoints.static.json",
+  "static_inventory": "static/example/endpoints.static.json",
+  "inventory_sha256": "cace54019b8acc65a9636a8d561ba0802a1bea2761c5a658b952e960849cc044",
+  "app": {
+    "package_name": "com.example.delta",
+    "bundle_id": "com.example.delta",
+    "version_name": "1.0-fixture",
+    "artifact_type": "ipa",
+    "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "ipa_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

@@ -2,21 +2,99 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Source descriptor 1.1",
   "type": "object",
-  "required": ["format", "schema_version", "kind", "source_id", "inventory"],
+  "required": [
+    "format",
+    "schema_version",
+    "kind",
+    "source_id",
+    "inventory"
+  ],
   "properties": {
-    "format": {"const": "endpoint-inventory"},
-    "schema_version": {"enum": ["1.1"]},
-    "kind": {"enum": ["web", "apk"]},
-    "source_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
-    "inventory": {"type": "string", "minLength": 1},
-    "static_inventory": {"type": "string"},
+    "format": {
+      "const": "endpoint-inventory"
+    },
+    "schema_version": {
+      "enum": [
+        "1.1"
+      ]
+    },
+    "kind": {
+      "enum": [
+        "web",
+        "apk",
+        "ios"
+      ]
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "inventory": {
+      "type": "string",
+      "minLength": 1
+    },
+    "static_inventory": {
+      "type": "string"
+    },
     "app": {
       "type": "object",
       "properties": {
-        "package_name": {"type": "string"},
-        "apk_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        "package_name": {
+          "type": "string"
+        },
+        "apk_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "bundle_id": {
+          "type": "string"
+        },
+        "version_name": {
+          "type": "string"
+        },
+        "artifact_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "ipa_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "artifact_type": {
+          "enum": [
+            "apk",
+            "ipa",
+            "app"
+          ]
+        }
       }
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "ios"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "app"
+        ],
+        "properties": {
+          "app": {
+            "required": [
+              "package_name",
+              "bundle_id",
+              "artifact_sha256",
+              "artifact_type"
+            ]
+          }
+        }
+      }
+    }
+  ]
 }

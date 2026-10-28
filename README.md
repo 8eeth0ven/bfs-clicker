@@ -1,25 +1,26 @@
 # bfs-clicker
 
-**用真实浏览器探索 Web 控制台，从 Android APK 提取接口证据，再将统一清单接入 MCP 客户端。**
+**用真实浏览器探索 Web 控制台，从 Android APK 与 iOS IPA／App Bundle 提取接口证据，再将统一清单接入 MCP 客户端。**
 
-Playwright Web 界面遍历与动态 JS/API 捕获 · Android APK 静态分析与受控黑盒验证 · TypeScript MCP 网关。
+Playwright Web 界面遍历与动态 JS/API 捕获 · Android / iOS 静态分析、原生二进制证据与受控黑盒验证 · TypeScript MCP 网关。
 
-![bfs-clicker 项目总览：Web Exploration、APK Evidence、MCP Gateway](docs/images/overview.png)
+![bfs-clicker 项目总览：Web Exploration、Mobile Evidence、MCP Gateway](docs/images/overview-mobile.png)
 
-[Web 使用指南](docs/web-guide.md) · [APK 提取与验证](apk_tools/README.md) · [MCP 配置](gateway/README.md) · [架构](docs/apk-mcp-architecture.md) · [验收与限制](docs/apk-mcp-verification.md) · [English](#english)
+[Web 使用指南](docs/web-guide.md) · [APK 提取与验证](apk_tools/README.md) · [iOS 与原生层](docs/ios-native-guide.md) · [MCP 配置](gateway/README.md) · [架构](docs/apk-mcp-architecture.md) · [验收与限制](docs/apk-mcp-verification.md) · [English](#english)
 
 ## 能做什么
 
 | 模块 | 输入 | 主要能力 | 输出 |
 | --- | --- | --- | --- |
 | **Web 控制台探索** | URL、可选登录态与范围配置 | Playwright 真实点击，BFS/DFS、页面跳转、iframe/开放 Shadow DOM、停止与续跑 | 状态与路由图、动作证据、JS 中的接口候选、网络请求、HTML/Markdown 报告 |
-| **Android APK 接口提取** | APK 文件 | Manifest/资源、多 DEX、assets、Retrofit 注解；按需 JADX 与可切换 Hermes 后端 | 统一接口清单、host 汇总、代码/资源位置、提取限制 |
-| **受控动态验证** | APK、专用设备或模拟器、采集范围 | ADB 编排、mitmdump 实抓、人工操作 App、静态与动态证据合并 | `observed` 派生清单、参数形态、命中率与恢复报告 |
-| **接口清单 → MCP** | Web 规范化清单或 APK 产出目录、本地凭据配置 | 固定 4 个工具、分页与搜索、只读资源、运行时热加载、受控 HTTP 调用 | 供 Claude Desktop / Cursor 使用的结构化响应 |
+| **Android APK 接口提取** | APK 文件 | Manifest/资源、多 DEX、assets、Retrofit 注解、原生 `.so` 的 ELF/符号/字符串证据；按需 JADX 与 Hermes 后端 | 统一接口清单、host 汇总、代码/资源位置、提取限制 |
+| **iOS 接口提取** | IPA 或 `.app` | Info.plist、strings、assets、Hermes、Mach-O thin/fat、framework/dylib、加密状态 | 统一清单、bundle/产物指纹、段/偏移/架构证据 |
+| **受控动态验证** | 移动端清单、测试会话、采集范围 | Android 用 ADB 编排；iOS 手动配置设备代理；共用 mitmdump/HAR 与证据合并 | `observed` 派生清单、参数形态、命中率与恢复报告 |
+| **接口清单 → MCP** | Web 规范化清单或 APK/iOS 产出目录、本地凭据配置 | 固定 4 个工具、分页与搜索、只读资源、运行时热加载、受控 HTTP 调用 | 供 Claude Desktop / Cursor 使用的结构化响应 |
 
 当前公开主线的 Android 流程使用 **ADB + mitmdump**。旧开发线的 Frida hook、Activity 跳转脚本尚未整合到当前主线；本页图片与命令对应已发布模块。
 
-## 三条使用路径
+## 四条使用路径
 
 ### 1. 探索 Web 控制台
 
@@ -87,7 +88,26 @@ origins:
 
 HTTPS 可见性依赖 App 的 CA 信任、pinning 和代理行为；混淆、字符串加密、加固包、JNI/Flutter AOT 会降低提取率。配置、设备准备、HAR 导入与真实 fixture 说明见 [APK 工具指南](apk_tools/README.md)。
 
-### 3. 把接口清单交给 AI 客户端
+### 3. 分析 iOS 与 APK 的原生层
+
+![Android ELF 与 iOS Mach-O 共用原生证据、统一清单与 MCP 调用层](docs/images/mobile-native-workflow.png)
+
+```bash
+# IPA 或 .app：Info.plist / resources / assets / Mach-O
+# 沿用上面的 Python 虚拟环境
+ios_extract demo.ipa --out output-ios/demo
+ios_extract /path/to/Demo.app --out output-ios/app
+
+# 已采集 HAR：专用隔离会话才可归因为 observed
+ios_verify demo.ipa --inventory output-ios/demo \
+  --har capture.har --scope scope.local.yaml --isolated-device
+```
+
+`ios_extract` 支持多 App 显式选择、原子代际清单与敏感字段脱敏；`.app` 使用稳定树哈希，IPA 使用文件 SHA-256。默认分析 APK 中的 `.so`，以 `source=native` 保留 ABI、段、文件偏移、导入/导出与 JNI 符号线索。可用 `--no-native` 关闭原生阶段。
+
+iOS 的 `ios_verify` 支持 HAR/事件导入和真实 mitmdump 监听，设备安装、App 启动、代理和 CA 信任由人工完成。加密区不解密，剥离符号或动态拼接的 URL 可能无法恢复；URL 字符串不自动推断为 GET。完整配置、可复现夹具和边界见 [iOS/原生层指南](docs/ios-native-guide.md)。
+
+### 4. 把接口清单交给 AI 客户端
 
 要求 **Node.js ≥22**。网关使用 `@modelcontextprotocol/sdk` 和 **stdio**，数百个端点共用固定 4 个元工具：
 
@@ -96,7 +116,7 @@ HTTPS 可见性依赖 App 的 CA 信任、pinning 和代理行为；混淆、字
 | `list_endpoints` | 按来源、路径、方法、分类浏览端点，支持分页与参数 schema |
 | `search_endpoints` | 跨来源搜索路径、描述、参数名和提取位置 |
 | `call_endpoint` | 按稳定 ID 填充路径/query/body，自动注入来源凭据并返回结构化响应 |
-| `add_source` | 热加载可信配置绑定的清单文件或 APK 目录 |
+| `add_source` | 热加载可信配置绑定的清单文件或 APK/iOS 目录 |
 
 每个来源还提供 `inventory://sources/<source>/manifest.json` 只读 resource。相同路径的不同方法归为一个条目，调用与学习状态按方法区分。
 
@@ -113,13 +133,13 @@ node gateway/examples/client-config.mjs --cursor --config /absolute/path/gateway
 
 也可使用 [Claude Desktop 模板](gateway/examples/claude_desktop_config.json) 或 [Cursor 模板](gateway/examples/cursor.mcp.json)。绝对路径、凭据绑定、来源范围及调用示例见 [MCP 网关指南](gateway/README.md)。
 
-网关接收基础字段 `method/url/headers/query/body/categories`。APK 目录可直接导入；当前 Web v2 的 `apis.json` 是证据账本，**需要先显式适配成统一清单**。仓库未提供从该账本一键转换到网关的适配器。
+网关接收基础字段 `method/url/headers/query/body/categories`。APK/iOS 目录可直接导入；当前 Web v2 的 `apis.json` 是证据账本，**需要先显式适配成统一清单**。仓库未提供从该账本一键转换到网关的适配器。
 
 ## 证据、凭据与调用边界
 
 | 项目 | 当前行为 |
 | --- | --- |
-| 来源与质量 | 保留 `manifest/strings/hermes/dex/asset/network` 溯源；实抓来源与网关健康状态分开记录 |
+| 来源与质量 | 保留 `manifest/strings/hermes/dex/asset/plist/native/network` 溯源；实抓来源与网关健康状态分开记录 |
 | 凭据 | 每来源绑定本地 headers、Cookie、Bearer 或 storageState 配置；客户端响应脱敏 |
 | 方法 | beta 默认只允许已知 GET；写方法必须由可信配置显式开启并逐端点列名 |
 | 请求范围 | 检查已注册 origin/host 与凭据范围；拒绝重定向，不允许客户端临时传任意 URL/headers |
@@ -138,6 +158,8 @@ Web 默认会拦截危险动作；涉及业务写入的 UI 与 API 需要各自�
 | `output-mobile/<name>/source.json` | APK 身份、类型及当前清单指针 |
 | `output-mobile/<name>/endpoints.static.json` | 静态接口原单 |
 | `output-mobile/<name>/evidence.jsonl` / `hosts_summary.json` | 提取位置、后端信息、host 与环境提示 |
+| `output-ios/<name>/static/<generation>/` | iOS 静态原单、证据和提取报告；source.json 最后原子切换 |
+| `output-mobile/<name>/native_libraries.json` | APK 原生库架构、节、符号、依赖与限制 |
 | `output-mobile/<name>/verified/<session>/` | 实抓派生清单、覆盖率、验证与清理报告 |
 | 网关配置的 `state_dir` | 端点健康旁车文件 |
 
@@ -147,9 +169,9 @@ Web 默认会拦截危险动作；涉及业务写入的 UI 与 API 需要各自�
 src/                         Playwright 探索、请求守卫、证据与报告
 view/                        本地任务控制面板
 demo/                        本机 Web 演示
-apk_tools/                   Python APK 提取器与受控验证 CLI
+apk_tools/                   Python APK/iOS 提取器、ELF/Mach-O 与受控验证 CLI
   apk_inventory/             解析、Hermes 适配、mitmdump、验证合并
-  examples/                  自建 Android demo 源码与设备验证脚本
+  examples/                  自建 Android demo、iOS 静态夹具与设备验证脚本
 gateway/                     TypeScript stdio MCP 网关
   examples/                  三来源清单、凭据模板与客户端配置
   tests/                     目录、调用层与真实 SDK stdio 测试
@@ -167,22 +189,25 @@ PYTHONPATH=apk_tools .venv/bin/python -m unittest discover -s apk_tools/tests -v
 node gateway/examples/apk-e2e.mjs --python /path/to/venv/bin/python
 ```
 
-最近验收：**网关 30/30，Python 45/45**，Python 运行包含真实编译 APK 与 Hermes fixture，无 skip。自行运行时，未设置真实 fixture 的相关测试可能跳过；完整条件见 [验收记录](docs/apk-mcp-verification.md)。
+最近验收：**网关 33/33，Python 80/80**，Python 运行包含真实编译 APK 与 Hermes fixture，无 skip。自行运行时，未设置真实 fixture 的相关测试可能跳过；完整条件见 [验收记录](docs/apk-mcp-verification.md)。
 
 当前公开 Web 基线的根 `package.json` 引用了 7 个未入库测试脚本，根 `npm test` 尚不能复现整仓回归。APK/MCP 的独立测试入口可用；[Web 历史验收](docs/implementation-status.md) 仅描述原开发环境。
 
 Web 的闭合 Shadow DOM、canvas、WebSocket/WebRTC、worker 与无限控件组合需要额外适配。APK 的加固/混淆、动态签名、mTLS/设备证明及任意版本 Hermes 自动恢复未覆盖。仓库尚未声明 LICENSE。
 
+iOS 真实代理 + MCP SDK 的本地夹具链可运行 `node gateway/examples/ios-e2e.mjs --python /path/to/venv/bin/python`。该示例没有操作 iOS 设备，未签名 Mach-O 对象仅用于静态证据，实际 HTTP 由 loopback 测试客户端产生。
+
 图为功能/架构示意，不是产品截图；[图片源文件与生成说明](docs/images/README.md) 可用于后续维护。
 
 ## English
 
-**bfs-clicker combines a Playwright Web console crawler, Android APK interface evidence extraction and controlled runtime capture, and a guarded TypeScript MCP gateway.**
+**bfs-clicker combines a Playwright Web console crawler, Android APK and iOS IPA/App Bundle interface evidence extraction, native ELF/Mach-O inspection and controlled runtime capture, and a guarded TypeScript MCP gateway.**
 
 - **Web:** traverse UI states and navigation paths with BFS/DFS; capture network evidence and bounded JavaScript endpoint candidates; stop, save and resume from the local panel or CLI.
-- **Android:** inspect Manifest/resources/DEX/assets with Androguard, optional JADX and selectable Hermes backends; use ADB + mitmdump on a dedicated device for optional manual runtime verification.
-- **MCP:** expose normalized Web manifests and APK inventories through four tools, read-only resources and stdio for Claude Desktop / Cursor. Credentials stay in local per-source bindings; calls default to GET-only with origin checks and bounded responses.
+- **Android:** inspect Manifest/resources/DEX/assets and native `.so` ELF evidence, with optional JADX and selectable Hermes backends; use ADB + mitmdump for runtime capture.
+- **iOS:** inspect plist/strings/assets and Mach-O binaries/frameworks in IPA or `.app` bundles; import HAR or capture through a manually configured mitmdump proxy. Device installation, launch and CA trust are manual. Encrypted ranges are reported rather than decrypted; native strings do not imply an HTTP method.
+- **MCP:** expose normalized Web manifests and APK/iOS inventories through four tools, read-only resources and stdio for Claude Desktop / Cursor. Credentials stay in local per-source bindings; calls default to GET-only with origin checks and bounded responses.
 
-The current public branch contains the ADB/mitmdump pipeline. Legacy Frida hooks and Activity-jumping scripts have not been integrated into this branch. The Web v2 evidence ledger also requires an explicit normalization adapter before MCP import; that adapter is not included.
+The public branch contains the Android ADB/mitmdump pipeline and iOS manual-proxy/HAR verification. Legacy Frida hooks and Activity-jumping scripts have not been integrated into this branch. The Web v2 evidence ledger also requires an explicit normalization adapter before MCP import; that adapter is not included.
 
 Start with the [Web guide](docs/web-guide.md), [APK CLI guide](apk_tools/README.md) or [MCP gateway guide](gateway/README.md). See the [architecture](docs/apk-mcp-architecture.md) and [verification record](docs/apk-mcp-verification.md) for tested fixtures and limits.

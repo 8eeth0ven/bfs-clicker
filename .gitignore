@@ -34,6 +34,7 @@ __pycache__/
 gateway/dist/
 gateway/state/
 .apk-inventory/
+.ios-inventory/
 .mitmproxy/
 .venv/
 *.egg-info/
@@ -65,3 +66,12 @@ capture*.jsonl
 *.apkm
 *.xapk
 *.aab
+*.ipa
+*.app/
+*.dSYM/
+*.so
+*.dylib
+*.o
+*.a
+*.p8
+*.mobileprovision

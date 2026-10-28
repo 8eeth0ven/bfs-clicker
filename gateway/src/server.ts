@@ -10,12 +10,12 @@ import { Discovery } from './discovery.js';
 import { LearningStore } from './learning.js';
 import { CredentialProvider } from './credentials.js';
 import { Executor } from './executor.js';
-import { GatewayError, METHODS, type GatewayResult, type Method } from './types.js';
+import { GatewayError, METHODS, SOURCE_KINDS, EXTRACTION_SOURCES, type GatewayResult, type Method } from './types.js';
 
 const methods=z.enum(METHODS);
 const limit=z.number().int().min(1).max(100);
 const pageInput={source:z.string().default('*'),limit:limit.optional(),cursor:z.string().max(1024).optional()};
-const filter=z.object({endpoint_id:z.string().optional(),path:z.string().max(2048).optional(),method:methods.optional(),provenance:z.enum(['static_candidate','observed']).optional(),category:z.string().optional(),kind:z.enum(['web','apk']).optional(),extraction_source:z.enum(['manifest','strings','hermes','dex','asset','network']).optional()}).strict();
+const filter=z.object({endpoint_id:z.string().optional(),path:z.string().max(2048).optional(),method:methods.optional(),provenance:z.enum(['static_candidate','observed']).optional(),category:z.string().optional(),kind:z.enum(SOURCE_KINDS).optional(),extraction_source:z.enum(EXTRACTION_SOURCES).optional()}).strict();
 const scalar=z.union([z.string(),z.number().finite(),z.boolean()]);
 const callParams=z.object({method:methods.optional(),path:z.record(z.string(),z.union([z.string(),z.number().finite()])).optional(),query:z.record(z.string(),z.union([scalar,z.null(),z.array(scalar)])).optional(),body:z.json().optional()}).strict();
 const errorSchema=z.object({code:z.string(),message:z.string(),details:z.json().optional()}).strict();
@@ -23,9 +23,10 @@ const healthSchema=z.object({state:z.enum(['unverified','http_verified','not_fou
 const parameterSummary=z.object({in:z.enum(['path','query','body','header']),name:z.string(),type:z.union([z.string(),z.array(z.string())]),required:z.boolean(),managed:z.boolean().optional()}).strict();
 const operationSummary=z.object({method:methods,description:z.string(),categories:z.array(z.string()),provenance:z.array(z.enum(['static_candidate','observed'])),extraction_sources:z.array(z.string()),locations:z.array(z.string()),allowed:z.boolean(),blocked_reason:z.string().nullable(),parameter_summary:z.array(parameterSummary),health:healthSchema,quality_label:z.string(),params_schema:z.record(z.string(),z.json()).optional()}).strict();
 const unresolvedSummary=z.object({provenance:z.array(z.enum(['static_candidate','observed'])),extraction_source:z.string().nullable(),location:z.string().nullable(),reason:z.string(),description:z.string(),categories:z.array(z.string()),extraction_sources:z.array(z.string()),locations:z.array(z.string()),parameter_summary:z.array(parameterSummary),params_schema:z.record(z.string(),z.json()).optional()}).strict();
-const appSchema=z.object({package_name:z.string(),version_name:z.string(),apk_sha256:z.string()}).strict();
-const sourceSummary=z.object({source:z.string(),kind:z.enum(['web','apk']),revision:z.string(),origins:z.array(z.string()),endpoint_count:z.number().int(),auth_configured:z.boolean(),app:appSchema.nullable(),resource_uri:z.string()}).strict();
-const endpointSummary=z.object({id:z.string(),source:z.string(),source_revision:z.string(),origin:z.string(),path:z.string(),methods:z.array(methods),operations:z.record(z.string(),operationSummary),unresolved_candidates:z.array(unresolvedSummary),allowed:z.boolean(),kind:z.enum(['web','apk']),matched_methods:z.array(methods).optional(),score:z.number().optional()}).strict();
+const hash=z.string().regex(/^[a-f0-9]{64}$/);
+const appSchema=z.object({package_name:z.string(),version_name:z.string(),apk_sha256:hash.optional(),bundle_id:z.string().optional(),artifact_sha256:hash.optional(),ipa_sha256:hash.optional(),artifact_type:z.enum(['ipa','app','apk']).optional()}).strict();
+const sourceSummary=z.object({source:z.string(),kind:z.enum(SOURCE_KINDS),revision:z.string(),origins:z.array(z.string()),endpoint_count:z.number().int(),auth_configured:z.boolean(),app:appSchema.nullable(),resource_uri:z.string()}).strict();
+const endpointSummary=z.object({id:z.string(),source:z.string(),source_revision:z.string(),origin:z.string(),path:z.string(),methods:z.array(methods),operations:z.record(z.string(),operationSummary),unresolved_candidates:z.array(unresolvedSummary),allowed:z.boolean(),kind:z.enum(SOURCE_KINDS),matched_methods:z.array(methods).optional(),score:z.number().optional()}).strict();
 const pageData=z.object({sources:z.array(sourceSummary),items:z.array(endpointSummary),snapshot_id:z.string(),next_cursor:z.string().nullable(),total:z.number().int()}).strict();
 const responseBody=z.object({format:z.enum(['json','text','binary_summary','empty']),value:z.json(),truncated:z.boolean(),limit_bytes:z.number().int().nonnegative(),bytes_read:z.number().int().nonnegative(),returned_bytes:z.number().int().nonnegative()}).strict();
 const callData=z.object({source:z.string(),endpoint_id:z.string(),method:methods,source_revision:z.string(),provenance:z.array(z.string()),observation_status:z.number().nullable(),response:z.object({status:z.number().nullable(),duration_ms:z.number(),attempts:z.number().int(),content_type:z.string().nullable(),body:responseBody}).strict(),health:healthSchema,learning_persisted:z.boolean()}).strict();
@@ -92,7 +93,7 @@ export async function createGateway(configPath:string) {
     return result;
   }));
   server.registerTool('add_source',{
-    description:'热加载本地可信绑定中的清单文件或 APK 产出目录。目录固定读取 source.json；不会执行 APK、安装工具或接受清单提供的凭据路径。全局护栏保持启动配置。',
+    description:'热加载本地可信绑定中的清单文件或 APK/iOS 产出目录。目录固定读取 source.json；不会执行 APK、安装工具或接受清单提供的凭据路径。全局护栏保持启动配置。',
     inputSchema:z.object({manifest_path:z.string().min(1)}).strict(),outputSchema:output(addData),annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false}
   },async args=>run(async()=>{
     const refreshed=await loadConfig(configPath);

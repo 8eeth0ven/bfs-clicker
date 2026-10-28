@@ -1,0 +1,9 @@
+# Synthetic iOS source only. Replace fixture paths/origins before real use.
+manifest_roots: [./manifests]
+state_dir: ../state/ios-example
+sources:
+  - id: ios_delta
+    kind: ios
+    manifest: ./manifests/ios_delta
+    public: true
+    allowed_origins: [https://api.delta.test]

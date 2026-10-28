@@ -2,7 +2,7 @@
 
 [项目总览](../README.md) · [APK 提取与验证](../apk_tools/README.md) · [实现架构](../docs/apk-mcp-architecture.md) · [验收记录](../docs/apk-mcp-verification.md)
 
-TypeScript + `@modelcontextprotocol/sdk` + stdio。Web 清单与 APK 产出使用同一个调用层，客户端始终只看到 **4 个工具**：`list_endpoints`、`search_endpoints`、`call_endpoint`、`add_source`，另有每个来源的只读 resource。
+TypeScript + `@modelcontextprotocol/sdk` + stdio。Web 清单与 APK/iOS 产出使用同一个调用层，客户端始终只看到 **4 个工具**：`list_endpoints`、`search_endpoints`、`call_endpoint`、`add_source`，另有每个来源的只读 resource。
 
 ## 安装与启动
 
@@ -29,6 +29,8 @@ Web 来源接收已经规范化的端点 JSON 数组，或包含 `endpoints` 数
 ```
 
 Web 爬虫 v2 的原始 API 账本还包含采样和业务分类结构，当前网关不会自动把它转换为该端点格式；需要先生成符合上述契约的清单。不要把原账本、HAR 或验收报告直接传给 `add_source`。
+
+iOS 来源可使用 `ios_extract` 的产出目录，设置 `kind: ios`；[iOS 样例配置](examples/ios-gateway.yaml) 保留 bundle/产物指纹、嵌套代际指针与 `plist/native` 溯源，`.app` 不填写 IPA/APK 哈希。
 
 APK 来源可直接使用 `apk_extract` 的产出目录：`source.json` 指向静态原单，`apk_verify` 完成后指向派生清单。两种来源共用发现、调用、凭据与护栏，APK 的 `source=hermes/dex/...` 溯源仍可检索。
 
@@ -198,3 +200,7 @@ node gateway/examples/apk-e2e.mjs --python /absolute/path/to/python
 最后一条会构建自有debug APK（需要Android SDK/JDK），真实提取、启动mitmdump、向本地8765示例API发送请求、验证合并、通过真实SDK stdio执行add→list→search→call，并断言写方法阻断、秘密不回传、静态原单不变。可用 `--apk` 指定已构建示例包、`--out` 保存报告。`--verified-inventory /path/to/device-inventory`可直接接续已由真实设备生成的派生清单并校验APK哈希。此命令不操作设备；真实设备链路见 [APK工具说明](../apk_tools/README.md)。
 
 Python/FastMCP适合作为备选实现，Tool Search已有相似搜索/调用模式。本项目保持TypeScript SDK和固定工具接口；不引入逐端点工具列表。
+
+新增的 iOS/原生证据流程与 `ios_verify` 见 [iOS/原生层指南](../docs/ios-native-guide.md)。端点的 native/plist 来源只有在方法有可靠证据时才可调用，固定四工具及 GET-only 护栏保持。
+
+过滤条件支持 `kind=web|apk|ios` 与 `extraction_source=manifest|strings|hermes|dex|asset|plist|native|network`；未知方法的原生候选也保留完整参数和定位摘要。

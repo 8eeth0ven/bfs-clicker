@@ -35,7 +35,7 @@ export class Registry {
     const candidate = await loadManifest(binding, { ...this.config, sources: refreshed.sources });
     const old = this.snapshots.get(candidate.id);
     if (old && old.manifest_path !== candidate.manifest_path) throw new GatewayError('SOURCE_CONFLICT', '不能用其他目录覆盖已注册 source');
-    if (old && old.app?.package_name !== candidate.app?.package_name) throw new GatewayError('SOURCE_CONFLICT', '不能替换 source 的应用身份');
+    if (old && (old.kind!==candidate.kind || old.app?.package_name !== candidate.app?.package_name || old.app?.bundle_id!==candidate.app?.bundle_id)) throw new GatewayError('SOURCE_CONFLICT', '不能替换 source 的应用身份');
     const action = !old ? 'added' : old.revision === candidate.revision ? 'unchanged' : 'reloaded';
     await beforeCommit?.(candidate);
     this.snapshots.set(candidate.id, candidate);

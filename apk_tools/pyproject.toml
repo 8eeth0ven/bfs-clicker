@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "apk-interface-inventory"
 version = "0.1.0"
-description = "Evidence-based APK HTTP inventory extraction and controlled capture"
+description = "Evidence-based APK/iOS/native HTTP inventory extraction and controlled capture"
 requires-python = ">=3.11"
-dependencies = ["pyaxmlparser==0.3.31", "androguard==4.1.4", "PyYAML>=6,<7", "psutil>=7,<8"]
+dependencies = ["pyaxmlparser==0.3.31", "androguard==4.1.4", "PyYAML>=6,<7", "psutil>=7,<8", "pyelftools==0.33", "macholib==1.16.4"]
 
 [project.optional-dependencies]
 verify = ["mitmproxy>=12,<13"]
@@ -15,6 +15,8 @@ verify = ["mitmproxy>=12,<13"]
 [project.scripts]
 apk_extract = "apk_inventory.extract:main"
 apk_verify = "apk_inventory.verify:main"
+ios_extract = "apk_inventory.ios:main"
+ios_verify = "apk_inventory.ios_verify:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

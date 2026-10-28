@@ -2,10 +2,10 @@ import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import { digest } from './manifest.js';
 import { Registry } from './registry.js';
 import { LearningStore } from './learning.js';
-import { GatewayError, type Endpoint, type GatewayConfig, type Method, type Operation, type SourceSnapshot } from './types.js';
+import { GatewayError, type Endpoint, type GatewayConfig, type Method, type Operation, type SourceSnapshot, type SourceKind } from './types.js';
 
 export interface ListInput {
-  source?: string; filter?: {endpoint_id?:string;path?:string;method?:Method;provenance?:string;category?:string;kind?:'web'|'apk';extraction_source?:string};
+  source?: string; filter?: {endpoint_id?:string;path?:string;method?:Method;provenance?:string;category?:string;kind?:SourceKind;extraction_source?:string};
   include_schema?: boolean; limit?: number; cursor?: string;
 }
 export interface SearchInput { keyword:string;source?:string;include_schema?:boolean;limit?:number;cursor?:string }
@@ -79,8 +79,8 @@ export class Discovery {
     const docs:{ep:Endpoint;kind:string;path:string;tokens:string[];text:string}[]=[];
     for (const s of sources) for (const ep of s.endpoints) {
       const ops=Object.values(ep.operations) as Operation[];
-      const unresolvedText=ep.unresolved_candidates.flatMap(u=>[u.description||'',...(u.parameter_summary||[]).map((p:any)=>p.name),...(u.categories||[]),...(u.locations||[])]);
-      const text=[ep.path,...ops.flatMap(op=>[op.description,...op.parameter_summary.map(p=>p.name),...op.categories,...op.locations]),...unresolvedText].join(' ');
+      const unresolvedText=ep.unresolved_candidates.flatMap(u=>[u.description||'',...(u.parameter_summary||[]).map((p:any)=>p.name),...(u.categories||[]),...(u.extraction_sources||[]),...(u.locations||[])]);
+      const text=[ep.path,...ops.flatMap(op=>[op.description,...op.parameter_summary.map(p=>p.name),...op.categories,...op.extraction_sources,...op.locations]),...unresolvedText].join(' ');
       docs.push({ep,kind:s.kind,path:normalize(ep.path),text:normalize(text),tokens:words(text)});
     }
     const terms=[...new Set(words(query.keyword))];

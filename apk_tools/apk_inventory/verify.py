@@ -148,7 +148,7 @@ class DeviceCapture:
         # A stable CA directory allows the tester to install its public certificate once.
         confdir = Path(self.args.ca_dir).expanduser().resolve() if self.args.ca_dir else self.directory / ".mitmproxy"
         confdir.mkdir(parents=True, exist_ok=True)
-        command = [self.args.mitmdump, "--mode", "regular", "--listen-host", "127.0.0.1", "--listen-port", str(self.args.proxy),
+        command = [self.args.mitmdump, "--mode", "regular", "--listen-host", getattr(self.args, "listen_host", "127.0.0.1"), "--listen-port", str(self.args.proxy),
                    "-q", "-s", str(addon), "--set", "flow_detail=0", "--set", "store_streamed_bodies=false",
                    "--set", "confdir=" + str(confdir)]
         try:

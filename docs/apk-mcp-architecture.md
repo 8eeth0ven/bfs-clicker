@@ -1,4 +1,4 @@
-# APK / Web 清单到 MCP 的实现架构
+# Web / Android / iOS 清单到 MCP 的实现架构
 
 [项目总览](../README.md) · [APK CLI](../apk_tools/README.md) · [MCP 网关](../gateway/README.md) · [验收记录](apk-mcp-verification.md)
 
@@ -10,6 +10,12 @@ flowchart TD
   ZIP --> R[AXML / ARSC / DEX结构解析]
   ZIP --> H[HBC版本探测 / 可选Hermes后端]
   ZIP --> S[assets / 64KiB分块扫描]
+  ZIP --> ELF[lib/**/*.so / ELF节与符号]
+  IPA[IPA / App Bundle] --> IOS[plist / strings / assets / Hermes]
+  IPA --> MACHO[Mach-O thin/fat / framework / dylib]
+  ELF --> N
+  IOS --> N
+  MACHO --> N
   R --> J[按需JADX相关类]
   R --> N[证据关联 / URL归一 / SQLite去重]
   H --> N
@@ -41,6 +47,7 @@ flowchart TD
 | 模块 | 输入 | 输出 / 责任 |
 |---|---|---|
 | Python extract | APK + ExtractOptions | source.json、六字段静态记录、证据、碎片、hosts汇总 |
+| Python ios/native | IPA/.app、ELF/Mach-O | 有界资源/段/符号证据、加密与剥离标记、产物身份 |
 | Python parsers | 受限单个AXML/ARSC/DEX成员 | 资源或方法关联，隔离worker预算 |
 | Python hermes | HBC文件、版本、已安装工具配置 | 文本/字面量证据或明确降级 |
 | Python verify/addon | App真实HTTP或事件/HAR导入 | 观察形态、覆盖率、原单不变的派生清单 |
@@ -53,8 +60,9 @@ Python CLI通过子进程/文件协议接入，stdout一行JSON，参数用argv�
 
 ## 身份与证据
 
-- 工具参数source是注册ID；记录source是manifest/strings/hermes/dex/asset/network渠道。
-- Android包名在app.package_name；记录package是类/资源/偏移定位。
+- 工具参数source是注册ID；记录source是manifest/strings/hermes/dex/asset/plist/native/network渠道。
+- Android包名在app.package_name；iOS的bundle_id与兼容package_name一致。IPA用文件SHA，.app用相对路径/文件内容的稳定树SHA，iOS不伪造apk_sha256。记录package是类/资源/偏移定位。
+- iOS静态产物采用static/<generation>，source.json最后原子切换；网关校验inventory_sha256，换包指纹改变操作revision与健康上下文。
 - group.id = ep_ + SHA256(JSON.stringify(["endpoint-v1",source_id,origin,path_template]))。
 - 同path不同method共享group ID，参数/权限/来源/学习分别保存；不同origin分组。
 - 未知method=null保持可发现、不可调用。方法只来自明确配置/注解/调用或实抓证据。
@@ -102,3 +110,5 @@ node gateway/examples/apk-e2e.mjs --python /path/to/venv/bin/python --apk /absol
 测试层分别验证：静态结构/大文件预算、真实mitmdump观察、真SDK stdio调用、fake设备恢复逻辑，以及独立模拟器的实际App网络采集。实际运行记录以e2e-report.json、verification_report.json和测试输出为准；源码说明不代替实测。
 
 发布整合保留远端 v2 核心代码。其根 package.json 引用的 7 个测试脚本未随远端基线入库，因此根 npm test 不作为本次 APK/MCP 模块的通过依据，详见 [验收记录](apk-mcp-verification.md)。
+
+原生层与 iOS 的输入、安全预算、定位字段、手动验证及实测边界见 [iOS/原生层指南](ios-native-guide.md)。

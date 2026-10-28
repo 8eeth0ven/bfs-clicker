@@ -2,11 +2,13 @@
 
 [项目首页](../../README.md) · [架构说明](../apk-mcp-architecture.md)
 
-三张图均为架构/功能示意，不是产品截图；只使用合成图形与公开能力名称，不包含真实目标、凭据或设备数据。
+各图均为架构/功能示意，不是产品截图；只使用合成图形与公开能力名称，不包含真实目标、凭据或设备数据。
 
 | 图片 | 用途 | 维护源 |
 | --- | --- | --- |
-| [overview.png](overview.png) | Web / APK / MCP 三类能力总览 | 内置 imagegen 生成并精修，提示词见下文 |
+| [overview-mobile.png](overview-mobile.png) | 当前 Web / Android / iOS / MCP 总览 | 内置 imagegen 编辑，提示词见下文 |
+| [mobile-native-workflow.png](mobile-native-workflow.png) | ELF / Mach-O 的静态证据与验证边界 | [mobile-native-workflow.svg](mobile-native-workflow.svg) |
+| [overview.png](overview.png) | 初版 Web / APK / MCP 封面，作为历史参考保留 | 内置 imagegen 生成并精修，提示词见下文 |
 | [web-workflow.png](web-workflow.png) | Web 范围、遍历、证据、报告与续跑 | [web-workflow.svg](web-workflow.svg) |
 | [apk-mcp-workflow.png](apk-mcp-workflow.png) | APK 提取、可选动态验证、统一清单与 MCP 护栏 | [apk-mcp-workflow.svg](apk-mcp-workflow.svg) |
 
@@ -29,3 +31,13 @@ Edit this GitHub project cover with one precise change: REMOVE the short turquoi
 ```
 
 Web 原始账本接入 MCP 需显式规范化；封面表达能力总览，不表示存在 Web → APK 转换。当前主线的 Android 验证链路是 ADB + mitmdump，Frida/Activity 跳转尚未整合。
+
+## iOS / native 扩展封面
+
+`overview-mobile.png` 使用内置 imagegen 编辑原始封面，采用独立文件名保留原图。`mobile-native-workflow.svg` 是可维护的文本矢量图，PNG 为相同画布的浏览器渲染。所有图均未使用真实 App、凭据或设备截图。
+
+最终编辑提示词：
+
+```text
+Edit the supplied bfs-clicker overview, preserving its dimensions, palette, title, WEB drawing, MCP drawing and footer. Update subtitle to "Web Exploration · Mobile Evidence · MCP Gateway". Change middle heading from "02 APK" to "02 MOBILE" and its feature line to "APK / IPA · ELF / Mach-O · mitmdump". Replace middle single APK document with compact adjacent documents labelled "APK" and "IPA", representing Android and iOS. Change middle evidence cards to "Resources", "DEX / ELF", "Mach-O / Strings". Mobile evidence feeds the existing endpoint catalog arrow. WEB and MOBILE are parallel capabilities: do not add an arrow between the browser and the mobile files. This is an architecture illustration, not a real screenshot. Keep all other text and objects unchanged.
+```

@@ -229,3 +229,50 @@ test('消费保留的三份parameter_variants，联合query标量数组数值及
   const publicData=f.discovery.list({include_schema:true});assert.ok(!JSON.stringify(publicData).includes('PRIVATE_'));
   assert.equal(f.discovery.search({keyword:'variant_only'}).items.length,1);
 });
+
+
+test('iOS嵌套代际清单支持plist/native溯源，短凭据不损坏hash，原始值不进入目录',async t=>{
+  const f=await fixture([]);t.after(()=>rm(f.root,{recursive:true,force:true}));
+  const dir=path.join(f.root,'manifests','ios'),generation=path.join(dir,'static','generation-a');await mkdir(generation,{recursive:true});
+  const records=[record(null,'https://mobile.test/native/items',{source:'native',package:'Payload/Demo.app/Demo#__cstring@64',query:{token:'synthetic-native-private-value'},categories:['static_candidate','native']}),record('GET','https://mobile.test/plist/config',{source:'plist',package:'Payload/Demo.app/Info.plist#APIURL'})];
+  const bytes=JSON.stringify(records),inventory=path.join(generation,'endpoints.static.json');await writeFile(inventory,bytes);
+  const hash='ab'.repeat(32);
+  const descriptor={format:'endpoint-inventory',schema_version:'1.1',kind:'ios',source_id:'ios_demo',inventory:'static/generation-a/endpoints.static.json',inventory_sha256:createHash('sha256').update(bytes).digest('hex'),app:{package_name:'com.example.ios',bundle_id:'com.example.ios',version_name:'1.0',artifact_sha256:hash,ipa_sha256:hash,artifact_type:'ipa'}};
+  const sourceFile=path.join(dir,'source.json');await writeFile(sourceFile,JSON.stringify(descriptor));
+  const refreshed={...f.config,sources:[...f.config.sources,{id:'ios_demo',kind:'ios' as const,manifest:dir,public:true}]};
+  const added=await f.registry.addSource(dir,refreshed);assert.equal(added.action,'added');assert.equal(added.source.kind,'ios');
+  const redactor=new Redactor(['ab','native']);
+  const d=new Discovery(f.registry,f.learning,f.config,redactor);
+  const native=d.list({filter:{kind:'ios',extraction_source:'native'},include_schema:true});
+  assert.equal(native.items.length,1);assert.equal(native.items[0].allowed,false);assert.deepEqual(native.items[0].methods,[]);
+  assert.equal(native.items[0].unresolved_candidates[0].extraction_source,'native');assert.deepEqual(native.items[0].unresolved_candidates[0].extraction_sources,['native']);
+  assert.deepEqual(native.items[0].unresolved_candidates[0].categories,['static_candidate','[REDACTED]']);
+  const app=native.sources.find((source:any)=>source.source==='ios_demo').app;assert.equal(app.artifact_sha256,hash);assert.equal(app.ipa_sha256,hash);assert.equal(Object.hasOwn(app,'apk_sha256'),false);
+  assert.equal(d.list({filter:{kind:'ios',extraction_source:'plist'}}).items[0].path,'/plist/config');
+  assert.equal(d.search({source:'ios_demo',keyword:'native'}).items[0].path,'/[REDACTED]/items');
+  assert.equal(d.search({source:'ios_demo',keyword:'Info.plist'}).items[0].path,'/plist/config');
+  assert.ok(!JSON.stringify(d.resource('ios_demo')).includes('synthetic-native-private-value'));
+  // A partial or racing generation must never replace the active registry snapshot.
+  await writeFile(inventory,JSON.stringify([]));await assert.rejects(f.registry.addSource(dir,refreshed),(e:any)=>e.code==='INVENTORY_CHANGED');
+  assert.equal(f.registry.get('ios_demo').revision,added.source.revision);
+});
+
+test('iOS身份不可替换，产物变化进入source与operation revision，类型和指纹受校验',async t=>{
+  const f=await fixture([]);t.after(()=>rm(f.root,{recursive:true,force:true}));
+  const dir=path.join(f.root,'manifests','ios');await mkdir(dir);
+  await writeFile(path.join(dir,'endpoints.json'),JSON.stringify([record('GET','https://ios.test/config',{source:'plist'})]));
+  const app={package_name:'com.example.ios',bundle_id:'com.example.ios',version_name:'1',artifact_sha256:'1'.repeat(64),ipa_sha256:'1'.repeat(64),artifact_type:'ipa'};
+  const descriptor={format:'endpoint-inventory',schema_version:'1.1',kind:'ios',source_id:'ios_demo',inventory:'endpoints.json',app};
+  const file=path.join(dir,'source.json');const save=()=>writeFile(file,JSON.stringify(descriptor));await save();
+  const refreshed={...f.config,sources:[...f.config.sources,{id:'ios_demo',kind:'ios' as const,manifest:dir,public:true}]};
+  const first=(await f.registry.addSource(dir,refreshed)).source;const firstOp=first.endpoints[0].operations.GET!;
+  await f.learning.observe('ios_demo',first.endpoints[0].id,firstOp,200);
+  app.artifact_sha256='2'.repeat(64);app.ipa_sha256='2'.repeat(64);await save();
+  const next=(await f.registry.addSource(dir,refreshed)).source;assert.equal(first.endpoints[0].id,next.endpoints[0].id);assert.notEqual(first.revision,next.revision);assert.notEqual(firstOp.contract_revision,next.endpoints[0].operations.GET!.contract_revision);
+  assert.equal(f.learning.get('ios_demo',next.endpoints[0].id,next.endpoints[0].operations.GET!).success_streak,0);
+  app.bundle_id='com.example.other';await save();await assert.rejects(f.registry.addSource(dir,refreshed),(e:any)=>e.code==='SOURCE_CONFLICT');
+  app.package_name='com.example.other';await save();await assert.rejects(f.registry.addSource(dir,refreshed),(e:any)=>e.code==='SOURCE_CONFLICT');
+  app.package_name='com.example.ios';app.bundle_id='com.example.ios';app.artifact_sha256='invalid-hash';await save();await assert.rejects(f.registry.addSource(dir,refreshed),(e:any)=>e.code==='MANIFEST_INVALID');
+  app.artifact_sha256='2'.repeat(64);app.artifact_type='app';await save();await assert.rejects(f.registry.addSource(dir,refreshed),(e:any)=>e.code==='MANIFEST_INVALID');
+  assert.equal(f.registry.get('ios_demo').revision,next.revision);
+});

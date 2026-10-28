@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 import { z } from 'zod';
-import { GatewayError, METHODS, type GatewayConfig } from './types.js';
+import { GatewayError, METHODS, SOURCE_KINDS, type GatewayConfig } from './types.js';
 
 const origin = z.string().transform((value, ctx) => {
   try {
@@ -17,7 +17,7 @@ const bindingSchema = z.object({
   allowed_origins: z.array(origin).optional(), credential_origins: z.array(origin).optional(),
   base_url: z.string().url().optional(), static_headers: z.record(z.string(), z.string()).optional(),
   defaults: z.record(z.string(), z.any()).optional(), schema_overrides: z.record(z.string(), z.record(z.string(), z.any())).optional(),
-  public: z.boolean().default(false), kind: z.enum(['web', 'apk']).optional()
+  public: z.boolean().default(false), kind: z.enum(SOURCE_KINDS).optional()
 }).strict();
 const schema = z.object({
   manifest_roots: z.array(z.string()).min(1), state_dir: z.string().default('./state'),

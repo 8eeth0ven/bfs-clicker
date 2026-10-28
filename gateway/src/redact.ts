@@ -121,7 +121,7 @@ export class Redactor {
   }
   value<T>(value: T): T { return this.transform(value,false); }
   private transform<T>(value: T, catalog: boolean): T {
-    const publicFields=new Set(['id','endpoint_id','source','source_revision','revision','snapshot_id','resource_uri','apk_sha256','method','methods','matched_methods','provenance','state','format','schema_version','contract_revision','evidence_scope','kind','type']);
+    const publicFields=new Set(['id','endpoint_id','source','source_revision','revision','snapshot_id','resource_uri','apk_sha256','artifact_sha256','ipa_sha256','artifact_type','extraction_source','extraction_sources','method','methods','matched_methods','provenance','state','format','schema_version','contract_revision','evidence_scope','kind','type']);
     // Schema property names are field declarations, not captured secret values.
     // Keep only schema keywords; never publish captured defaults or examples.
     const schemaWalk = (schema: any, depth: number, secretField = false): any => {

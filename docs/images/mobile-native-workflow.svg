@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Android ELF 与 iOS Mach-O 的接口证据链">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#008c91"/>
+    </marker>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#e8f0f9" stroke-width="0.6"/>
+    </pattern>
+  </defs>
+  <g font-family="PingFang SC, STHeiti, Noto Sans CJK SC, Arial, sans-serif">
+    <rect width="1600" height="900" fill="#f8fbff"/>
+    <rect width="1600" height="900" fill="url(#grid)"/>
+
+
+    <text x="64" y="94" font-size="48" fill="#102747" font-weight="700">移动端原生接口证据</text>
+    <text x="64" y="145" font-size="25" fill="#526780" font-weight="400">APK 的 ELF 与 iOS 的 Mach-O，共用证据、验证合并与 MCP 调用层</text>
+    <rect x="64" y="235" width="220" height="180" rx="20" fill="#edf8fa" stroke="#d8e5f2"/>
+    <text x="90" y="291" font-size="21" fill="#008c91" font-weight="700">ANDROID</text>
+    <text x="90" y="344" font-size="40" fill="#102747" font-weight="700">APK</text>
+    <text x="90" y="383" font-size="21" fill="#526780" font-weight="400">DEX / assets / .so</text>
+    <rect x="344" y="235" width="752" height="180" rx="20" fill="#fff" stroke="#d8e5f2"/>
+    <text x="372" y="286" font-size="28" fill="#102747" font-weight="700">资源 / DEX + 原生 ELF 分析</text>
+    <text x="372" y="331" font-size="24" fill="#526780" font-weight="400">Androguard · 按需 JADX · Hermes · pyelftools</text>
+    <text x="372" y="372" font-size="23" fill="#526780" font-weight="400">ABI · 节与字符串 · JNI / 导入导出 · 动态依赖</text>
+    <path d="M290 325H336" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <path d="M1102 325H1168" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="64" y="470" width="220" height="180" rx="20" fill="#f1effb" stroke="#d8e5f2"/>
+    <text x="90" y="526" font-size="21" fill="#6554c0" font-weight="700">iOS</text>
+    <text x="90" y="579" font-size="30" fill="#102747" font-weight="700">IPA / .app</text>
+    <text x="90" y="618" font-size="20" fill="#526780" font-weight="400">App / framework</text>
+    <rect x="344" y="470" width="752" height="180" rx="20" fill="#fff" stroke="#d8e5f2"/>
+    <text x="372" y="521" font-size="28" fill="#102747" font-weight="700">plist / strings / assets + Mach-O 分析</text>
+    <text x="372" y="566" font-size="24" fill="#526780" font-weight="400">Info.plist · Hermes · thin / fat slices · macholib</text>
+    <text x="372" y="607" font-size="23" fill="#526780" font-weight="400">段与偏移 · 架构 · 符号 / 依赖 · 加密范围标记</text>
+    <path d="M290 560H336" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <path d="M1102 560H1168" fill="none" stroke="#008c91" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="1176" y="235" width="360" height="415" rx="20" fill="#fff" stroke="#d8e5f2"/>
+    <text x="1202" y="288" font-size="29" fill="#102747" font-weight="700">统一清单 → MCP</text>
+    <text x="1202" y="336" font-size="22" fill="#526780" font-weight="400">method · url · query</text>
+    <text x="1202" y="373" font-size="21" fill="#526780" font-weight="400">headers · body · categories</text>
+    <path d="M1202 399H1510" stroke="#d8e5f2"/>
+    <text x="1202" y="442" font-size="25" fill="#008c91" font-weight="700">list / search / call</text>
+    <text x="1202" y="481" font-size="22" fill="#526780" font-weight="400">add_source · resources</text>
+    <text x="1202" y="535" font-size="22" fill="#526780" font-weight="400">本地凭据 · GET-only beta</text>
+    <text x="1202" y="575" font-size="22" fill="#526780" font-weight="400">Origin 校验 · 响应脱敏</text>
+    <text x="1202" y="615" font-size="20" fill="#6554c0" font-weight="400">原生来源保留为 native</text>
+    <rect x="64" y="714" width="1472" height="88" rx="20" fill="#eef7fb" stroke="#d8e5f2"/>
+    <text x="88" y="751" font-size="24" fill="#008c91" font-weight="700">可选动态验证：mitmdump / HAR → observed；静态候选保留 static_candidate。</text>
+    <text x="88" y="784" font-size="21" fill="#526780" font-weight="400">Android 可用 ADB 编排；iOS 的安装、启动、代理与 CA 信任由人工完成。</text>
+    <path d="M64 827H1536" stroke="#d8e5f2"/>
+    <text x="64" y="862" font-size="20" fill="#526780" font-weight="400">file offset · section · architecture · slice | 未知方法保持 null，加密与剥离限制写入报告</text>
+    <text x="1340" y="862" font-size="18" fill="#526780" font-weight="400">架构示意 / 非截图</text>
+  </g>
+</svg>
