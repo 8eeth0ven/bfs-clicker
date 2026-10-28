@@ -6,6 +6,10 @@
 
 离线提取用资源/DEX 解析器与可切换 Hermes 后端，deep 模式按需调用 JADX；动态验证用 adb 编排隔离设备、mitmdump 采集人工操作 App 时的 HTTP 请求。这个 beta 不包含 Frida hook、Activity 自动跳转或真实 App 的自动界面遍历；当前操作入口与设备准备见下文。
 
+## 一键准备（推荐）
+
+仓库根运行 `./capture-setup.sh demo.apk --isolated-device`，或 `./capture-setup.sh demo.ipa --target ios --isolated-device`。macOS 可双击 `capture-setup.command`。自动环境准备、引导页、CA 复用、自测后启动/计时与恢复见 [统一一键入口](../docs/capture-setup.md)。下文 CLI 仍可独立使用。
+
 ## 安装
 
 以下命令在仓库根目录执行；当前实测环境为macOS，POSIX子进程与设备编排路径已验证，Windows未验证。

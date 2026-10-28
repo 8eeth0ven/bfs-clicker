@@ -11,13 +11,18 @@ dependencies = ["pyaxmlparser==0.3.31", "androguard==4.1.4", "PyYAML>=6,<7", "ps
 
 [project.optional-dependencies]
 verify = ["mitmproxy>=12,<13"]
+setup = ["mitmproxy>=12,<13", "qrcode>=8,<9"]
 
 [project.scripts]
 apk_extract = "apk_inventory.extract:main"
 apk_verify = "apk_inventory.verify:main"
 ios_extract = "apk_inventory.ios:main"
 ios_verify = "apk_inventory.ios_verify:main"
+capture_setup = "apk_inventory.capture_setup:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["apk_inventory*"]
+
+[tool.setuptools.package-data]
+apk_inventory = ["setup_ui.html"]

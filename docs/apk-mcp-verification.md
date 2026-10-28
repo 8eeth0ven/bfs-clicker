@@ -10,8 +10,8 @@
 |---|---|
 | TypeScript构建 | npm --prefix gateway run build通过 |
 | 网关测试 | 33/33通过，含目录/分页/方法隔离/多样例形态/凭据/UTF8截断/超时/重试/热加载/资源/真实SDK stdio |
-| Python测试 | 80/80通过，设置真实APK与HBC fixture，无skip |
-| 发布基线 | 基于远端 v2 整合；src/view/config.json/demo 与远端一致。远端原 package.json 引用的 7 个测试脚本缺失，整仓 npm test 未验收通过；本次独立模块共 113 项测试通过 |
+| Python测试 | 178/178通过，设置真实APK与HBC fixture，无skip |
+| 发布基线 | 基于远端 v2 整合；src/view/config.json/demo 与远端一致。远端原 package.json 引用的 7 个测试脚本缺失，整仓 npm test 未验收通过；本次独立模块共 211 项测试通过 |
 | 运行依赖审计 | gateway npm audit --omit=dev为0 |
 | Python完整安装 | 独立Python3.13.7实际安装[verify]成功，Androguard4.1.4+mitmproxy12.3.1共存，pip check无冲突 |
 | 三来源样例 | 实际SDK启动，3 sources / 3 resources / 6 groups / 固定4 tools |
@@ -23,9 +23,16 @@
 | 大bundle内存 | 34MiB连续printable，Python分配峰值<3MiB；独立扫描进程RSS增量<8MiB回归通过 |
 | 差异补丁 | gateway新增文件patch已用git apply --check --reverse核对当前内容 |
 
+## 一键准备新增验收（2026-10-28）
+
+- 统一 shell/双击入口、项目依赖复用、本地引导页、CA/PAC、平台适配、HTTPS proof、延迟启动、恢复与崩溃 checkpoint 已加入；Python 当前总计 178 项。
+- 真实 mitmdump + HTTPS CONNECT/TLS + 临时 CA 两轮复用链通过，错误明文 HTTPS 不写信任 proof；用户 Host/Origin/CSRF、公证书/profile 白名单、PAC DIRECT、设备选择与恢复边界回归通过。
+- macOS/Android/iOS 平台设置、系统 ACL、安装/信任恢复使用有状态 runner 测试；开发宿主和真实设备未被这些测试修改，不能声称真机各系统版本已验收。
+- iOS 保留项目 PAC/CA 时使用 DIRECT/fallback；原始 Wi-Fi 字段不宣称自动还原。普通 iOS 首次手动 profile 的完整信任仍是系统步骤，Configurator 能力可用时优先自动化。
+
 ## iOS / native 新增验收（2026-10-28）
 
-- Python 全套 80/80、网关 33/33，当前测试环境无 skip；pip check 无依赖冲突。
+- Python 全套 178/178、网关 33/33，当前测试环境无 skip；pip check 无依赖冲突。
 - ELF：真实 clang 编译 ARM32/AArch64/大端对象；本机 rust-lld 链接 AArch64 ET_DYN `.so`，验证动态依赖、curl 导入与 JNI 导出。APK 容器实测 worker/证据定位/脱敏/`--no-native`。
 - Mach-O：真实 clang 编译 arm64 iOS 对象，覆盖 IPA/.app/framework；thin/fat32/fat64、加密范围、损坏边界和剥离限制测试。34 MiB 字符串节的 Python 分配峰值测试通过（<4 MiB）。
 - `ios-e2e.mjs`：自建 IPA → native 静态未知方法 → 真实 mitmdump/loopback HTTP → 2 个 observed 操作 → 同一清单热加载 → SDK GET 200、POST 阻断；原单不变、敏感值不出返回、静态 native 溯源保留。

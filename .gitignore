@@ -35,6 +35,7 @@ gateway/dist/
 gateway/state/
 .apk-inventory/
 .ios-inventory/
+.capture-setup/
 .mitmproxy/
 .venv/
 *.egg-info/

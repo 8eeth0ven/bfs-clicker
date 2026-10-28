@@ -112,3 +112,7 @@ node gateway/examples/apk-e2e.mjs --python /path/to/venv/bin/python --apk /absol
 发布整合保留远端 v2 核心代码。其根 package.json 引用的 7 个测试脚本未随远端基线入库，因此根 npm test 不作为本次 APK/MCP 模块的通过依据，详见 [验收记录](apk-mcp-verification.md)。
 
 原生层与 iOS 的输入、安全预算、定位字段、手动验证及实测边界见 [iOS/原生层指南](ios-native-guide.md)。
+
+## 环境准备协调器
+
+`capture_setup` 在清单提取/观察之前统一管理 macOS、Android、iOS/Simulator 的 plan/apply/launch/restore。项目 CA 复用、设备选择、公开配置门户、真实 TLS canary、延迟启动、意图 checkpoint 与会话恢复彼此分离。系统批准或命令退出 0 不直接视为 TLS 信任成功；canary 仍只证明选定浏览器路径。[运行与边界](capture-setup.md)

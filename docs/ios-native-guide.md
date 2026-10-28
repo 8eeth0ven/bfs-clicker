@@ -6,6 +6,10 @@ APK 的 DEX/资源与 `.so`，以及 iOS 的 IPA/`.app`/Mach-O，最终进入同
 
 ![Android ELF 与 iOS Mach-O 的接口证据链](images/mobile-native-workflow.png)
 
+## 一键准备（推荐）
+
+`./capture-setup.sh demo.ipa --target ios --isolated-device` 可串起提取、可用时自动安装/配对、代理/CA 引导、自测和验证合并。首次确认完成后自动继续；支持项目 CA/PAC 复用与恢复。[完整说明](capture-setup.md)
+
 ## 安装与输入
 
 仓库根执行，静态提取要求 Python ≥3.11；mitmproxy extra 要求 Python ≥3.12。
@@ -29,7 +33,7 @@ ios_extract demo.ipa --app Payload/Demo.app --out output-ios/selected
 
 CLI 也可用 `PYTHONPATH=apk_tools python -m apk_inventory.ios ...`。Hermes 开关、外部工具、`--limits` 与 `--strict` 沿用 APK 的语义。默认 partial 返回 0；strict 下 partial 返回 3；致命输入错误返回 2。
 
-ZIP 路径、重复成员、符号链接、解压比例、总量、单成员和数量都有检查。`.app` 拒绝 symlink/特殊文件，输出不得置于输入 Bundle 内。当前 beta 不自动安装 IPA、处理签名或修改设备。
+ZIP 路径、重复成员、符号链接、解压比例、总量、单成员和数量都有检查。`.app` 拒绝 symlink/特殊文件，输出不得置于输入 Bundle 内。离线提取器不安装或修改设备；统一准备器可通过支持的系统工具安装有效签名应用，签名本身需预先准备。
 
 ## 两类原生二进制
 
@@ -103,7 +107,7 @@ ios_verify demo.ipa --inventory output-ios/demo \
   --scope scope.local.yaml --isolated-device
 ```
 
-本工具启动和回收自己的 mitmdump 进程；不更改 iOS 设备设置，因此结束后设备代理需人工复原。默认仅监听 loopback；LAN 监听需明确指定本机地址。CA 信任、pinning、App 是否采用系统代理决定 HTTPS 可见性。清单的 SHA 必须与本轮 IPA/`.app` 一致；中断或采集失败不切换 active inventory。
+本节的底层 `ios_verify` 仅管理 mitmdump，设备设置由人工管理；推荐使用统一准备器处理可自动化的安装/代理/CA 与恢复步骤。默认仅监听 loopback；LAN 监听需明确指定本机地址。CA 信任、pinning、App 是否采用系统代理决定 HTTPS 可见性。清单的 SHA 必须与本轮 IPA/`.app` 一致；中断或采集失败不切换 active inventory。
 
 ## 接入 MCP
 

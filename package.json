@@ -10,6 +10,9 @@
     "docs/apk-mcp-verification.md",
     "docs/web-guide.md",
     "docs/ios-native-guide.md",
+    "docs/capture-setup.md",
+    "capture-setup.sh",
+    "capture-setup.command",
     "docs/images/",
     "src/",
     "view/",
@@ -22,6 +25,7 @@
     "scripts/dedup-traffic.mjs"
   ],
   "scripts": {
+    "setup:capture": "bash capture-setup.sh",
     "gateway:build": "npm --prefix gateway run build",
     "test:gateway": "npm --prefix gateway test",
     "test:apk": "python3 -m unittest discover -s apk_tools/tests",

@@ -6,7 +6,17 @@ Playwright Web 界面遍历与动态 JS/API 捕获 · Android / iOS 静态分析
 
 ![bfs-clicker 项目总览：Web Exploration、Mobile Evidence、MCP Gateway](docs/images/overview-mobile.png)
 
-[Web 使用指南](docs/web-guide.md) · [APK 提取与验证](apk_tools/README.md) · [iOS 与原生层](docs/ios-native-guide.md) · [MCP 配置](gateway/README.md) · [架构](docs/apk-mcp-architecture.md) · [验收与限制](docs/apk-mcp-verification.md) · [English](#english)
+[一键准备](docs/capture-setup.md) · [Web 使用指南](docs/web-guide.md) · [APK 提取与验证](apk_tools/README.md) · [iOS 与原生层](docs/ios-native-guide.md) · [MCP 配置](gateway/README.md) · [架构](docs/apk-mcp-architecture.md) · [验收与限制](docs/apk-mcp-verification.md) · [English](#english)
+
+## 一条命令准备测试环境
+
+```bash
+./capture-setup.sh ./demo.apk --isolated-device
+./capture-setup.sh ./demo.ipa --target ios --isolated-device
+./capture-setup.sh /path/to/Demo.app --target macos --scope scope.local.yaml
+```
+
+macOS 可双击 `capture-setup.command`。首次自动准备依赖，并打开本地引导页：识别设备、安装可用应用、配置代理/测试 CA；按系统要求同意授权后自动自测、启动 App、计时采集和恢复。项目 CA 与设备记录后续复用；iOS 优先使用 Configurator，普通真机的首次描述文件/完整信任步骤由页面引导。[完整用法与平台边界](docs/capture-setup.md)
 
 ## 能做什么
 
@@ -105,7 +115,7 @@ ios_verify demo.ipa --inventory output-ios/demo \
 
 `ios_extract` 支持多 App 显式选择、原子代际清单与敏感字段脱敏；`.app` 使用稳定树哈希，IPA 使用文件 SHA-256。默认分析 APK 中的 `.so`，以 `source=native` 保留 ABI、段、文件偏移、导入/导出与 JNI 符号线索。可用 `--no-native` 关闭原生阶段。
 
-iOS 的 `ios_verify` 支持 HAR/事件导入和真实 mitmdump 监听，设备安装、App 启动、代理和 CA 信任由人工完成。加密区不解密，剥离符号或动态拼接的 URL 可能无法恢复；URL 字符串不自动推断为 GET。完整配置、可复现夹具和边界见 [iOS/原生层指南](docs/ios-native-guide.md)。
+iOS 的 `ios_verify` 是底层 HAR/mitmdump 入口；通常使用 `capture-setup.sh` 自动准备应用、代理与 CA，系统要求的首次确认由引导页处理。加密区不解密，剥离符号或动态拼接的 URL 可能无法恢复；URL 字符串不自动推断为 GET。完整配置、可复现夹具和边界见 [iOS/原生层指南](docs/ios-native-guide.md)。
 
 ### 4. 把接口清单交给 AI 客户端
 
@@ -189,7 +199,7 @@ PYTHONPATH=apk_tools .venv/bin/python -m unittest discover -s apk_tools/tests -v
 node gateway/examples/apk-e2e.mjs --python /path/to/venv/bin/python
 ```
 
-最近验收：**网关 33/33，Python 80/80**，Python 运行包含真实编译 APK 与 Hermes fixture，无 skip。自行运行时，未设置真实 fixture 的相关测试可能跳过；完整条件见 [验收记录](docs/apk-mcp-verification.md)。
+最近验收：**网关 33/33，Python 178/178**，Python 运行包含真实编译 APK 与 Hermes fixture，无 skip。自行运行时，未设置真实 fixture 的相关测试可能跳过；完整条件见 [验收记录](docs/apk-mcp-verification.md)。
 
 当前公开 Web 基线的根 `package.json` 引用了 7 个未入库测试脚本，根 `npm test` 尚不能复现整仓回归。APK/MCP 的独立测试入口可用；[Web 历史验收](docs/implementation-status.md) 仅描述原开发环境。
 
@@ -197,7 +207,7 @@ Web 的闭合 Shadow DOM、canvas、WebSocket/WebRTC、worker 与无限控件组
 
 iOS 真实代理 + MCP SDK 的本地夹具链可运行 `node gateway/examples/ios-e2e.mjs --python /path/to/venv/bin/python`。该示例没有操作 iOS 设备，未签名 Mach-O 对象仅用于静态证据，实际 HTTP 由 loopback 测试客户端产生。
 
-图为功能/架构示意，不是产品截图；[图片源文件与生成说明](docs/images/README.md) 可用于后续维护。
+首页架构图为功能示意；[一键准备指南](docs/capture-setup.md) 另含使用合成数据渲染的实际引导页截图。[图片源文件与生成说明](docs/images/README.md) 可用于后续维护。
 
 ## English
 
@@ -205,7 +215,7 @@ iOS 真实代理 + MCP SDK 的本地夹具链可运行 `node gateway/examples/io
 
 - **Web:** traverse UI states and navigation paths with BFS/DFS; capture network evidence and bounded JavaScript endpoint candidates; stop, save and resume from the local panel or CLI.
 - **Android:** inspect Manifest/resources/DEX/assets and native `.so` ELF evidence, with optional JADX and selectable Hermes backends; use ADB + mitmdump for runtime capture.
-- **iOS:** inspect plist/strings/assets and Mach-O binaries/frameworks in IPA or `.app` bundles; import HAR or capture through a manually configured mitmdump proxy. Device installation, launch and CA trust are manual. Encrypted ranges are reported rather than decrypted; native strings do not imply an HTTP method.
+- **iOS:** inspect plist/strings/assets and Mach-O binaries/frameworks in IPA or `.app` bundles. The unified `capture-setup.sh` prepares supported device/app/proxy/CA actions, guides mandatory system approvals, verifies a real HTTPS path, starts capture and restores owned settings. Encrypted ranges are reported rather than decrypted; native strings do not imply an HTTP method.
 - **MCP:** expose normalized Web manifests and APK/iOS inventories through four tools, read-only resources and stdio for Claude Desktop / Cursor. Credentials stay in local per-source bindings; calls default to GET-only with origin checks and bounded responses.
 
 The public branch contains the Android ADB/mitmdump pipeline and iOS manual-proxy/HAR verification. Legacy Frida hooks and Activity-jumping scripts have not been integrated into this branch. The Web v2 evidence ledger also requires an explicit normalization adapter before MCP import; that adapter is not included.

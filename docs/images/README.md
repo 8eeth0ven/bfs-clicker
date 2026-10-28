@@ -2,10 +2,11 @@
 
 [项目首页](../../README.md) · [架构说明](../apk-mcp-architecture.md)
 
-各图均为架构/功能示意，不是产品截图；只使用合成图形与公开能力名称，不包含真实目标、凭据或设备数据。
+架构图为功能示意；一键准备引导页截图使用真实界面与合成数据。均不包含真实目标、凭据或设备数据。
 
 | 图片 | 用途 | 维护源 |
 | --- | --- | --- |
+| [capture-setup-ui.png](capture-setup-ui.png) | 一键准备引导页，合成数据界面 | `apk_tools/apk_inventory/setup_ui.html`，浏览器渲染 |
 | [overview-mobile.png](overview-mobile.png) | 当前 Web / Android / iOS / MCP 总览 | 内置 imagegen 编辑，提示词见下文 |
 | [mobile-native-workflow.png](mobile-native-workflow.png) | ELF / Mach-O 的静态证据与验证边界 | [mobile-native-workflow.svg](mobile-native-workflow.svg) |
 | [overview.png](overview.png) | 初版 Web / APK / MCP 封面，作为历史参考保留 | 内置 imagegen 生成并精修，提示词见下文 |
@@ -41,3 +42,5 @@ Web 原始账本接入 MCP 需显式规范化；封面表达能力总览，不�
 ```text
 Edit the supplied bfs-clicker overview, preserving its dimensions, palette, title, WEB drawing, MCP drawing and footer. Update subtitle to "Web Exploration · Mobile Evidence · MCP Gateway". Change middle heading from "02 APK" to "02 MOBILE" and its feature line to "APK / IPA · ELF / Mach-O · mitmdump". Replace middle single APK document with compact adjacent documents labelled "APK" and "IPA", representing Android and iOS. Change middle evidence cards to "Resources", "DEX / ELF", "Mach-O / Strings". Mobile evidence feeds the existing endpoint catalog arrow. WEB and MOBILE are parallel capabilities: do not add an arrow between the browser and the mobile files. This is an architecture illustration, not a real screenshot. Keep all other text and objects unchanged.
 ```
+
+一键准备截图使用演示设备、演示 SSID 与合成指纹；二维码指向使用指南，不是运行中的会话。截图由真实 HTML 界面渲染，不涉及 imagegen。
