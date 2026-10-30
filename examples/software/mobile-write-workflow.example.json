@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "create_note",
+  "name": "创建示例笔记",
+  "effect": "write",
+  "inputSchema": {
+    "type": "object",
+    "properties": {"title": {"type": "string", "minLength": 2, "maxLength": 80}},
+    "required": ["title"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {"kind": "type", "selector": {"resourceId": "com.example.demo:id/title"}, "input": "title", "replace": true},
+    {"kind": "click", "selector": {"resourceId": "com.example.demo:id/save"}},
+    {"kind": "assert", "selector": {"resourceId": "com.example.demo:id/receipt"}, "expect": {"containsInput": "title", "changed": true}},
+    {"kind": "extract", "selector": {"resourceId": "com.example.demo:id/receipt"}, "output": "receipt", "valueType": "string"}
+  ]
+}

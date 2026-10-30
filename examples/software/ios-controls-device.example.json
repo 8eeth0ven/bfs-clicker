@@ -1,0 +1,70 @@
+{
+  "source": {
+    "id": "ios_com_example_bfsmcp_ioscontrols",
+    "kind": "ios"
+  },
+  "backend": {
+    "type": "webdriver",
+    "url": "http://127.0.0.1:4723",
+    "sessionId": "REPLACE_WITH_EXISTING_SESSION",
+    "platform": "ios",
+    "appId": "com.example.bfsmcp.ioscontrols",
+    "commandTimeoutMs": 60000
+  },
+  "limits": {
+    "maxActions": 40,
+    "maxDepth": 0,
+    "maxDurationMs": 480000
+  },
+  "actionAllowlist": [
+    {
+      "kind": "select",
+      "selector": {
+        "accessibilityId": "StatusGroup"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "check",
+      "selector": {
+        "accessibilityId": "All"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "check",
+      "selector": {
+        "accessibilityId": "Open"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "check",
+      "selector": {
+        "accessibilityId": "Closed"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "check",
+      "selector": {
+        "accessibilityId": "Active"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "type",
+      "selector": {
+        "accessibilityId": "Query"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "click",
+      "selector": {
+        "accessibilityId": "Search"
+      },
+      "effect": "read"
+    }
+  ]
+}

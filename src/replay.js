@@ -4,6 +4,7 @@ import { fillValueFor, isDropdownTrigger, isFormAction, pickOpenOption, prepareF
 export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={}) {
   config._runtime?.budget?.check();
   if(el.skipped || el.excluded)throw Object.assign(new Error(el.skipReason||'excluded_action'),{name:'PolicyError'});
+  dialogs.invalidate?.();
   if(el.kind==='scroll'){
     await frameFor(page,el).evaluate(step=>{
       const candidates=[document.scrollingElement,...document.querySelectorAll('[data-bfs-scroll],[role="list"],[role="listbox"]')].filter(Boolean);
@@ -33,9 +34,10 @@ export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={})
     else if(options.length)await loc.selectOption(options[0].value,{timeout});
     else if(await loc.locator('option').count()>1)await loc.selectOption({index:1},{timeout});
   }else if(target.type==='text'){
-    if(!config.fillText&&!config.formExplore)return;
+    if(!config.fillText&&!config.formExplore)throw Object.assign(new Error('form_fill_disabled'),{name:'PolicyError',reason:'form_fill_disabled'});
     const value=config.formValues?.[target.selector]??fillValueFor(target,config);
-    if(value!=null)await loc.fill(value,{timeout});
+    if(value==null)throw Object.assign(new Error('form_value_unavailable'),{name:'PolicyError',reason:'form_value_unavailable'});
+    await loc.fill(value,{timeout});
   }else{
     try{await loc.click({timeout});}
     catch(error){
@@ -72,5 +74,6 @@ export async function gotoWithRetry(page,url,config,log=()=>{},label='') {
   }
 }
 export async function gotoStep(page,dialogs,url,config,log=()=>{},opts={}) {
+  dialogs.invalidate?.();
   await gotoWithRetry(page,url,config,log);await dialogs.handle();await dialogs.stabilize(opts.short);
 }

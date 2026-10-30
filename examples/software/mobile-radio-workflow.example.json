@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "search_by_status",
+  "name": "按文字和单选状态查询",
+  "effect": "read",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "all",
+          "open",
+          "closed"
+        ]
+      }
+    },
+    "required": [
+      "query",
+      "status"
+    ],
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "kind": "select",
+      "selector": {
+        "accessibilityId": "StatusGroup"
+      },
+      "input": "status",
+      "options": [
+        {
+          "value": "all",
+          "selector": {
+            "accessibilityId": "all"
+          }
+        },
+        {
+          "value": "open",
+          "selector": {
+            "accessibilityId": "open"
+          }
+        },
+        {
+          "value": "closed",
+          "selector": {
+            "accessibilityId": "closed"
+          }
+        }
+      ],
+      "timeoutMs": 1500
+    },
+    {
+      "kind": "type",
+      "selector": {
+        "accessibilityId": "QueryText"
+      },
+      "input": "query",
+      "replace": true
+    },
+    {
+      "kind": "click",
+      "selector": {
+        "accessibilityId": "Search"
+      }
+    },
+    {
+      "kind": "assert",
+      "selector": {
+        "accessibilityId": "Results"
+      },
+      "expect": {
+        "containsInput": "query",
+        "changed": true
+      }
+    },
+    {
+      "kind": "assert",
+      "selector": {
+        "accessibilityId": "Results"
+      },
+      "expect": {
+        "containsInput": "status"
+      }
+    },
+    {
+      "kind": "extract",
+      "selector": {
+        "accessibilityId": "Results"
+      },
+      "output": "results",
+      "valueType": "string"
+    }
+  ]
+}

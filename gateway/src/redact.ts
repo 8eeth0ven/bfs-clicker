@@ -1,4 +1,7 @@
-const SECRET_KEY = /^(?:authorization|proxy.authorization|cookie|set.cookie|password|passwd|pwd|secret|client.secret|token|access.token|refresh.token|id.token|api.key|apikey|session|sessionid|session.id|csrf.token|xsrf.token)$/i;
+import {queryRules} from './query-serialization.js';
+import {formRules} from './form-serialization.js';
+
+const SECRET_KEY = /^(?:authorization|proxy[_.-]?authorization|cookie|set[_.-]?cookie|password|passwd|pwd|secret|client[_.-]?secret|token|(?:access|refresh|id|auth)[_.-]?token|api[_.-]?key|session|session[_.-]?id|[cx]srf[_.-]?token)$/i;
 const KEY_PATTERN = '(?:authorization|proxy[_-]?authorization|cookie|set[_-]?cookie|password|passwd|pwd|secret|client[_-]?secret|(?:access[_-]?|refresh[_-]?|id[_-]?)?token|api[_-]?key|session(?:[_-]?id)?|[cx]srf[_-]?token)';
 type Span = [number, number];
 export function truncateUtf8(text: string, limit: number): string {
@@ -19,6 +22,12 @@ export class Redactor {
       this.secrets.add(encodeURIComponent(value));
       this.secrets.add(encodeURIComponent(value).replace(/%[A-F0-9]{2}/g, x => x.toLowerCase()));
     }
+  }
+  /** Detect credentials obscured by OCR word breaks or punctuation. */
+  containsObscuredSecret(text: string): boolean {
+    const normalize=(value:string)=>value.normalize('NFKD').replace(/[^\p{L}\p{N}]/gu,'').toLowerCase();
+    const observed=normalize(text);
+    return Array.from(this.secrets).some(secret=>{const candidate=normalize(secret);return candidate.length>=6&&observed.includes(candidate);});
   }
   get maxLookaheadBytes(): number {
     return Math.max(1, ...Array.from(this.secrets, s => Buffer.byteLength(s, 'utf8')));
@@ -128,12 +137,16 @@ export class Redactor {
       if (typeof schema === 'boolean') return schema;
       if (!schema || typeof schema !== 'object' || Array.isArray(schema) || depth > 48) return {};
       const result: Record<string, any> = Object.create(null);
-      const scalars = new Set(['type','title','description','format','minimum','maximum','exclusiveMinimum','exclusiveMaximum','multipleOf','minLength','maxLength','minItems','maxItems','uniqueItems','minProperties','maxProperties','pattern','const','enum','required']);
+      const scalars = new Set(['type','title','description','format','minimum','maximum','exclusiveMinimum','exclusiveMaximum','multipleOf','minLength','maxLength','minItems','maxItems','uniqueItems','minProperties','maxProperties','minContains','maxContains','dependentRequired','pattern','const','enum','required']);
       for (const [key,item] of Object.entries(schema)) {
-        if (key === 'properties' && item && typeof item === 'object' && !Array.isArray(item)) {
+        if (key === '$ref' && typeof item === 'string' && (item === '#' || item.startsWith('#/'))) result[key] = item;
+        else if (['$defs','definitions','patternProperties','dependentSchemas'].includes(key) && item && typeof item === 'object' && !Array.isArray(item)) {
+          result[key] = Object.create(null);
+          for (const [name,child] of Object.entries(item)) result[key][name] = schemaWalk(child, depth+1);
+        } else if (key === 'properties' && item && typeof item === 'object' && !Array.isArray(item)) {
           result.properties = Object.create(null);
           for (const [name,child] of Object.entries(item)) result.properties[name] = schemaWalk(child, depth+1, SECRET_KEY.test(name));
-        } else if (['items','additionalProperties','not','contains','if','then','else'].includes(key)) result[key] = schemaWalk(item,depth+1,secretField);
+        } else if (['items','additionalProperties','propertyNames','unevaluatedProperties','unevaluatedItems','not','contains','if','then','else'].includes(key)) result[key] = schemaWalk(item,depth+1,secretField);
         else if (['anyOf','oneOf','allOf','prefixItems'].includes(key) && Array.isArray(item)) result[key] = item.map(child=>schemaWalk(child,depth+1,secretField));
         else if (scalars.has(key) && !(secretField && ['enum','const','pattern'].includes(key))) result[key] = ['type','required','format'].includes(key) ? structuredClone(item) : walk(item,depth+1);
       }
@@ -146,6 +159,11 @@ export class Redactor {
       if (item && typeof item === 'object') {
         const out: Record<string, any> = Object.create(null);
         for (const [key, val] of Object.entries(item)) {
+          if(catalog&&['query_serialization','querySerialization'].includes(key)){try{out[key]=queryRules(val);continue;}catch{/* Only fixed, validated encoding declarations bypass value redaction. */}}
+          if(catalog&&['form_serialization','formSerialization'].includes(key)){try{
+            const rules=formRules(val),project=(part:any):any=>({...part,...(part.patterns?{patterns:part.patterns.map((entry:any)=>({...entry,pattern:this.render(entry.pattern,entry.pattern.length,6)}))}:{}),...(part.conditions?{conditions:part.conditions.map((entry:any)=>({...project(entry),when:schemaWalk(entry.when,depth+1)}))}:{})});
+            out[key]=project(rules);continue;
+          }catch{/* Invalid maps still receive normal secret-value redaction. */}}
           const isSchema = ['params_schema','body_shape','body_schema'].includes(key) && val && typeof val === 'object' && !Array.isArray(val) && (Object.hasOwn(val,'type') || Object.hasOwn(val,'properties') || Object.hasOwn(val,'anyOf'));
           out[catalog?key:this.text(key)] = isSchema ? schemaWalk(val,depth+1) : SECRET_KEY.test(key) ? '[REDACTED]' : catalog&&publicFields.has(key) ? structuredClone(val) : walk(val, depth + 1);
         }

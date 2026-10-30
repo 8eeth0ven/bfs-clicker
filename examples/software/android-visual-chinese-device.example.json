@@ -1,0 +1,70 @@
+{
+  "source": {
+    "id": "apk_com_example_target",
+    "kind": "apk"
+  },
+  "backend": {
+    "type": "adb",
+    "deviceId": "REPLACE_WITH_DEVICE_SERIAL",
+    "appId": "com.example.target",
+    "unicodeInput": {
+      "component": "com.bfs.mcp.ime/.UnicodeIme",
+      "apkSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "expectedArtifact": {
+    "kind": "apk",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "limits": {
+    "maxActions": 12,
+    "maxDepth": 0,
+    "maxDurationMs": 280000
+  },
+  "actionAllowlist": [],
+  "nativeVisualWorkflow": {
+    "enabled": true,
+    "node": "/absolute/path/node",
+    "helperJar": "/absolute/path/targettap.jar",
+    "helperSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "allowedWorkflows": [
+      "search_chinese"
+    ],
+    "approvedDefinitions": {
+      "search_chinese": "/absolute/path/android-visual-chinese-workflow.example.json"
+    },
+    "ocr": {
+      "engine": {
+        "type": "vision",
+        "executable": "/absolute/path/vision-ocr",
+        "regions": [
+          {
+            "x": 0.04861111111111111,
+            "y": 0.1015625,
+            "width": 0.30833333333333335,
+            "height": 0.0625
+          },
+          {
+            "x": 0.3597222222222222,
+            "y": 0.0796875,
+            "width": 0.6111111111111112,
+            "height": 0.1109375
+          },
+          {
+            "x": 0.041666666666666664,
+            "y": 0.5,
+            "width": 0.32916666666666666,
+            "height": 0.0703125
+          },
+          {
+            "x": 0.375,
+            "y": 0.5,
+            "width": 0.5833333333333334,
+            "height": 0.0703125
+          }
+        ]
+      },
+      "language": "chi_sim+eng"
+    }
+  }
+}

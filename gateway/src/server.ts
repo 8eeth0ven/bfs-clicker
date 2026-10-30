@@ -4,24 +4,21 @@ import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { loadConfig } from './config.js';
-import { Registry } from './registry.js';
-import { Discovery } from './discovery.js';
-import { LearningStore } from './learning.js';
-import { CredentialProvider } from './credentials.js';
-import { Executor } from './executor.js';
-import { GatewayError, METHODS, SOURCE_KINDS, EXTRACTION_SOURCES, type GatewayResult, type Method } from './types.js';
+import { createGatewayServices } from './services.js';
+import { GatewayError, METHODS, SOURCE_KINDS, EXTRACTION_SOURCES, type GatewayResult } from './types.js';
 
 const methods=z.enum(METHODS);
 const limit=z.number().int().min(1).max(100);
 const pageInput={source:z.string().default('*'),limit:limit.optional(),cursor:z.string().max(1024).optional()};
 const filter=z.object({endpoint_id:z.string().optional(),path:z.string().max(2048).optional(),method:methods.optional(),provenance:z.enum(['static_candidate','observed']).optional(),category:z.string().optional(),kind:z.enum(SOURCE_KINDS).optional(),extraction_source:z.enum(EXTRACTION_SOURCES).optional()}).strict();
-const scalar=z.union([z.string(),z.number().finite(),z.boolean()]);
-const callParams=z.object({method:methods.optional(),path:z.record(z.string(),z.union([z.string(),z.number().finite()])).optional(),query:z.record(z.string(),z.union([scalar,z.null(),z.array(scalar)])).optional(),body:z.json().optional()}).strict();
+const callParams=z.object({method:methods.optional(),path:z.record(z.string(),z.union([z.string(),z.number().finite()])).optional(),query:z.record(z.string(),z.json()).optional(),body:z.json().optional()}).strict();
 const errorSchema=z.object({code:z.string(),message:z.string(),details:z.json().optional()}).strict();
 const healthSchema=z.object({state:z.enum(['unverified','http_verified','not_found_suspected']),success_streak:z.number().int().nonnegative(),missing_streak:z.number().int().nonnegative(),last_status:z.number().nullable(),evidence_scope:z.literal('request_observations'),updated_at:z.string().optional()}).strict();
 const parameterSummary=z.object({in:z.enum(['path','query','body','header']),name:z.string(),type:z.union([z.string(),z.array(z.string())]),required:z.boolean(),managed:z.boolean().optional()}).strict();
-const operationSummary=z.object({method:methods,description:z.string(),categories:z.array(z.string()),provenance:z.array(z.enum(['static_candidate','observed'])),extraction_sources:z.array(z.string()),locations:z.array(z.string()),allowed:z.boolean(),blocked_reason:z.string().nullable(),parameter_summary:z.array(parameterSummary),health:healthSchema,quality_label:z.string(),params_schema:z.record(z.string(),z.json()).optional()}).strict();
+const queryRule=z.object({style:z.enum(['form','spaceDelimited','pipeDelimited','tabDelimited','deepObject']),explode:z.boolean(),kind:z.enum(['scalar','array','object'])}).strict();
+const formRule=z.union([queryRule.extend({mode:z.literal('style')}),z.object({mode:z.literal('content'),contentType:z.enum(['application/json','text/plain']),kind:z.enum(['scalar','array','json'])}).strict()]);
+const formSerialization=z.object({fields:z.record(z.string(),formRule),additional:formRule.optional(),patterns:z.array(z.object({pattern:z.string(),rule:formRule}).strict()).optional(),conditions:z.array(z.object({when:z.union([z.boolean(),z.record(z.string(),z.json())]),fields:z.record(z.string(),formRule),patterns:z.array(z.object({pattern:z.string(),rule:formRule}).strict()).optional(),additional:formRule.optional()}).strict()).optional()}).strict();
+const operationSummary=z.object({method:methods,description:z.string(),categories:z.array(z.string()),provenance:z.array(z.enum(['static_candidate','observed'])),extraction_sources:z.array(z.string()),locations:z.array(z.string()),allowed:z.boolean(),blocked_reason:z.string().nullable(),parameter_summary:z.array(parameterSummary),health:healthSchema,quality_label:z.string(),params_schema:z.record(z.string(),z.json()).optional(),query_serialization:z.record(z.string(),queryRule).optional(),form_serialization:formSerialization.optional()}).strict();
 const unresolvedSummary=z.object({provenance:z.array(z.enum(['static_candidate','observed'])),extraction_source:z.string().nullable(),location:z.string().nullable(),reason:z.string(),description:z.string(),categories:z.array(z.string()),extraction_sources:z.array(z.string()),locations:z.array(z.string()),parameter_summary:z.array(parameterSummary),params_schema:z.record(z.string(),z.json()).optional()}).strict();
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
 const appSchema=z.object({package_name:z.string(),version_name:z.string(),apk_sha256:hash.optional(),bundle_id:z.string().optional(),artifact_sha256:hash.optional(),ipa_sha256:hash.optional(),artifact_type:z.enum(['ipa','app','apk']).optional()}).strict();
@@ -35,14 +32,8 @@ const output=(data:z.ZodType)=>z.object({ok:z.boolean(),data:data.nullable(),err
 const readOnly={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false};
 
 export async function createGateway(configPath:string) {
-  const config=await loadConfig(configPath);
-  const credentials=new CredentialProvider();
-  // Register secrets before projecting any inventory into a client-visible catalog.
-  for(const binding of config.sources)await credentials.load(binding);
-  const registry=new Registry(config);await registry.initialize();
-  const learning=new LearningStore(config);await learning.initialize();
-  const discovery=new Discovery(registry,learning,config,credentials.redactor);
-  const executor=new Executor(config,credentials);
+  const services=await createGatewayServices(configPath);
+  const {config,credentials,registry,learning,discovery}=services;
   const server=new McpServer({name:'endpoint-inventory-gateway',version:'0.1.0-beta.1'});
   const ok=(data:any,warnings:string[]=[]):GatewayResult=>({ok:true,data,error:null,warnings});
   async function run(fn:()=>Promise<GatewayResult>|GatewayResult) {
@@ -71,35 +62,14 @@ export async function createGateway(configPath:string) {
   server.registerTool('call_endpoint',{
     description:'按已注册端点调用 HTTP API。先 list/search 获取 schema；多方法端点必须 params.method。认证自动注入，客户端不能指定 URL 或 headers。默认仅已知 GET；写方法须可信配置逐端点放行。',
     inputSchema:z.object({source:z.string(),endpoint_id:z.string().regex(/^ep_[a-f0-9]{64}$/),expected_revision:z.string().optional(),params:callParams.optional()}).strict(),outputSchema:output(callData),annotations:{readOnlyHint:false,destructiveHint:true,idempotentHint:false,openWorldHint:true}
-  },async(args,extra)=>run(async()=>{
-    const source=registry.get(args.source);
-    if(args.expected_revision&&source.revision!==args.expected_revision)throw new GatewayError('SOURCE_CHANGED','清单版本已变化，请重新发现参数');
-    const endpoint=source.endpoints.find(x=>x.id===args.endpoint_id);
-    if(!endpoint)throw new GatewayError('ENDPOINT_NOT_FOUND','当前清单中无此端点');
-    if(!endpoint.methods.length)throw new GatewayError('METHOD_UNRESOLVED','静态候选的 HTTP 方法尚未解析');
-    const method=args.params?.method || (endpoint.methods.length===1?endpoint.methods[0]:undefined);
-    if(!method)throw new GatewayError('METHOD_REQUIRED','多方法端点必须显式 params.method',{methods:endpoint.methods});
-    const op=endpoint.operations[method as Method];
-    if(!op)throw new GatewayError('METHOD_NOT_FOUND','该端点没有指定方法',{methods:endpoint.methods});
-    if(!op.allowed)throw new GatewayError(op.blocked_reason || 'METHOD_BLOCKED','该操作被来源配置或beta能力护栏阻止');
-    const result=await executor.execute(source,endpoint,op,args.params||{},extra.signal);
-    if(result.data){
-      const observed=await learning.observe(source.id,endpoint.id,op,result.data.observation_status ?? null);
-      result.data.health=observed.health;result.data.learning_persisted=observed.persisted;
-      result.warnings.push(...observed.warnings);
-      if(op.provenance.includes('static_candidate')&&!op.provenance.includes('observed')&&observed.health.state!=='http_verified')result.warnings.push('未验证：此操作原始来源为静态候选');
-      if(observed.health.state==='not_found_suspected')result.warnings.push('连续404/410仅表示请求观察疑似失效，不证明路由已删除');
-    }
-    return result;
-  }));
+  },async(args,extra)=>run(()=>services.callEndpoint(args,extra.signal)));
   server.registerTool('add_source',{
     description:'热加载本地可信绑定中的清单文件或 APK/iOS 产出目录。目录固定读取 source.json；不会执行 APK、安装工具或接受清单提供的凭据路径。全局护栏保持启动配置。',
     inputSchema:z.object({manifest_path:z.string().min(1)}).strict(),outputSchema:output(addData),annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false}
   },async args=>run(async()=>{
-    const refreshed=await loadConfig(configPath);
-    const result=await registry.addSource(args.manifest_path,refreshed,async candidate=>{await credentials.load(candidate.binding);});
-    registerResource(result.source.id);
-    return ok({source:result.source.id,source_revision:result.source.revision,endpoint_count:result.source.endpoints.length,action:result.action,resource_uri:`inventory://sources/${encodeURIComponent(result.source.id)}/manifest.json`},result.source.warnings);
+    const result=await services.addSource(args.manifest_path);
+    if(result.data)registerResource(result.data.source);
+    return result;
   }));
   return {server,registry,discovery,learning,credentials,config};
 }

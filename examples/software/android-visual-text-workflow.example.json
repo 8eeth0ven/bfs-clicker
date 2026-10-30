@@ -1,0 +1,31 @@
+{
+  "kind": "native-visual-workflow",
+  "schemaVersion": 1,
+  "mode": "text-replace",
+  "id": "search_text",
+  "name": "视觉文本替换查询",
+  "effect": "read",
+  "activity": "com.example.target.Main",
+  "inputName": "query",
+  "inputSchema": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 24,
+    "pattern": "^[A-Za-z0-9]{1,24}$"
+  },
+  "focusAnchor": "Query",
+  "submitAnchor": "Search",
+  "valueRegion": {
+    "x": 0.3,
+    "y": 0.18,
+    "width": 0.6,
+    "height": 0.12
+  },
+  "resultRegion": {
+    "x": 0.05,
+    "y": 0.65,
+    "width": 0.9,
+    "height": 0.2
+  },
+  "resultPrefix": "RESULT"
+}

@@ -1,0 +1,61 @@
+{
+  "source": {
+    "id": "ios_com_example_bfsmcp_iosvisualkeyboard",
+    "kind": "ios"
+  },
+  "backend": {
+    "type": "webdriver",
+    "platform": "ios",
+    "url": "http://127.0.0.1:4723",
+    "sessionId": "REPLACE_WITH_EXISTING_SESSION_ID",
+    "appId": "com.example.bfsmcp.iosvisualkeyboard"
+  },
+  "limits": {
+    "maxActions": 40,
+    "maxDepth": 0,
+    "maxDurationMs": 240000
+  },
+  "actionAllowlist": [],
+  "nativeVisualWorkflow": {
+    "enabled": true,
+    "node": "/absolute/path/node",
+    "allowedWorkflows": [
+      "querytext"
+    ],
+    "approvedDefinitions": {
+      "querytext": "/absolute/path/ios-visual-keyboard-workflow.example.json"
+    },
+    "ocr": {
+      "engine": {
+        "type": "tesseract"
+      },
+      "language": "eng"
+    },
+    "keyboard": {
+      "enabled": true,
+      "region": {
+        "x": 0,
+        "y": 0.6081612586037365,
+        "width": 1,
+        "height": 0.3918387413962635
+      },
+      "dismissAnchor": "Dismiss",
+      "caret": {
+        "enabled": true,
+        "color": [66, 107, 242],
+        "background": [255, 255, 255],
+        "colorTolerance": 2,
+        "maxWidthPoints": 3,
+        "minHeightPoints": 8,
+        "maxHeightPoints": 48,
+        "maxAreaPoints": 144
+      },
+      "sourceRegion": {
+        "x": 0,
+        "y": 0.616519174041298,
+        "width": 1,
+        "height": 0.3613569321533923
+      }
+    }
+  }
+}

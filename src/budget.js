@@ -17,6 +17,7 @@ export function createBudget(config,store) {
     store.emit('stop_requested',{reason,status});cancelResource();
   };
   const check=()=>{
+    if(!reason&&process.env.BFS_MCP_WORKER==='1'&&typeof process.send==='function'&&!process.connected)stop('parent_disconnected');
     if(!reason&&existsSync(path.join(config.outputDir,'STOP')))stop('STOP');
     if(!reason&&Date.now()>=deadline)stop('max_duration');
     if(reason)throw new StopError(reason,status);
@@ -30,6 +31,9 @@ export function createBudget(config,store) {
   const sentinel=setInterval(()=>{if(existsSync(path.join(config.outputDir,'STOP')))stop('STOP')},100);sentinel.unref();
   const onInt=()=>stop('SIGINT'),onTerm=()=>stop('SIGTERM');
   process.on('SIGINT',onInt);process.on('SIGTERM',onTerm);
+  const onDisconnect=()=>stop('parent_disconnected');
+  const watchedParent=process.env.BFS_MCP_WORKER==='1'&&typeof process.send==='function';
+  if(watchedParent){process.on('disconnect',onDisconnect);if(!process.connected)onDisconnect();}
   const hostNext=new Map(),retryUntil=new Map();
   const pause=ms=>new Promise((resolve,reject)=>{
     check();
@@ -69,6 +73,6 @@ export function createBudget(config,store) {
         store.emit('rate_limit',{url,delayMs});
       }
     },
-    dispose(){clearTimeout(timer);clearInterval(sentinel);process.off('SIGINT',onInt);process.off('SIGTERM',onTerm);},
+    dispose(){clearTimeout(timer);clearInterval(sentinel);process.off('SIGINT',onInt);process.off('SIGTERM',onTerm);if(watchedParent)process.off('disconnect',onDisconnect);},
   };
 }

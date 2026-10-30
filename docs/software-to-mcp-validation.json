@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "compilerVersion": "software-to-mcp-12",
+  "status": "verified_framework_with_experimental_device_gaps",
+  "scope": "Generic Web/APK/iOS MCP framework; finite fixture evidence, not universal business coverage",
+  "stableBaseline": {
+    "compilerVersion": "software-to-mcp-11",
+    "python": {
+      "total": 329,
+      "passed": 328,
+      "skipped": 1,
+      "scope": "before diagnostic-only rename"
+    },
+    "iosRelatedAfterMetadataRename": {
+      "passed": 34,
+      "scope": "mock/transport validation"
+    },
+    "software": {
+      "passed": 215,
+      "scope": "compiler10 baseline"
+    },
+    "legacy": {
+      "passed": 229,
+      "scope": "compiler10 baseline"
+    },
+    "packedMcpTools": 28
+  },
+  "currentFocused": {
+    "iosKeyboard": {
+      "passed": 81,
+      "nodeCaretPassed": 9,
+      "scope": "phase-aware preparation focused mock/transport and local PNG; not device acceptance"
+    },
+    "visualPython": {
+      "passed": 102,
+      "scope": "visual test modules within current full Python run; not device coverage",
+      "regionBoundaryTests": 6
+    },
+    "visionRegions": {
+      "passed": 15,
+      "scope": "mock boundary + actual local OCR known-pixel coordinates; not Android business acceptance"
+    }
+  },
+  "deviceEvidence": {
+    "androidVisualTextLatin": {
+      "status": "passed",
+      "environment": "owned Android16 API36 emulator",
+      "physicalDevice": false
+    },
+    "iosVisualTextNoSoftKeyboard": {
+      "status": "passed",
+      "environment": "owned iOS27.1 simulator, custom UIKeyInput",
+      "unifiedResult": "RESULT gamma 3",
+      "generatedResult": "RESULT delta 4",
+      "physicalDevice": false,
+      "installedBytesVerifiedByRuntime": false
+    },
+    "androidVisualChinese": {
+      "status": "in_progress",
+      "environment": "owned emulator; mixed text layout retained",
+      "readyPublished": true,
+      "unifiedAndGeneratedClosedLoopPassed": false,
+      "latestCompletedAttempt": 9,
+      "latestCompletedOutcome": "Beijing/Shanghai learning completed and ready; unified Guangzhou rejected full-image Query广州 versus regional token conflict before submit",
+      "currentAttempt": null,
+      "currentAttemptStatus": "language word-boundary investigation; full double-entry acceptance not passed",
+      "learnedSamples": [
+        "北京",
+        "上海"
+      ]
+    },
+    "iosOrdinarySoftKeyboard": {
+      "status": "not_passed",
+      "environment": "owned simulator; real UITextField caret retained",
+      "latestAttempt": 8,
+      "latestOutcome": "Source marked keyboard visible while its rect was outside the viewport after clear; geometry guard rejected before sample input",
+      "readyPublished": false,
+      "unifiedAndGeneratedClosedLoopPassed": false,
+      "latestCompletedAttempt": 8,
+      "currentAttempt": null
+    },
+    "webChineseVision": {
+      "status": "passed",
+      "environment": "local Chromium Canvas + macOS Vision + local HTTP fixture",
+      "language": "Simplified Chinese + English",
+      "traditionalChineseQualityVerified": false,
+      "resultMinConfidence": 0.3,
+      "actionMinConfidence": 0.8,
+      "scope": "finite fixture; does not prove Android Chinese visual workflow"
+    },
+    "androidSemanticUnicode": {
+      "status": "passed",
+      "environment": "owned API36 emulator + repo Unicode IME + semantic input field",
+      "mcpReplaceQueries": 4,
+      "backendOnlyAppendChecks": 4,
+      "appendPublishedAsMcpWorkflow": false,
+      "scope": "not evidence of Android visual Chinese OCR workflow"
+    }
+  },
+  "privacy": {
+    "publicReportIsWhitelistProjection": true,
+    "rawDeviceCapturesAndSessionsPublished": false,
+    "personalAbsolutePathsIncluded": false,
+    "releaseAuditStatus": "final_staged_source_and_archive_must_be_rechecked_for_each_submission",
+    "publicEvidenceLinksAreRepositoryFiles": true
+  },
+  "limits": [
+    "trusted local action and workflow approval required",
+    "iOS installed bytes and physical devices not proven",
+    "finite target evidence does not prove every business workflow",
+    "opaque/clipped frames and complex media/protocols remain partial",
+    "keyboard envelope is local permission; AX does not prove OS window ownership",
+    "ordinary iOS keyboard and Android visual Chinese closed loops not yet passed",
+    "visible keyboard freshness is a locally approved limited equivalence model, not an atomic full-frame guarantee",
+    "same-color narrow glyphs cannot be identified as OS caret from pixels alone",
+    "new focused test counts are not a current full-regression or remote-CI result"
+  ],
+  "asOf": "2026-10-31",
+  "currentFullRegression": {
+    "status": "full_baseline_and_affected_followup_passed",
+    "legacy": {
+      "total": 229,
+      "passed": 229,
+      "failed": 0,
+      "skipped": 0
+    },
+    "python": {
+      "total": 382,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 1,
+      "skipReason": "HBC_FIXTURE unavailable",
+      "realSignedApkFixtureProvided": true,
+      "scope": "current phase-aware Python source"
+    },
+    "software": {
+      "status": "passed",
+      "total": 232,
+      "passed": 232,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "full run before keyboard phase followup; new affected checks will be listed separately",
+      "affectedAfterPhase": {
+        "nodeCaret": {
+          "passed": 9,
+          "failed": 0,
+          "scope": "all changed JavaScript comparator behavior"
+        }
+      }
+    }
+  },
+  "continuousIntegration": {
+    "remoteRunStatus": "not_enabled",
+    "workflowTemplate": "ci.workflow.example.yml",
+    "scope": "Pinned Linux/macOS CI template; current publishing credential lacks workflow scope, so Actions is not activated"
+  },
+  "release": {
+    "finalGate": "draft_review_scope; experimental device coverage remains pending",
+    "scope": "draft framework review; experimental device gaps remain",
+    "publicationEvidence": "GitHub commit, pull request and Actions supply publication evidence"
+  },
+  "reproduce": {
+    "software": "npm run test:software",
+    "python": "npm run test:python",
+    "visionRegions": "node --test test/visual-observation.test.mjs test/visual-observation-regions.test.mjs test/visual-vision.test.mjs test/visual-vision-regions.test.mjs",
+    "iosVisualText": "npm run test:ios-visual-text-workflow",
+    "iosOrdinaryKeyboard": "npm run test:ios-visual-keyboard-workflow",
+    "androidVisualChinese": "npm run test:android-visual-chinese-workflow"
+  },
+  "publicEvidence": {
+    "roiFusionTests": "../test/visual-observation-regions.test.mjs",
+    "actualVisionCoordinateTest": "../test/visual-vision-regions.test.mjs",
+    "integerRegionTests": "../apk_tools/tests/test_mobile_visual_regions.py",
+    "iosKeyboardTests": "../apk_tools/tests/test_mobile_visual_ios_keyboard.py",
+    "iosKeyboardFixture": "../apk_tools/examples/ios-visual-keyboard/main.m",
+    "iosKeyboardDeviceScript": "../test/ios-native-visual-keyboard-device-e2e.mjs",
+    "androidChineseDeviceScript": "../test/native-visual-chinese-device-e2e.mjs",
+    "iosNoSoftKeyboardScript": "../test/ios-native-visual-text-device-e2e.mjs",
+    "webChineseVisionTest": "../test/software-visual-chinese.test.mjs",
+    "androidSemanticUnicodeScript": "../test/android-unicode-e2e.mjs",
+    "caretTests": "../test/visual-caret.test.mjs",
+    "caretTransportTests": "../apk_tools/tests/test_mobile_visual_ios_caret.py",
+    "ciTemplate": "ci.workflow.example.yml"
+  },
+  "failureHistory": [
+    {
+      "kind": "ROI lexical conflict",
+      "status": "regression tests reject prefix cropping and token splitting; low-confidence full-image dissent preserved"
+    },
+    {
+      "kind": "iOS ordinary keyboard hardware shortcut",
+      "status": "keyboard disappeared after shortcut; new opt-in branch uses one planned bounded backspace request; default branch preserved"
+    },
+    {
+      "kind": "iOS ordinary caret freshness",
+      "status": "Real caret fade was rejected; explicit local color/shape policy passed focused tests; full new device acceptance pending"
+    },
+    {
+      "kind": "Android Chinese visual workflow",
+      "status": "Actual second result updated, but numeric bbox flooring prevented strict OCR acceptance; offline fix does not complete device validation"
+    },
+    {
+      "kind": "historical WebDriver fixtures and UI no-op",
+      "status": "later successful runs do not erase earlier failures or prove their causes"
+    }
+  ],
+  "recordedAt": "2026-10-30T19:05:04.679375+00:00",
+  "currentPackageCheck": {
+    "status": "passed",
+    "files": 333,
+    "productionOnlyInstall": true,
+    "officialSdkTools": 28,
+    "stderrBytes": 0,
+    "sourceMismatches": 0,
+    "runtimeBytesVerifiedBeforeFinalDocumentationProjection": true
+  }
+}
