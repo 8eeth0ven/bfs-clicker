@@ -1,0 +1,3 @@
+package com.bfs.probe;
+import android.app.Activity;import android.os.Bundle;import android.view.*;import android.graphics.*;
+public class Main extends Activity {public void onCreate(Bundle b){super.onCreate(b);getWindow().setFlags(1024,1024);setContentView(new View(this){ Paint p=new Paint(); String result="WAITING"; protected void onDraw(Canvas c){c.drawColor(Color.WHITE);p.setColor(Color.BLACK);p.setTextSize(72);c.drawText("Alpha",100,300,p);c.drawText("Beta",400,300,p);c.drawText("RESULT "+result,80,800,p);} public boolean onTouchEvent(android.view.MotionEvent e){if(e.getAction()==1){result=e.getX()<350?"ALPHA":"BETA";android.util.Log.i("BFS-PROBE","RESULT "+result);invalidate();}return true;} });}}

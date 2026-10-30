@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Ajv2020 } from 'ajv/dist/2020.js';
+import {queryRules} from './query-serialization.js';
+import {formRules} from './form-serialization.js';
 import path from 'node:path';
 import { checkedPath, isDirectory, readJsonLimited, readJsonWithDigest, within } from './files.js';
 import { GatewayError, METHODS, SOURCE_KINDS, EXTRACTION_SOURCES, type AppMetadata, type SourceKind, type Endpoint, type GatewayConfig, type Method, type Operation, type Schema, type SourceBinding, type SourceSnapshot } from './types.js';
@@ -238,6 +240,8 @@ export async function loadManifest(binding: SourceBinding, config: GatewayConfig
       group.operations[method] = op; group.methods.push(method);
     }
     op.provenance = unique([...op.provenance, ...p]);
+    if(record.query_serialization!==undefined){const rules=queryRules(record.query_serialization);op.query_serialization??=Object.create(null);for(const [name,rule]of Object.entries(rules)){if(op.query_serialization![name]&&digest(op.query_serialization![name])!==digest(rule)){op.query_serialization_conflict=true;warnings.push('QUERY_SERIALIZATION_CONFLICT');}else op.query_serialization![name]=rule;}}
+    if(record.form_serialization!==undefined){if(encoding!=='form')throw new GatewayError('FORM_CONTRACT_INVALID','只有表单请求体可声明form_serialization');const rules=formRules(record.form_serialization);if(op.form_serialization&&digest(op.form_serialization)!==digest(rules)){op.form_serialization_conflict=true;warnings.push('FORM_SERIALIZATION_CONFLICT');}else op.form_serialization=rules;}
     op.categories = unique([...op.categories, ...(Array.isArray(record.categories) ? record.categories.filter((x: any) => typeof x === 'string').map((x: string) => x.slice(0, 128)) : [])]);
     const channels=Array.isArray(record.extraction_sources)?record.extraction_sources.filter((x:any)=>(EXTRACTION_SOURCES as readonly string[]).includes(x)):[];
     const locations=Array.isArray(record.locations)?record.locations.filter((x:any)=>typeof x==='string').map((x:string)=>cap(x)):[];
@@ -296,9 +300,9 @@ export async function loadManifest(binding: SourceBinding, config: GatewayConfig
         if (section?.properties) for (const [name, spec] of Object.entries(section.properties)) op.parameter_summary.push({in: place, name, type: (spec as any).type || 'union', required: !!section.required?.includes(name)});
         else if (section && place === 'body') op.parameter_summary.push({in: 'body', name: '$', type: section.type || 'json', required: !!op.params_schema.required?.includes('body')});
       }
-      op.allowed = isAllowed(config, binding.id, ep.id, method, op.body_encoding) && (!binding.allowed_origins || binding.allowed_origins.includes(ep.origin));
-      if (!op.allowed) op.blocked_reason = op.body_encoding === 'unsupported' ? 'UNSUPPORTED_BODY_ENCODING' : binding.allowed_origins && !binding.allowed_origins.includes(ep.origin) ? 'ORIGIN_BLOCKED' : 'METHOD_BLOCKED';
-      op.contract_revision = digest([kind, app, ep.origin, ep.path, method, op.params_schema, op.body_encoding, binding.defaults?.[ep.id], binding.static_headers, binding.credential_origins]);
+      op.allowed = !op.form_serialization_conflict && !op.query_serialization_conflict && isAllowed(config, binding.id, ep.id, method, op.body_encoding) && (!binding.allowed_origins || binding.allowed_origins.includes(ep.origin));
+      if (!op.allowed) op.blocked_reason = op.form_serialization_conflict ? 'FORM_SERIALIZATION_CONFLICT' : op.query_serialization_conflict ? 'QUERY_SERIALIZATION_CONFLICT' : op.body_encoding === 'unsupported' ? 'UNSUPPORTED_BODY_ENCODING' : binding.allowed_origins && !binding.allowed_origins.includes(ep.origin) ? 'ORIGIN_BLOCKED' : 'METHOD_BLOCKED';
+      op.contract_revision = digest([kind, app, ep.origin, ep.path, method, op.params_schema, op.body_encoding, op.query_serialization, op.query_serialization_conflict, op.form_serialization, op.form_serialization_conflict, binding.defaults?.[ep.id], binding.static_headers, binding.credential_origins]);
     }
   }
   // Fingerprint the trusted invocation contract as well as discovery metadata. Never include credential-file values.

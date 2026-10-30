@@ -1,0 +1,64 @@
+openapi: 3.1.1
+info: {title: URL-encoded Form Encodings, version: '1'}
+servers: [{url: 'https://api.example.test'}]
+paths:
+  /search-form:
+    post:
+      summary: Query with text, CSV tags, shallow filter and a JSON payload
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [query, tags, filter, payload]
+              properties:
+                query: {type: string, minLength: 1, maxLength: 80}
+                tags: {type: array, minItems: 1, maxItems: 10, items: {type: string}}
+                filter:
+                  type: object
+                  properties:
+                    state: {type: string, enum: [open, closed]}
+                    minScore: {type: integer, minimum: 0}
+                  additionalProperties: false
+                payload:
+                  type: object
+                  properties:
+                    rows:
+                      type: array
+                      items:
+                        type: object
+                        properties: {id: {type: integer}}
+                        required: [id]
+                        additionalProperties: false
+                  required: [rows]
+                  additionalProperties: false
+              additionalProperties: false
+            encoding:
+              tags: {style: form, explode: false}
+              filter: {style: deepObject, explode: true}
+              payload: {contentType: application/json}
+      responses:
+        '200': {description: Results}
+  /conditional-form:
+    post:
+      summary: A payload whose object type applies only when flag is present
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                flag: {type: boolean}
+              dependentSchemas:
+                flag:
+                  properties:
+                    payload:
+                      type: object
+                      properties: {x: {type: string}}
+                      required: [x]
+                      additionalProperties: false
+              additionalProperties: true
+      responses:
+        '200': {description: Results}

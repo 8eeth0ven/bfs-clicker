@@ -1,0 +1,29 @@
+{
+  "source": {
+    "id": "ios_com_example_target",
+    "kind": "ios"
+  },
+  "backend": {
+    "type": "webdriver",
+    "platform": "ios",
+    "url": "http://127.0.0.1:4723",
+    "sessionId": "REPLACE_WITH_EXISTING_SESSION_ID",
+    "appId": "com.example.target"
+  },
+  "limits": {
+    "maxActions": 10,
+    "maxDepth": 0,
+    "maxDurationMs": 240000
+  },
+  "actionAllowlist": [],
+  "nativeVisualWorkflow": {
+    "enabled": true,
+    "node": "/absolute/path/node",
+    "allowedWorkflows": [
+      "choose"
+    ],
+    "approvedDefinitions": {
+      "choose": "/absolute/path/ios-visual-workflow.example.json"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Stability fixture</title></head><body>
+<button id="delayed">View delayed link</button>
+<div id="result"></div><div id="shadow-host"></div><div id="new-hosts"></div>
+<div id="noise" data-bfs-noise>0</div><iframe id="child" src="/child"></iframe>
+<script>
+document.querySelector('#delayed').onclick=()=>setTimeout(()=>{document.querySelector('#result').innerHTML='<a id="late-link" href="/later">View later</a>';},120);
+document.querySelector('#shadow-host').attachShadow({mode:'open'}).innerHTML='<div id="shadow-content"></div>';
+</script></body></html>

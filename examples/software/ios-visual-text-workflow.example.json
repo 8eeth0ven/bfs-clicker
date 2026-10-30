@@ -1,0 +1,30 @@
+{
+  "kind": "native-visual-workflow",
+  "schemaVersion": 1,
+  "mode": "text-replace",
+  "id": "querytext",
+  "name": "iOS visual text fixture",
+  "effect": "read",
+  "inputName": "query",
+  "inputSchema": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 16,
+    "pattern": "^[A-Za-z0-9]+$"
+  },
+  "focusAnchor": "Query",
+  "submitAnchor": "Search",
+  "valueRegion": {
+    "x": 0.05,
+    "y": 0.27,
+    "width": 0.9,
+    "height": 0.08
+  },
+  "resultRegion": {
+    "x": 0.05,
+    "y": 0.6,
+    "width": 0.9,
+    "height": 0.12
+  },
+  "resultPrefix": "RESULT"
+}

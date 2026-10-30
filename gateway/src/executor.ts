@@ -2,6 +2,8 @@ import {Ajv2020} from 'ajv/dist/2020.js';
 import {setTimeout as delay} from 'node:timers/promises';
 import {CredentialProvider} from './credentials.js';
 import {truncateUtf8} from './redact.js';
+import {serializeQuery} from './query-serialization.js';
+import {serializeForm} from './form-serialization.js';
 import {GatewayError, type GatewayConfig, type SourceSnapshot, type Endpoint, type Operation, type CallParams, type GatewayResult} from './types.js';
 
 const SESSION = /(?:^|[^a-z0-9])(?:log[_-]?(?:out|off)|sign[_-]?out|revoke|注销|登出|退出登录)(?:$|[^a-z0-9])/i;
@@ -18,7 +20,8 @@ function assertSessionSafe(path:string, params:CallParams):void {
     if(depth>24) throw new GatewayError('PARAMS_INVALID','参数嵌套过深');
     if(Array.isArray(value)){for(const item of value)walk(item,depth+1);return;}
     if(value&&typeof value==='object')for(const [key,item] of Object.entries(value)){
-      if(SELECTOR.test(key) && (typeof item==='string'||Array.isArray(item)) && sessionAction(String(item))) throw new GatewayError('SESSION_ACTION_BLOCKED','禁止会话退出或撤销动作');
+      const selectorKey=decoded(key).split(/[.\[\]]+/).some(part=>SELECTOR.test(part));
+      if(selectorKey && (typeof item==='string'||Array.isArray(item)) && sessionAction(String(item))) throw new GatewayError('SESSION_ACTION_BLOCKED','禁止会话退出或撤销动作');
       walk(item,depth+1);
     }
   };
@@ -38,6 +41,8 @@ export class Executor {
   constructor(private config:GatewayConfig, private provider:CredentialProvider) {}
   async execute(source:SourceSnapshot, endpoint:Endpoint, op:Operation, params:CallParams={}, signal?:AbortSignal):Promise<GatewayResult> {
     if(op.body_encoding==='unsupported')throw new GatewayError('UNSUPPORTED_BODY_ENCODING','该操作的请求体编码未获支持');
+    if(op.query_serialization_conflict)throw new GatewayError('QUERY_SERIALIZATION_CONFLICT','查询编码声明冲突，需重新确认契约');
+    if(op.form_serialization_conflict)throw new GatewayError('FORM_SERIALIZATION_CONFLICT','表单编码声明冲突，需重新确认契约');
     if(op.method!=='GET' && (!this.config.methods.allow_non_get || !this.config.methods.allow.some(a=>a.source===source.id&&a.endpoint_id===endpoint.id&&a.method===op.method)))
       throw new GatewayError('METHOD_BLOCKED','该方法未在配置与逐端点白名单同时启用');
     if(params.method && params.method!==op.method)throw new GatewayError('PARAMS_INVALID','选择的方法与端点操作不一致');
@@ -62,11 +67,7 @@ export class Executor {
     try {url=new URL(endpoint.origin+actualPath);}catch{throw new GatewayError('ORIGIN_BLOCKED','无法构造端点 URL');}
     if(!/^https?:$/.test(url.protocol)||url.username||url.password||url.hash||url.origin!==endpoint.origin||url.pathname!==actualPath||!source.origins.includes(url.origin)||(source.binding.allowed_origins&&!source.binding.allowed_origins.includes(url.origin)))
       throw new GatewayError('ORIGIN_BLOCKED','请求 URL 不符合清单和来源的 origin/路径约束');
-    for(const [key,value] of Object.entries(call.query??{})){
-      if(value===null)continue;
-      const values=Array.isArray(value)?value:[value];
-      for(const item of values){if(!['string','number','boolean'].includes(typeof item)||typeof item==='number'&&!Number.isFinite(item))throw new GatewayError('UNSUPPORTED_QUERY_ENCODING','query 仅支持标量和标量数组');url.searchParams.append(key,String(item));}
-    }
+    url.search=serializeQuery(call.query??{},op.query_serialization);
     assertSessionSafe(url.pathname,call);
     const credentials=await this.provider.load(source.binding);
     const headers=new Headers();
@@ -80,6 +81,7 @@ export class Executor {
     if(Object.hasOwn(call,'body')){
       if(op.body_encoding==='json'){body=JSON.stringify(call.body);headers.set('content-type','application/json');}
       else if(op.body_encoding==='text'){if(typeof call.body!=='string')throw new GatewayError('PARAMS_INVALID','文本请求体必须为字符串');body=call.body;headers.set('content-type','text/plain; charset=utf-8');}
+      else if(op.form_serialization){body=serializeForm(call.body,op.form_serialization);headers.set('content-type','application/x-www-form-urlencoded');}
       else {
         if(!call.body||typeof call.body!=='object'||Array.isArray(call.body))throw new GatewayError('PARAMS_INVALID','表单请求体必须为对象');
         const form=new URLSearchParams();

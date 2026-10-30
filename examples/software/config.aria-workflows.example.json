@@ -1,0 +1,17 @@
+{
+  "outputRoot": "./output-software",
+  "artifactRoots": ["./examples/software"],
+  "webConfig": {
+    "shotFormat": "none",
+    "actionProfile": "forms",
+    "fillText": true,
+    "formValues": {"#query": "seed"},
+    "navigationOrigins": ["https://app.example.test"],
+    "requestOrigins": ["https://app.example.test"],
+    "credentialOrigins": [],
+    "actionAllowlist": ["#query", "#category", "#category-all", "#category-team", "#category-org", "#search"],
+    "requestAllowlist": [{"method": "POST", "url": "https://app.example.test/api/search"}]
+  },
+  "bindings": {},
+  "devices": {}
+}

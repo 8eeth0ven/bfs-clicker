@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { redact } from './redact.js';
+import { openCheckpointJournal } from './checkpoint.js';
 
 export const SCHEMA_VERSION = 2;
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -71,9 +72,11 @@ export function openStore(config,resume=false) {
       if (existsSync(checkpointFile) || existsSync(`${checkpointFile}.previous`)) checkpoint=readAtomic(checkpointFile);
       if (checkpoint?.identity && Object.entries(id).some(([k,v])=>checkpoint.identity[k]!==v)) throw new Error('checkpoint identity 与 run 不一致');
     } else {
-      if (existsSync(metaFile) || existsSync(cpFile) || existsSync(path.join(dir,'run.json')) || existsSync(path.join(dir,'checkpoint.json')) || existsSync(path.join(dir,'traffic.jsonl'))) throw new Error('输出目录已有任务；请使用 resume 或新的输出目录');
+      if (existsSync(metaFile) || existsSync(cpFile) || existsSync(path.join(privateDir,'checkpoint.journal.jsonl')) || existsSync(path.join(dir,'run.json')) || existsSync(path.join(dir,'checkpoint.json')) || existsSync(path.join(dir,'traffic.jsonl'))) throw new Error('输出目录已有任务；请使用 resume 或新的输出目录');
       meta={runId:config.runId,identity:id,createdAt:new Date().toISOString(),attempts:0,status:'running',authEpoch:0};
     }
+    const journal=openCheckpointJournal({file:path.join(privateDir,'checkpoint.journal.jsonl'),checkpointFile:cpFile,checkpoint,identity:id,runId:meta.runId});
+    checkpoint=journal.checkpoint;
     mkdirSync(path.join(dir,'states'),{recursive:true,mode:0o700});
     const snapshot={...config};delete snapshot._runtime;delete snapshot._policy;
     atomicJson(path.join(privateDir,'config.json'),snapshot);
@@ -91,8 +94,11 @@ export function openStore(config,resume=false) {
       return evidenceId;
     };
     if(separatedTail)emit('log_tail_separated',{file:'events.jsonl',reason:'missing_final_newline'});
+    for(const notice of journal.notices)emit('checkpoint_recovery',notice);
     return {dir,privateDir,meta,checkpoint,emit,release,
-      save(cp){const payload={...cp,schemaVersion:SCHEMA_VERSION,identity:id,eventSequence:sequence,savedAt:new Date().toISOString()};atomicJson(cpFile,payload);atomicJson(path.join(dir,'checkpoint.json'),redact(payload));},
+      get journalSequence(){return journal.sequence},
+      journal(delta){return journal.append(delta,sequence)},
+      save(cp){const payload={...cp,schemaVersion:SCHEMA_VERSION,identity:id,eventSequence:sequence,savedAt:new Date().toISOString()};return journal.compact(payload,next=>atomicJson(path.join(dir,'checkpoint.json'),redact(next)));},
       update(fields){Object.assign(meta,fields);atomicJson(metaFile,meta);atomicJson(path.join(dir,'run.json'),redact(meta));},
     };
   } catch(e) {release();throw e;}

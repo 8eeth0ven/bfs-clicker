@@ -1,0 +1,29 @@
+{
+  "outputRoot": "./output-software",
+  "artifactRoots": ["./examples/software"],
+  "python": "./.venv/bin/python",
+  "workflowPermissions": {
+    "notes_web": {
+      "allowWrite": ["create_note"],
+      "allowWriteLearning": ["create_note"]
+    },
+    "REPLACE_WITH_SOURCE_ID_FROM_APK_INVENTORY": {
+      "allowWrite": ["create_note"],
+      "allowWriteLearning": ["create_note"]
+    }
+  },
+  "webConfig": {
+    "shotFormat": "none",
+    "actionProfile": "forms",
+    "fillText": true,
+    "formValues": {"#title": "seed"},
+    "navigationOrigins": ["https://app.example.test"],
+    "requestOrigins": ["https://app.example.test"],
+    "credentialOrigins": [],
+    "actionAllowlist": ["#title", "#save"],
+    "writeActionAllowlist": ["#title", "#save"],
+    "requestAllowlist": [{"method": "POST", "url": "https://app.example.test/api/notes"}]
+  },
+  "bindings": {},
+  "devices": {"android_notes": "./examples/software/android-write-device.example.json"}
+}

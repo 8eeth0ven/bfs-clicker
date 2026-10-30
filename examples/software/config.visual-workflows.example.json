@@ -1,0 +1,54 @@
+{
+  "outputRoot": "./output-software",
+  "artifactRoots": [
+    "."
+  ],
+  "webConfig": {
+    "actionProfile": "forms",
+    "fillText": true,
+    "fillTextValue": "seed",
+    "actionAllowlist": [
+      "#screen"
+    ],
+    "requestAllowlist": [
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:3102/query"
+      }
+    ],
+    "requestDelayMs": 0,
+    "shotFormat": "none",
+    "visual": {
+      "language": "eng",
+      "minConfidence": 0.6,
+      "actions": [
+        {
+          "kind": "visualFill",
+          "selector": "#screen",
+          "visual": {
+            "anchor": "Query",
+            "offset": {
+              "x": 0.32,
+              "y": 0
+            },
+            "valueRegion": {
+              "x": 0.28,
+              "y": 0.12,
+              "width": 0.65,
+              "height": 0.17
+            }
+          },
+          "effect": "read"
+        },
+        {
+          "kind": "visualClick",
+          "selector": "#screen",
+          "visual": {
+            "anchor": "Search"
+          },
+          "effect": "read"
+        }
+      ]
+    }
+  }
+}

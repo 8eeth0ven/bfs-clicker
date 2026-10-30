@@ -1,0 +1,96 @@
+{
+  "outputRoot": "./output-software",
+  "artifactRoots": [
+    "."
+  ],
+  "webConfig": {
+    "actionProfile": "forms",
+    "fillText": true,
+    "fillTextValue": "seed",
+    "actionAllowlist": [
+      "#screen"
+    ],
+    "requestAllowlist": [
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:3102/query"
+      }
+    ],
+    "requestDelayMs": 0,
+    "shotFormat": "none",
+    "visual": {
+      "language": "eng",
+      "actions": [
+        {
+          "kind": "visualFill",
+          "selector": "#screen",
+          "visual": {
+            "anchor": "Query",
+            "offset": {
+              "x": 0.32,
+              "y": 0
+            },
+            "valueRegion": {
+              "x": 0.28,
+              "y": 0.12,
+              "width": 0.65,
+              "height": 0.17
+            }
+          },
+          "effect": "read"
+        },
+        {
+          "kind": "visualFill",
+          "selector": "#screen",
+          "visual": {
+            "anchor": "Extra",
+            "offset": {
+              "x": 0.32,
+              "y": 0
+            },
+            "valueRegion": {
+              "x": 0.28,
+              "y": 0.3,
+              "width": 0.65,
+              "height": 0.17
+            }
+          },
+          "effect": "read"
+        },
+        {
+          "kind": "visualClick",
+          "selector": "#screen",
+          "visual": {
+            "anchor": "Search"
+          },
+          "effect": "read"
+        }
+      ],
+      "outputs": [
+        {
+          "selector": "#screen",
+          "region": {
+            "x": 0.03,
+            "y": 0.75,
+            "width": 0.94,
+            "height": 0.24
+          },
+          "label": "Result"
+        }
+      ],
+      "groups": [
+        {
+          "id": "lookup",
+          "inputs": [
+            0,
+            1
+          ],
+          "click": 2,
+          "outputs": [
+            0
+          ]
+        }
+      ]
+    }
+  }
+}

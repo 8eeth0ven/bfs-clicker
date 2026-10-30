@@ -154,7 +154,7 @@ export function observeApi(ledger, info) {
   if (info.evidenceId || info.status != null || info.responseDigest || info.postData != null) {
     // Keep the originating action on the sample: ledger sources merge across actions,
     // so the per-request actionId is the only direct link back to the click path.
-    const sample = { evidenceId: info.evidenceId || null, actionId: info.source?.actionId ?? null, method, url: info.url, query: queryPairs(info.url), postData: fromDoc ? null : info.postData ?? null,
+    const sample = { evidenceId: info.evidenceId || null, actionId: info.source?.actionId ?? null, stateId:info.source?.stateId??null,executionId:info.source?.executionId??null,method, url: info.url, query: queryPairs(info.url), postData: fromDoc ? null : info.postData ?? null,
       status: info.status ?? null, responseDigest: info.responseDigest || null, authEpoch: info.authEpoch ?? 0, operation: info.operation || null, category };
     if (rec.samples.length < (info.maxSamples || 20)) rec.samples.push(sample);
     else rec.samplesTruncated = (rec.samplesTruncated || 0) + 1;

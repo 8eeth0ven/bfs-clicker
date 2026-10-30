@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Canvas MCP example</title><style>body{margin:20px;background:#fff}canvas{display:block;width:800px;height:400px;max-width:100%;outline:0}</style></head><body>
+<canvas id="screen" width="800" height="400" tabindex="0" aria-label="Canvas demo"></canvas>
+<script>
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d');
+let query='',result='READY',selected=false;
+function paint(){ctx.fillStyle='white';ctx.fillRect(0,0,800,400);ctx.fillStyle='black';ctx.font='32px Arial';ctx.fillText('Query',30,90);ctx.strokeStyle='black';ctx.strokeRect(220,50,530,65);ctx.fillText(query,240,90);ctx.fillText('Search',300,190);ctx.fillText(result,30,310);}
+canvas.onclick=async event=>{const box=canvas.getBoundingClientRect(),x=(event.clientX-box.x)*800/box.width,y=(event.clientY-box.y)*400/box.height;if(y>140&&y<220&&x>250&&x<460){try{const response=await fetch('/query',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query})});if(!response.ok)throw Error();const value=await response.json();result='RESULT '+value.query+' '+value.count;paint();}catch{result='FAILED';paint();}}};
+canvas.onkeydown=event=>{if((event.ctrlKey||event.metaKey)&&event.key==='a'){event.preventDefault();selected=true;return;}if(event.key==='Backspace'){event.preventDefault();query=selected?'':query.slice(0,-1);selected=false;paint();}else if(event.key.length===1&&!event.ctrlKey&&!event.metaKey){event.preventDefault();query=(selected?'':query)+event.key;selected=false;paint();}};
+paint();
+</script></body></html>

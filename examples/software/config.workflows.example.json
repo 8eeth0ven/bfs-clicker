@@ -1,0 +1,19 @@
+{
+  "outputRoot": "./output-software",
+  "artifactRoots": ["./examples/software"],
+  "python": "./.venv/bin/python",
+  "webConfig": {
+    "shotFormat": "none",
+    "requestDelayMs": 50,
+    "actionProfile": "forms",
+    "fillText": true,
+    "formValues": {"#query": "seed"},
+    "navigationOrigins": ["https://app.example.test"],
+    "requestOrigins": ["https://app.example.test"],
+    "credentialOrigins": [],
+    "actionAllowlist": ["#query", "#search"],
+    "requestAllowlist": [{"method": "POST", "url": "https://app.example.test/api/search"}]
+  },
+  "bindings": {},
+  "devices": {}
+}

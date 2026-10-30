@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "search_lazy_category",
+  "name": "按懒挂载分类查询",
+  "effect": "read",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      },
+      "category": {
+        "type": "string",
+        "enum": [
+          "all",
+          "team",
+          "org"
+        ]
+      }
+    },
+    "required": [
+      "query",
+      "category"
+    ],
+    "additionalProperties": false
+  },
+  "entry": {
+    "url": "https://app.example.test/search",
+    "anchors": [
+      {
+        "selector": "#query",
+        "tag": "input"
+      },
+      {
+        "selector": "#category"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "kind": "fill",
+      "selector": "#query",
+      "param": "query"
+    },
+    {
+      "kind": "choose",
+      "selector": "#category",
+      "param": "category",
+      "choices": {
+        "all": {
+          "selector": "#category-all"
+        },
+        "team": {
+          "selector": "#category-team"
+        },
+        "org": {
+          "selector": "#category-org"
+        }
+      },
+      "timeoutMs": 3000,
+      "selection": {
+        "attribute": "data-value"
+      }
+    },
+    {
+      "kind": "click",
+      "selector": "#search"
+    }
+  ],
+  "assertions": [
+    {
+      "selector": "#results",
+      "textIncludesParam": "query"
+    },
+    {
+      "selector": "#results",
+      "textIncludesParam": "category",
+      "paramRepresentation": "optionLabel"
+    }
+  ],
+  "extract": [
+    {
+      "name": "results",
+      "selector": "#results",
+      "kind": "text"
+    }
+  ],
+  "samples": [
+    {
+      "query": "alpha",
+      "category": "all"
+    },
+    {
+      "query": "beta",
+      "category": "team"
+    }
+  ]
+}

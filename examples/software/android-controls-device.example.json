@@ -1,0 +1,10 @@
+{
+  "backend": {"type": "adb", "deviceId": "REPLACE_WITH_DEVICE_SERIAL"},
+  "limits": {"maxActions": 40, "maxDepth": 2, "maxDurationMs": 120000},
+  "actionAllowlist": [
+    {"kind": "check", "selector": {"accessibilityId": "IncludeArchived"}, "effect": "read"},
+    {"kind": "check", "selector": {"accessibilityId": "OnlyActive"}, "effect": "read"},
+    {"kind": "type", "selector": {"accessibilityId": "QueryText"}, "effect": "read"},
+    {"kind": "click", "selector": {"accessibilityId": "Search"}, "effect": "read"}
+  ]
+}

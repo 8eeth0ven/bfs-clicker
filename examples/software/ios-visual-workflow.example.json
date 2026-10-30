@@ -1,0 +1,25 @@
+{
+  "kind": "native-visual-workflow",
+  "schemaVersion": 1,
+  "id": "choose",
+  "name": "视觉固定选择",
+  "effect": "read",
+  "inputName": "choice",
+  "choices": {
+    "first": {
+      "anchor": "ALPHA",
+      "expected": "FIRST"
+    },
+    "second": {
+      "anchor": "BETA",
+      "expected": "SECOND"
+    }
+  },
+  "resultRegion": {
+    "x": 0.05,
+    "y": 0.58,
+    "width": 0.9,
+    "height": 0.15
+  },
+  "resultPrefix": "RESULT"
+}

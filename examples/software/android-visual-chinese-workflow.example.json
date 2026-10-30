@@ -1,0 +1,31 @@
+{
+  "kind": "native-visual-workflow",
+  "schemaVersion": 1,
+  "mode": "text-replace",
+  "id": "search_chinese",
+  "name": "中文视觉查询",
+  "effect": "read",
+  "activity": "com.example.target.Main",
+  "inputName": "query",
+  "inputSchema": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 24,
+    "pattern": "^[\\u4e00-\\u9fff]+$"
+  },
+  "focusAnchor": "Query",
+  "submitAnchor": "Search",
+  "valueRegion": {
+    "x": 0.36,
+    "y": 0.08,
+    "width": 0.61,
+    "height": 0.11
+  },
+  "resultRegion": {
+    "x": 0.05,
+    "y": 0.65,
+    "width": 0.9,
+    "height": 0.2
+  },
+  "resultPrefix": "RESULT"
+}

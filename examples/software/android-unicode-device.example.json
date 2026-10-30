@@ -1,0 +1,36 @@
+{
+  "source": {
+    "id": "android_unicode_example",
+    "kind": "apk"
+  },
+  "backend": {
+    "type": "adb",
+    "deviceId": "REPLACE_WITH_DEVICE_SERIAL",
+    "appId": "com.example.target",
+    "unicodeInput": {
+      "component": "com.bfs.mcp.ime/.UnicodeIme",
+      "apkSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "limits": {
+    "maxActions": 40,
+    "maxDepth": 2,
+    "maxDurationMs": 120000
+  },
+  "actionAllowlist": [
+    {
+      "kind": "type",
+      "selector": {
+        "resourceId": "com.example.target:id/query"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "click",
+      "selector": {
+        "resourceId": "com.example.target:id/search"
+      },
+      "effect": "read"
+    }
+  ]
+}

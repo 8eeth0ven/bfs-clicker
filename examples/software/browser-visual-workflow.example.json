@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "id": "canvas_query",
+  "name": "Canvas query",
+  "effect": "read",
+  "networkEvidence": "required",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 20,
+        "pattern": "^[a-z]+$"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "additionalProperties": false
+  },
+  "entry": {
+    "url": "http://127.0.0.1:3102/",
+    "anchors": [
+      {
+        "selector": "#screen",
+        "tag": "canvas"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "kind": "visualFill",
+      "selector": "#screen",
+      "param": "query",
+      "visual": {
+        "anchor": "Query",
+        "offset": {
+          "x": 0.32,
+          "y": 0
+        },
+        "valueRegion": {
+          "x": 0.28,
+          "y": 0.12,
+          "width": 0.65,
+          "height": 0.17
+        }
+      }
+    },
+    {
+      "kind": "visualClick",
+      "selector": "#screen",
+      "visual": {
+        "anchor": "Search"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "selector": "#screen",
+      "visual": {
+        "region": {
+          "x": 0.03,
+          "y": 0.65,
+          "width": 0.94,
+          "height": 0.3
+        }
+      },
+      "textIncludes": "RESULT",
+      "textIncludesParam": "query",
+      "changedFromBefore": true
+    }
+  ],
+  "extract": [
+    {
+      "name": "result",
+      "selector": "#screen",
+      "kind": "visualText",
+      "visual": {
+        "region": {
+          "x": 0.03,
+          "y": 0.65,
+          "width": 0.94,
+          "height": 0.3
+        }
+      }
+    }
+  ],
+  "samples": [
+    {
+      "query": "alpha"
+    },
+    {
+      "query": "beta"
+    }
+  ]
+}
