@@ -14,7 +14,7 @@ async function complete(client,start,name){const value=await terminal(client,sta
 
 // The HTTP server implements the W3C wire protocol; /notes is an actual,
 // independently persisted app operation. This is protocol validation, not iOS hardware.
-async function fixture(t,{permissions={allowWrite:['save_note','failed_note'],allowWriteLearning:['save_note','failed_note']}}={}){
+async function fixture(t,{permissions={allowWrite:['save_note','failed_note'],allowWriteLearning:['save_note','failed_note'],allowClosedStages:['browser_only_stage']}}={}){
  const dir=temp(t),sourceId='native_notes',appId='com.example.native.notes';
  const store=path.join(dir,'notes.json');writeFileSync(store,'[]');
  const notes=()=>JSON.parse(readFileSync(store,'utf8'));

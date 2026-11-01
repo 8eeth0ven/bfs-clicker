@@ -1,10 +1,41 @@
 # 软件转 MCP：能力与验证范围
 
+本页记录`software-to-mcp-18`的有限契约与验证范围。统一服务保留28工具；ready不表示任意网站/App的全部业务都已覆盖。分发仍为[草稿PR检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)，main未合并、npm未发布；[compiler17历史检查点](https://github.com/8eeth0ven/bfs-clicker/commit/af4cfa90be06ed951ccee602360e97704e68a2ef)不是未来compiler18提交声明。机器状态见[公开验证摘要](software-to-mcp-validation.json)，配置见[指南](software-to-mcp.md)。
+
+## compiler18 当前证据
+
+| 项目 | 实际证据 | 范围 |
+| --- | --- | --- |
+| 最终postfix完整JS | 主项目239/239；完整software457/457，均0失败/跳过 | 两套结束119runtime/436公开代码逐SHA匹配；早期457绿但source改变的运行明确superseded，不移用 |
+| 完整Python | 571项，570通过、1 Hermes fixture跳过；142.037秒 | 73份producer/helper源当前匹配、实际签名APK fixture；不是119/436完整JS或503设备同一范围 |
+| 闭根阶段流程 | producer11/11；独立纯VM11控制分列 | 本地spec+精确startup grant，真实销毁重建、两样本、统一/生成每intent1POST；默认legacy不变，非自动阶段规划 |
+| OpenAPI原件refresh | 最终15项refresh+原reader6；related21另列 | 同FD首次字节/stamp、共享原件有界缓存及alias/stamp复核；淘汰重读比首次hash，失败旧current保留，无URL fetch |
+| ADB截图身份 | 11局部专项已含Python；本地协议对照13→10条命令，中位1120.818→894.507ms | 只去更早重复proof，最终截图前/后身份保留；非真机或端到端速度 |
+| iOS split合同 | Python217及新Node21局部范围分列、不相加 | 本地owner分别批准键面/外壳；实际app/window/image/AX/OCR、默认完整guards保留，SHA非UI授权/OS所有权 |
+| 独立生产安装/SDK | 365文件/32dist、28工具、stderr0；bytes/modes/源/归档/锁一致，8直接依赖本地 | 七个验收producer文件不是七次业务；真实DOM/open、provider/HTTP、closed及refresh各有独立正链和正常SDK清理 |
+| 普通iOS第18轮 | 终态失败，实际错误 `VISUAL_FRAME_CHANGED`；phase=`learning_second_sample_key_freshness` | 503复制源/32dist对119/436，前bytes匹配=是、后匹配=是；共享host依赖、非hermetic；setup与MCP分开计数 |
+
+闭根阶段当前由owner完整本地spec与`allowClosedStages`精确ID授权，不由模型自动规划。阶段内host/target稳定；成功click及合法新语义边界后只读重验再commit，同doc已观察来源不能经隐藏搬迁洗白，新doc不继承旧receipt，未知不重试。4roots/4层host/256节点/4096每backend及原总预算保持；完整证书上限1MiB。复现见[闭根SDK/反例](../test/software-closed-multistage.test.mjs)。
+
+OpenAPI显式refresh重新读登记主文档、映射refs及最多32补充；每bundle单文件8MiB、总16MiB、32refs，单操作已解码缓存最多16MiB，不是整轮或整个进程上限。没有provenance的旧来源须重导。校验发布时不承诺重新hash全部内容或恶意FS原子快照。见[刷新测试](../test/software-openapi-refresh.test.mjs)与[读取测试](../test/artifact-text.test.mjs)。
+
+安装包实际闭根链共5次业务=探索1+学习2+统一1+生成1，旧host/field/form断开，decoy不参与；new-document的源码direct测试另列。DOM/open每mode同样各5次。provider为探索1+随后4=整fixture5，显式HTTP另2次且不新增native UI。OpenAPI为原生成red、统一blue、再生成cyan共3次，refresh/stale请求0。它们是安装的生产runtime和生成入口证据，不借源码配置，不是设备/OCR或业务等价证明。
+
+第18轮setup focus=1、MCP键=38、业务提交=1；discoveryStarted=是、learningStarted=是、twoSampleValidated=否、readyPublished=否、unifiedPassed=否、generatedPassed=否。六清理全部成立=是，fresh主机审计完成=是，剩余owned进程=0、监听owned端口=0，自有simulator退出=是、既有设备保留=是；未知不会写成0或通过。缓存WDA的实际使用=是，仅代表构建复用，不拿旧17 PNG/XML摘要代替本轮校准。实际阶段与结果按上表，不推测动画、OS归属或任意键盘兼容。
+
+存储执行者保留10GiB，实际设备4GiB计划准入、15秒检查低于11GiB只中止own harness；本轮storageAbort=否，末核reserve满足=是。它不是产品自动删除或并发OS写入quota。历史清理原值全部留在previousCompiler17及更早块，不计本轮回收。
+
+提交前必须核实际暂存index、精确最终tar、SDK基线之外仅批准两验证文档delta及全内容隐私。当前文档投影不会自批maySubmit，不自嵌未来commit或tar摘要；最终分发结果由PR/交付记录核验。其他Android/Web/native历史不是compiler18重跑，中文空格研究已知假接受继续保留，未作为生产能力。
+
+## compiler17 及更早历史（以下原文保留）
+
+# 软件转 MCP：能力与验证范围
+
 统一服务保留28个工具。`ready`指某个有限来源通过受支持契约及真实样本验证，不表示任意网站或App的所有业务已覆盖。本记录面向`software-to-mcp-17`的[草稿PR检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)，主分支未合并、npm未发布；[compiler16检查点9454aee](https://github.com/8eeth0ven/bfs-clicker/commit/9454aee8c515db26cd6e78f98a6d745c6c699a7d)是历史参考。实际最终提交、精确归档及隐私审核由PR/交付记录核验，不在文档内自嵌未来commit或tar哈希。
 
 机器可读状态见[公开验证摘要](software-to-mcp-validation.json)，配置见[统一入口指南](software-to-mcp.md)。本页只投影核实过的公开计数与范围，不包含本机路径、设备/会话标识、原截图或模型。未终态的数据保持待定；交叠专项和不同源码cohort不相加。
 
-## compiler17 当前证据
+## compiler17 历史证据
 
 | 项目 | 已取得证据或待项 | 范围 |
 | --- | --- | --- |

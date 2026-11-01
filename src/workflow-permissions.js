@@ -5,11 +5,11 @@ const plain = value => value !== null && typeof value === 'object' && !Array.isA
 const fail = (code, message) => { throw Object.assign(new Error(code + '：' + message), {code}); };
 
 export function normalizeWorkflowPermissions(value = {}) {
-  if (!plain(value) || Object.keys(value).some(key => !['allowWrite', 'allowWriteLearning'].includes(key))) {
-    fail('WORKFLOW_PERMISSIONS_INVALID', '权限只接受 allowWrite 和 allowWriteLearning');
+  if (!plain(value) || Object.keys(value).some(key => !['allowWrite', 'allowWriteLearning', 'allowClosedStages'].includes(key))) {
+    fail('WORKFLOW_PERMISSIONS_INVALID', '权限只接受明确的 workflow 授权数组');
   }
   const permissions = {};
-  for (const key of ['allowWrite', 'allowWriteLearning']) {
+  for (const key of ['allowWrite', 'allowWriteLearning', ...(Object.hasOwn(value,'allowClosedStages')?['allowClosedStages']:[])]) {
     const values = Object.hasOwn(value, key) ? value[key] : [];
     if (!Array.isArray(values) || values.length > 100 || values.some(id => typeof id !== 'string' || !ID.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id))) {
       fail('WORKFLOW_PERMISSIONS_INVALID', '权限需要明确的 workflow id 数组');
@@ -20,6 +20,12 @@ export function normalizeWorkflowPermissions(value = {}) {
     fail('WORKFLOW_PERMISSIONS_INVALID', '学习许可必须同时具备执行许可');
   }
   return permissions;
+}
+
+export function assertClosedStagePermission(value, id) {
+  if (!normalizeWorkflowPermissions(value).allowClosedStages?.includes(id)) {
+    fail('WORKFLOW_CLOSED_STAGES_NOT_APPROVED', '启动配置未批准此 workflow 的闭根阶段转换');
+  }
 }
 
 export function assertWorkflowPermission(value, id, {learning = false} = {}) {

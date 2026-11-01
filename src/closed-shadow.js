@@ -27,9 +27,10 @@ export function bindClosedShadow(page,config){bindings.set(page,config)}
 export async function resetClosedShadow(page){const previous=backends.get(page);if(previous){try{const b=await boundedCleanup(previous);if(b.explorationCleanupFailed)fail('CLOSED_SHADOW_CLEANUP_FAILED');b.dead=true;await boundedCleanup(b.session.detach());backends.delete(page)}catch{fail('CLOSED_SHADOW_CLEANUP_FAILED')}}}
 
 // Only the explorer calls this after a fully returned primitive. The candidate
-// can read a new semantic generation but cannot dispatch UI. Workflows retain
-// their original lifetime pins and never implicitly reset a rebuilt target.
-export async function beginClosedExplorationGeneration(page,config){
+// can read a new semantic generation but cannot dispatch UI. Default workflows
+// retain their lifetime pins; explicit workflow stages use a separate receipt.
+export async function beginClosedExplorationGeneration(page,config){return beginClosedGeneration(page,config,'closed_shadow_exploration_generation')}
+async function beginClosedGeneration(page,config,eventName){
  if(!config.closedShadowRoots?.length)return {async commit(){},async dispose(){}};
  checkAction(config);
  const previous=backends.get(page),old=previous?await previous:null;
@@ -41,7 +42,7 @@ export async function beginClosedExplorationGeneration(page,config){
   if(done)fail('CLOSED_SHADOW_GENERATION_EXPIRED');checkAction(config);
   if(old){old.dead=true;try{await boundedCleanup(old.session.detach())}catch{poison();await boundedCleanup(candidate.session.detach()).catch(()=>{});done=true;fail('CLOSED_SHADOW_CLEANUP_FAILED')}}
   candidate.readOnly=false;done=true;
-  config._runtime?.emit?.('closed_shadow_exploration_generation',{previousCalls:old?.calls||0,candidateCalls:candidate.calls,callLimit:4096});
+  config._runtime?.emit?.(eventName,{previousCalls:old?.calls||0,candidateCalls:candidate.calls,callLimit:4096});
  },async dispose(){
   if(done)return;done=true;candidate.dead=true;
   // Failed read-only observations still consume the original CDP call budget.
@@ -108,6 +109,23 @@ class Backend{
    return await fn({...root,count:1,nodeId:node.objectId,backendNodeId:id,semantic},group);
   }catch(e){primary=e;throw e}finally{try{await boundedCleanup(this.session.send('Runtime.releaseObjectGroup',{objectGroup:group}))}catch{this.dead=true;await boundedCleanup(this.session.detach()).catch(()=>{});if(!primary)fail('CLOSED_SHADOW_CLEANUP_FAILED')}}
  }
+ async elementIds(root,group,config){
+  const count=await this.call(root.objectId,r=>r.querySelectorAll('*').length,undefined,group,config);
+  if(!Number.isSafeInteger(count)||count<0||count>root.policy.maxNodes)fail('CLOSED_SHADOW_LIMIT');
+  // querySelectorAll does not cross a nested shadow boundary: these elements
+  // have this nearest root as owner, including a nested root's host itself.
+  const list=await this.call(root.objectId,r=>Array.from(r.querySelectorAll('*')),undefined,group,config,false);
+  const properties=await this.send('Runtime.getProperties',{objectId:list.objectId,ownProperties:true},config),rows=properties.result.filter(row=>/^(0|[1-9][0-9]*)$/.test(row.name));
+  if(rows.length!==count||rows.some((row,index)=>row.name!==String(index)||!row.value?.objectId))fail('CLOSED_SHADOW_STAGE_CHANGED_DURING_ADMISSION');
+  const ids=[];
+  for(const row of rows){
+   const node=(await this.send('DOM.describeNode',{objectId:row.value.objectId,depth:0,pierce:false},config)).node;
+   const member=await this.send('Runtime.callFunctionOn',{objectId:row.value.objectId,functionDeclaration:'function(root){return this.isConnected&&this.getRootNode()===root}',arguments:[{objectId:root.objectId}],returnByValue:true},config);
+   if(node.nodeType!==1||!Number.isSafeInteger(node.backendNodeId)||member.exceptionDetails||member.result.value!==true)fail('CLOSED_SHADOW_STAGE_CHANGED_DURING_ADMISSION');ids.push(node.backendNodeId);
+  }
+  if(new Set(ids).size!==count||await this.call(root.objectId,r=>r.querySelectorAll('*').length,undefined,group,config)!==count)fail('CLOSED_SHADOW_STAGE_CHANGED_DURING_ADMISSION');
+  return ids;
+ }
 }
 async function backend(page,config){checkAction(config);if(!backends.has(page)){let expired=false,timer;const pending=page.context().newCDPSession(page),timeout=Math.max(1,Math.min(actionTimeout(config),config?._closedAction?config._closedAction.deadline-Date.now():Infinity));
  const result=Promise.race([pending.then(session=>new Backend(page,session)),new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(Object.assign(new Error('closed backend timeout'),{code:'CLOSED_SHADOW_TIMEOUT'}))},timeout)})]).finally(()=>clearTimeout(timer));
@@ -142,6 +160,13 @@ export class ClosedLocator{
   const point={x:Math.floor(before.x+before.width/2),y:Math.floor(before.y+before.height/2)};checkAction(this.config);return dispatch?dispatch(point,{b,r,g,snapshot:after}):point;
  })}
  async click(options){return this.ui(local=>local.point(point=>{checkAction(local.config);return this.page.mouse.click(point.x,point.y)}),options)}
+ // Only a fully returned physical click can return this private, one-use
+ // transition receipt. A timed-out/late click never authorizes a generation.
+ async clickForWorkflowStage(options){
+  let receipt,returned=false;
+  try{await this.ui(async local=>{const captured=await captureWorkflowStage(this.page,local.config,this.config);try{await local.point(point=>{checkAction(local.config);return this.page.mouse.click(point.x,point.y)});checkAction(local.config);receipt=captured;}catch(error){await captured.dispose();throw error;}},options);returned=true;return receipt;}
+  finally{if(!returned)await receipt?.dispose();}
+ }
  async hover(options){return this.ui(local=>local.point(point=>{checkAction(local.config);return this.page.mouse.move(point.x,point.y)}),options)}
  async fill(value,options){
   if(typeof value!=='string'||Buffer.byteLength(value)>4096||/[\x00-\x1f\x7f]/.test(value))fail('CLOSED_SHADOW_INPUT_UNSUPPORTED');
@@ -154,6 +179,82 @@ export class ClosedLocator{
  }
 }
 export const closedLocator=(page,target,config)=>new ClosedLocator(page,target,config);
+
+function workflowOriginsFor(b,roots,config,previous=b.workflowOrigins){
+ if(previous&&previous.document!==b.doc)fail('CLOSED_SHADOW_GENERATION_EXPIRED');
+ const nodes=new Map(previous?.nodes),aliases=new Map();
+ for(const [id,row]of roots){const rootId=row.chain.at(-1)[1];if(!aliases.has(rootId))aliases.set(rootId,new Set());aliases.get(rootId).add(id);}
+ for(const [id,row]of roots)for(const node of row.nodes){
+  const known=nodes.get(node);if(known&&!known.has(id))fail('CLOSED_SHADOW_STAGE_OWNER_CHANGED');
+  if(!known)nodes.set(node,new Set(aliases.get(row.chain.at(-1)[1])));
+ }
+ // At most 30 click boundaries: entry + pre-click + admitted post-state = 61
+ // complete inventories. Retain disconnected nodes for this document so an
+ // earlier observed foreign control cannot be laundered through a container.
+ const limit=61*normalizeClosedShadowRoots(config.closedShadowRoots).reduce((n,p)=>n+p.maxNodes,0);
+ if(nodes.size>limit)fail('CLOSED_SHADOW_LIMIT');return{document:b.doc,nodes};
+}
+
+// Explicit workflow stage entry only. It is called before any initial-stage UI,
+// never by old workflows/exploration and never to renew an expired generation.
+export async function pinClosedWorkflowStage(page,config){
+ const b=await backend(page,config),roots=new Map();
+ for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+  const row=await b.scope(closedDescriptor(policy,':scope'),config,async(r,g)=>r?{chain:r.lease.chain.map(pair=>[...pair]),nodes:await b.elementIds(r,g,config)}:null,{rootOnly:true});
+  if(!row)fail('CLOSED_SHADOW_STAGE_ROOT_MISSING');roots.set(policy.id,row);
+ }
+ b.workflowOrigins=workflowOriginsFor(b,roots,config);
+}
+
+// Workflow stage authority is separate from exploration. The receipt owns old
+// isolated-world wrappers until the post-click admission decision. None of its
+// ids, snapshots or hashes are serialized into a recipe, event or checkpoint.
+async function captureWorkflowStage(page,actionConfig,config){
+ const old=await backend(page,actionConfig),group='bfs-workflow-stage-'+randomUUID(),roots=new Map(),before=await closedFingerprint(page,actionConfig);let used=false,released=false;
+ const release=async()=>{if(released)return;released=true;try{await boundedCleanup(old.session.send('Runtime.releaseObjectGroup',{objectGroup:group}))}catch{old.dead=true;old.explorationCleanupFailed=true;fail('CLOSED_SHADOW_CLEANUP_FAILED')}};
+ try{
+  for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+   const ref=await old.root(closedDescriptor(policy,':scope'),actionConfig,group);
+   if(!ref)fail('CLOSED_SHADOW_STAGE_ROOT_MISSING');
+   const nodes=await old.elementIds(ref,group,actionConfig);
+   roots.set(policy.id,{chain:ref.lease.chain.map(row=>[...row]),semantics:ref.semantics,hostIds:ref.hostIds,nodes});
+  }
+  old.workflowOrigins=workflowOriginsFor(old,roots,actionConfig);
+  const document=old.doc;
+  return {async promote({document:documentMode,url},prove){
+   if(used)fail('CLOSED_SHADOW_GENERATION_EXPIRED');used=true;checkAction(config);
+   if(page.url()!==url)fail('CLOSED_SHADOW_STAGE_URL_CHANGED');
+   let candidate;
+   try{
+    candidate=await beginClosedGeneration(page,config,'closed_shadow_workflow_generation');
+    const next=await backend(page,config),nextRoots=new Map();
+    for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+     const ref=await next.scope(closedDescriptor(policy,':scope'),config,r=>r?{chain:r.lease.chain.map(row=>[...row]),semantics:r.semantics}:null,{rootOnly:true});
+     if(!ref)fail('CLOSED_SHADOW_STAGE_ROOT_MISSING');nextRoots.set(policy.id,ref);
+    }
+    if(documentMode==='same'?next.doc!==document:documentMode==='new'?next.doc===document:true)fail('CLOSED_SHADOW_STAGE_DOCUMENT_CHANGED');
+    if(next.doc===document){
+     for(const [id,a]of roots)for(const [otherId,b]of roots)if(a.chain.at(-1)[1]!==b.chain.at(-1)[1]&&nextRoots.get(id).chain.at(-1)[1]===nextRoots.get(otherId).chain.at(-1)[1])fail('CLOSED_SHADOW_STAGE_OWNER_CHANGED');
+     for(const [id,fresh]of nextRoots){const prior=roots.get(id);if(!same(prior.semantics,fresh.semantics))fail('CLOSED_SHADOW_HOST_CHANGED');
+      for(const [otherId,other]of roots)if(otherId!==id&&fresh.chain.some(pair=>other.chain.some(oldPair=>pair.some(node=>oldPair.includes(node)&&!prior.chain.some(ownPair=>ownPair.includes(node))))))fail('CLOSED_SHADOW_STAGE_OWNER_CHANGED');
+      for(let i=0;i<prior.chain.length;i++)if(!same(prior.chain[i],fresh.chain[i])){
+       if(prior.chain[i][0]===fresh.chain[i][0]||await old.call(prior.hostIds[i],host=>host.isConnected,undefined,group,config)!==false)fail('CLOSED_SHADOW_STAGE_OWNER_CHANGED');
+      }
+     }
+    }
+    const after=await closedFingerprint(page,config);if(same(before,after))fail('CLOSED_SHADOW_STAGE_UNCHANGED');
+    await prove();checkAction(config);if(page.url()!==url)fail('CLOSED_SHADOW_STAGE_URL_CHANGED');
+    // Re-read all newly pinned targets after the admission callback. A late
+    // root/control replacement is a failure, never another candidate attempt.
+    for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots))await next.scope(closedDescriptor(policy,':scope'),config,async(r,g)=>{if(!r)fail('CLOSED_SHADOW_STAGE_ROOT_MISSING');nextRoots.get(policy.id).nodes=await next.elementIds(r,g,config);}, {rootOnly:true});
+    next.workflowOrigins=workflowOriginsFor(next,nextRoots,config,next.doc===document?old.workflowOrigins:undefined);
+    if(!same(after,await closedFingerprint(page,config)))fail('CLOSED_SHADOW_STAGE_CHANGED_DURING_ADMISSION');
+    await release();await candidate.commit();
+   }catch(error){await candidate?.dispose();throw error;}
+   finally{await release();}
+  },async dispose(){if(!used)used=true;await release();}};
+ }catch(error){await release();throw error;}
+}
 
 // Internal exploration comparison. Node ids never enter descriptors/events.
 // Unlike identity(), the private closure distinguishes two generations that

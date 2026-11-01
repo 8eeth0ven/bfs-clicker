@@ -21,7 +21,8 @@ function nativeInput(step,device){
 export function deriveCapabilityFidelity({adapter,recipe,device,sourceKind}={}){
  if(adapter==='unresolved-http')return unknownCapabilityFidelity('http_method_unresolved');
  if(adapter==='http')return base('http',['http_wire'],[{scope:'request_parameters',contract:'schema_defined_wire_serialization',domain:'exposed_input_schema'}],[projected('response','decoded_redacted_bounded_response')],['http_response_is_not_business_equivalence','response_may_be_truncated_or_binary_summary']);
- if(!plain(recipe)||recipe.schemaVersion!==1)return unknownCapabilityFidelity();
+ const stagedBrowser=adapter==='browser-workflow'&&plain(recipe)&&recipe.schemaVersion===2&&recipe.kind==='browser-workflow'&&recipe.spec?.executionMode==='closed-stages-v1'&&recipe.spec?.closedStages?.schemaVersion===1&&Array.isArray(recipe.spec.closedStages.stages)&&recipe.spec.closedStages.stages.length>=2&&recipe.spec.closedStages.stages.length<=31&&Array.isArray(recipe.spec.steps)&&recipe.spec.steps.length>=1&&recipe.spec.steps.length<=30&&recipe.spec.steps.every(step=>plain(step)&&step.closedShadow&&['fill','click'].includes(step.kind));
+ if(!plain(recipe)||(recipe.schemaVersion!==1&&!stagedBrowser))return unknownCapabilityFidelity();
  if(adapter==='mobile-workflow'&&['ios_visual_workflow','visual_workflow'].includes(recipe.recipeType)){
   const definition=recipe.definition,inputs=[],limits=['rendered_ocr_cannot_prove_source_codepoints','ocr_may_drop_or_normalize_spaces','visual_echo_is_not_semantic_provider_echo','result_is_bounded_and_redacted'];
   if(plain(definition)&&definition.mode==='text-replace'&&name(definition.inputName))inputs.push({parameter:definition.inputName,contract:'rendered_ocr_echo_required',mode:'replace',domain:device?.nativeVisualWorkflow?.keyboard?.keyInput?.mode==='onscreen'?'ascii_alphanumeric_1_16':'declared_visual_input_schema'});
@@ -53,7 +54,7 @@ export function deriveCapabilityFidelity({adapter,recipe,device,sourceKind}={}){
   }
   for(const output of spec.extract){if(!name(output?.name)||!['text','table','visualText'].includes(output.kind))return unknownCapabilityFidelity();if(output.kind==='visualText')channels.push('rendered_ocr');outputs.push(projected(output.name,output.kind==='visualText'?'rendered_ocr_projection':'visible_dom_projection'));}
   if(spec.assertions?.some(a=>a.visual))channels.push('rendered_ocr');
-  return base(adapter,channels,inputs,outputs,['dom_values_are_not_app_buffer_or_business_truth','rendered_ocr_cannot_prove_source_codepoints','visual_echo_may_collapse_whitespace','outputs_are_projected_redacted_and_bounded']);
+  return base(adapter,channels,inputs,outputs,['dom_values_are_not_app_buffer_or_business_truth','rendered_ocr_cannot_prove_source_codepoints','visual_echo_may_collapse_whitespace','outputs_are_projected_redacted_and_bounded',...(stagedBrowser?['closed_stage_startup_grant_required','closed_host_and_targets_stable_within_explicit_stage']:[])]);
  }
  if(adapter==='browser'&&recipe.recipeType===undefined&&Array.isArray(recipe.steps)&&recipe.steps.length<=80){
   const channels=['browser_dom','fixed_ui_actions'];if(recipe.steps.some(s=>['visualClick','visualFill'].includes(s?.action?.kind)))channels.push('rendered_ocr');

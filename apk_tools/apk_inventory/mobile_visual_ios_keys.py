@@ -72,11 +72,14 @@ def read_source(session, config, observation, geometry):
     """A new source only; stale/disappearing/ambiguous layers are not retried."""
     k = _keyboard()
     session.budget.check()
+    k._split_context(config["keyboard"], observation, geometry, session.backend.app_id)
     session.backend.foreground()
     raw = session.backend.request("GET", "/source")
     proposal = k._inspect_source(raw, geometry, session.backend.app_id, unique=True)
     if proposal is None:
         fail("VISUAL_KEYBOARD_NOT_VISIBLE")
+    if "geometryEvidence" in config["keyboard"]:
+        k._keyboard_region(config["keyboard"], observation, geometry, proposal)
     source = config["keyboard"].get("sourceRegion", config["keyboard"]["region"])
     if k._visual()._box(proposal["region"], observation["width"], observation["height"]) != k._visual()._box(source, observation["width"], observation["height"]):
         fail("VISUAL_KEYBOARD_REGION_MISMATCH")

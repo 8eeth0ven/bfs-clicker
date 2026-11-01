@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync, rmSync } from 'node:fs';
+import { constants,openSync,fstatSync,closeSync,existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -8,7 +8,7 @@ import { atomicJson, readAtomic, secureDirectory, acquireLock } from './store.js
 import { redact, redactText } from './redact.js';
 import {normalizeWorkflowPermissions, assertWorkflowPermission} from './workflow-permissions.js';
 import {publicWriteOutcome, persistedWriteOutcome, mergeWriteOutcomes} from './write-outcome.js';
-import {readArtifactText} from './artifact-text.js';
+import {readArtifactTextSnapshot} from './artifact-text.js';
 import {runPython} from './software-python.js';
 import {createNativeDeviceSnapshot} from './native-workflow-budget.js';
 import {CAPABILITY_FIDELITY_VERSION,capabilityFidelity,unknownCapabilityFidelity,sourceRouteDiscovery} from './capability-fidelity.js';
@@ -45,7 +45,7 @@ export function createSoftwareRuntime(options={}){
  const readGeneration=id=>{const ref=current(id),dir=path.join(sourceDir(id),'generations',ref.revision);return projectGeneration({ref,dir,manifest:json(path.join(dir,'manifest.json')),recipes:json(path.join(dir,'private/recipes.json'))});};
  const artifactJson=(directory,name)=>{const base=realpathSync(directory);for(const suffix of ['', '.previous']){const file=path.join(base,name+suffix);let info;try{info=lstatSync(file)}catch(error){if(error.code==='ENOENT')continue;throw error}if(info.isSymbolicLink()||!info.isFile()||info.size>8*1024*1024||!within(base,realpathSync(file)))throw new Error('WORKFLOW_PATH_REJECTED');}return json(path.join(base,name));};
  const readDevice=(file)=>{const info=lstatSync(file);if(info.isSymbolicLink()||!info.isFile()||info.size>1048576)throw new Error('DEVICE_CONFIG_PATH_REJECTED');const actual=realpathSync(file);if(!config.artifactRoots.some(base=>within(realpathSync(base),actual))&&!Object.values(config.devices||{}).some(bound=>{try{return realpathSync(bound)===actual}catch{return false}}))throw new Error('DEVICE_CONFIG_PATH_REJECTED');return JSON.parse(readFileSync(actual,'utf8'));};
- const effectiveDevice=(original,sourceId)=>{const dc=clone(original);delete dc.workflowPermissions;const permission=config.workflowPermissions[sourceId];if(permission&&(permission.allowWrite.length||permission.allowWriteLearning.length))dc.workflowPermissions=clone(permission);return dc;};
+ const effectiveDevice=(original,sourceId)=>{const dc=clone(original);delete dc.workflowPermissions;const permission=config.workflowPermissions[sourceId];if(permission&&(permission.allowWrite.length||permission.allowWriteLearning.length))dc.workflowPermissions=clone({allowWrite:permission.allowWrite,allowWriteLearning:permission.allowWriteLearning});return dc;};
  const executionDeviceDigest=device=>{const {workflowPermissions,...contract}=device;return digest(canonical(contract));};
  const boundDevice=(file,original,dc)=>{if(digest(dc)===digest(original))return path.resolve(file);const target=path.join(root,'private','device-'+digest(dc)+'.json');if(!existsSync(target))atomicJson(target,dc);return target;};
  const deviceFor=(file,sourceId)=>{const original=readDevice(file);return boundDevice(file,original,effectiveDevice(original,sourceId));};
@@ -83,14 +83,14 @@ export function createSoftwareRuntime(options={}){
   if(!out.credentials)out.public=true;else{delete out.public;if(!trusted.credential_origins?.length)throw new Error('CREDENTIAL_SCOPE_REQUIRED：凭据需独立声明credential_origins');out.credential_origins=trusted.credential_origins;}
   return out;
  };
- async function compile({sourceId,inventoryPath,kind='web',runDir,mobileDir,deviceName,deviceConfigPath,workflowEntries,httpSupplements=[],expectedRevision,schemaOverrides,sourceGaps=[],sourceWarnings=[]}){
+ async function compile({sourceId,inventoryPath,kind='web',runDir,mobileDir,deviceName,deviceConfigPath,workflowEntries,httpSupplements=[],expectedRevision,schemaOverrides,sourceGaps=[],sourceWarnings=[],specificationInput=null,validateSpecificationInputs}){
   validId(sourceId);const dir=sourceDir(sourceId);mkdirSync(dir,{recursive:true,mode:0o700});
   const release=acquireLock(path.join(dir,'.compile.lock'),{task:'capability_compile'});let stage=null;
   try{
    let old=null;try{old=current(sourceId)}catch{}
    if(expectedRevision!==undefined&&old?.revision!==expectedRevision)throw new Error('SOURCE_CHANGED：来源已更新，请重新读取');
    workflowEntries=workflowEntries??((runDir&&runDir===old?.runDir)||(mobileDir&&mobileDir===old?.mobileDir)?old?.workflowEntries||[]:[]);if(!Array.isArray(workflowEntries)||workflowEntries.length>100)throw new Error('WORKFLOW_LIMIT');
-   if(!Array.isArray(httpSupplements)||httpSupplements.length>32)throw new Error('SUPPLEMENT_LIMIT');
+   validateHttpSupplements(httpSupplements);
    const supplements=httpSupplements.map(item=>({...item,...inventoryRecords(item.inventoryPath,sourceId,kind)}));
    const supplementGaps=[],mergedOverrides={...(schemaOverrides||{})};for(const item of supplements)for(const [key,value] of Object.entries(item.schemaOverrides||{})){if(mergedOverrides[key]&&JSON.stringify(canonical(mergedOverrides[key]))!==JSON.stringify(canonical(value))){mergedOverrides[key]={allOf:[mergedOverrides[key],value,{not:{}}]};supplementGaps.push({reason:'conflicting_formal_contracts',operation:key});}else mergedOverrides[key]=value;}
    let browser=null,adapted=null,scope=[],generatedBinding=Object.keys(mergedOverrides).length?{schema_overrides:mergedOverrides}:{};
@@ -139,7 +139,7 @@ export function createSoftwareRuntime(options={}){
     const id='cap_'+digest([sourceId,cap.kind,cap.id]),binding={adapter,sourceId,runDir:item.runDir||runDir||null,mobileDir:mobileDir||null,workflowDir:item.directory||null,deviceName:item.deviceName||deviceName||null,deviceConfigPath:item.deviceConfigPath||deviceConfigPath||null,recipe:item.recipes[cap.id]};
     const metadata=bindCatalogContract(binding,kind,services.credentials.redactor,deviceFidelityCache);preparedCapabilities.push({item,cap,id,binding,metadata});
    }
-   const revision=digest({compilerVersion:'software-to-mcp-17',sourceId,http:snapshot.revision,browser:browser?.manifest.source.revision||null,mobile:mobile?.manifest.source.revision||null,deviceName:deviceName||null,deviceConfigPath:deviceConfigPath||null,workflows:workflows.map(item=>[item.id,item.manifest.source.revision,item.adapter]),workflowPermissions:config.workflowPermissions[sourceId]||null,nativeVisual:config.nativeVisual?.[sourceId]||null,supplements:httpSupplements,scope,binding:config.bindings?.[sourceId]||null,sourceGaps,sourceWarnings,fidelityContracts:{version:CAPABILITY_FIDELITY_VERSION,items:preparedCapabilities.map(item=>[item.id,item.binding.catalogContract])}});
+   const revision=digest({compilerVersion:'software-to-mcp-18',sourceId,http:snapshot.revision,browser:browser?.manifest.source.revision||null,mobile:mobile?.manifest.source.revision||null,deviceName:deviceName||null,deviceConfigPath:deviceConfigPath||null,workflows:workflows.map(item=>[item.id,item.manifest.source.revision,item.adapter]),workflowPermissions:config.workflowPermissions[sourceId]||null,nativeVisual:config.nativeVisual?.[sourceId]||null,supplements:httpSupplements,scope,binding:config.bindings?.[sourceId]||null,sourceGaps,sourceWarnings,specificationInput,fidelityContracts:{version:CAPABILITY_FIDELITY_VERSION,items:preparedCapabilities.map(item=>[item.id,item.binding.catalogContract])}});
    const capabilities=[],recipes={},gaps=[...sourceGaps,...supplementGaps,...supplements.flatMap(item=>item.gaps||[]),...(adapted?.gaps||[]),...(browser?.manifest.source.gaps||[]),...mobileProofs.flatMap(source=>source.gaps||[]).filter(gap=>!appArtifactVerified||(typeof gap==='string'?gap:gap.reason)!=='app_artifact_not_verified'),...(mobileProofs.length?[...(!appArtifactVerified?[{reason:'app_artifact_not_verified'}]:[]),{reason:'mobile_network_scope_not_enforced'}]:[])];
    for(const endpoint of snapshot.endpoints){
     for(const method of endpoint.methods){
@@ -158,15 +158,16 @@ export function createSoftwareRuntime(options={}){
    const publicCatalog=services.credentials.redactor.catalogValue({...rawManifest,capabilities:rawManifest.capabilities.map(({inputSchema,...cap})=>({...cap,params_schema:inputSchema}))});
    for(const cap of publicCatalog.capabilities){const binding=recipes[cap.id];if(binding?.catalogContract&&digest(canonical({modality:cap.modality,fidelity:cap.fidelity}))!==binding.catalogContract.publicDigest)throw new Error('CAPABILITY_METADATA_PROJECTION_CHANGED');}
    const manifest={...publicCatalog,capabilities:publicCatalog.capabilities.map(({params_schema,...cap},index)=>{const complete=digest(contractShape(params_schema))===digest(contractShape(rawManifest.capabilities[index].inputSchema));return {...cap,inputSchema:params_schema,...(!complete?{readiness:'candidate',gaps:[...(cap.gaps||[]),{reason:'schema_projection_incomplete'}]}:{})};})};
+   validateSpecificationInputs?.();
    const final=path.join(dir,'generations',revision);mkdirSync(path.dirname(final),{recursive:true,mode:0o700});
    if(!existsSync(final)){
     // Rewrite paths for the immutable generation before the directory rename.
     const finalInventory=supplements.length?path.join(final,'private',path.basename(manifestPath)):adapted?path.join(final,'private/inventory.json'):manifestPath;
     const finalConfig={manifest_roots:config.artifactRoots.concat([final]),state_dir:path.join(root,'private/health'),...(config.methods?{methods:config.methods}:{}),sources:[bindingFor(sourceId,finalInventory,kind,scope,{...generatedBinding,...(generatedBinding.credentials?{credentials:path.join(final,'private/credentials.json')}:{})})]};
     atomicJson(gatewayFile,finalConfig);atomicJson(path.join(stage,'manifest.json'),manifest);atomicJson(path.join(stage,'private/recipes.json'),recipes);
-    const {renameSync}=await import('node:fs');renameSync(stage,final);
+    const {renameSync}=await import('node:fs');validateSpecificationInputs?.();renameSync(stage,final);
    }
-   const previous=old?.revision||null;const oldCaps=previous?json(path.join(dir,'generations',previous,'manifest.json')).capabilities:[];const byId=new Map(oldCaps.map(c=>[c.id,c]));const changes={added:capabilities.filter(c=>!byId.has(c.id)).map(c=>c.id),changed:capabilities.filter(c=>byId.has(c.id)&&byId.get(c.id).revision!==c.revision).map(c=>c.id),removed:oldCaps.filter(c=>!capabilities.some(n=>n.id===c.id)).map(c=>c.id)};atomicJson(path.join(dir,'current.json'),{sourceId,revision,previous:previous===revision?(old?.previous||null):previous,generation:final,runDir:runDir||null,inventoryPath:inventoryPath||null,kind,mobileDir:mobileDir||null,deviceName:deviceName||null,deviceConfigPath:deviceConfigPath||null,appIdentity,browserSourceRevision:browser?.manifest.source.revision||null,workflowEntries,httpSupplements,schemaOverrides:schemaOverrides||null,sourceGaps,sourceWarnings});
+   const previous=old?.revision||null;const oldCaps=previous?json(path.join(dir,'generations',previous,'manifest.json')).capabilities:[];const byId=new Map(oldCaps.map(c=>[c.id,c]));const changes={added:capabilities.filter(c=>!byId.has(c.id)).map(c=>c.id),changed:capabilities.filter(c=>byId.has(c.id)&&byId.get(c.id).revision!==c.revision).map(c=>c.id),removed:oldCaps.filter(c=>!capabilities.some(n=>n.id===c.id)).map(c=>c.id)};validateSpecificationInputs?.();atomicJson(path.join(dir,'current.json'),{sourceId,revision,previous:previous===revision?(old?.previous||null):previous,generation:final,runDir:runDir||null,inventoryPath:inventoryPath||null,kind,mobileDir:mobileDir||null,deviceName:deviceName||null,deviceConfigPath:deviceConfigPath||null,appIdentity,browserSourceRevision:browser?.manifest.source.revision||null,workflowEntries,httpSupplements,schemaOverrides:schemaOverrides||null,sourceGaps,sourceWarnings,specificationInput});
    return {source:manifest.source,counts:{total:capabilities.length,ready:manifest.capabilities.filter(c=>c.readiness==='ready').length},changes:Object.fromEntries(Object.entries(changes).map(([key,items])=>[key,items.slice(0,100)])),changeTotals:Object.fromEntries(Object.entries(changes).map(([key,items])=>[key,items.length])),changesTruncated:Object.values(changes).some(items=>items.length>100)};
   }finally{if(stage&&existsSync(stage))rmSync(stage,{recursive:true,force:true});release()}
  }
@@ -240,7 +241,7 @@ export function createSoftwareRuntime(options={}){
    const backendKind=dc.backend?.type==='adb'||dc.backend?.type==='webdriver'&&dc.backend.platform==='android'?'apk':dc.backend?.type==='webdriver'&&(!dc.backend.platform||dc.backend.platform==='ios')?'ios':null;
    if(backendKind!==kind||dc.source?.kind&&dc.source.kind!==kind||dc.source?.id&&dc.source.id!==descriptor.source_id||dc.backend?.appId&&dc.backend.appId!==app)throw new Error('移动UI设备配置与安装包身份不一致');
    if(!/^[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)+$/.test(app||''))throw new Error('APP_IDENTITY_REQUIRED');
-   dc.source={...dc.source,id:descriptor.source_id,kind};dc.backend.appId=app;delete dc.workflowPermissions;const permission=config.workflowPermissions[descriptor.source_id];if(permission&&(permission.allowWrite.length||permission.allowWriteLearning.length))dc.workflowPermissions=clone(permission);
+   dc.source={...dc.source,id:descriptor.source_id,kind};dc.backend.appId=app;delete dc.workflowPermissions;const permission=config.workflowPermissions[descriptor.source_id];if(permission&&(permission.allowWrite.length||permission.allowWriteLearning.length))dc.workflowPermissions=clone({allowWrite:permission.allowWrite,allowWriteLearning:permission.allowWriteLearning});
    const hash=descriptor.app?.apk_sha256||descriptor.app?.artifact_sha256;
    if(dc.expectedArtifact&&(kind!=='apk'||dc.expectedArtifact.kind!=='apk'||dc.expectedArtifact.sha256!==hash))throw new Error('ARTIFACT_BINDING_MISMATCH');
    if(kind==='apk'&&dc.backend.type==='adb'&&/\.apk$/i.test(artifact)&&/^[a-f0-9]{64}$/.test(hash||''))dc.expectedArtifact={kind:'apk',sha256:hash};
@@ -249,27 +250,124 @@ export function createSoftwareRuntime(options={}){
   }
   return compile({sourceId:descriptor.source_id,inventoryPath:inventory,kind,mobileDir,deviceName,deviceConfigPath});
  }
- async function importSpecification({sourceId,documentPath,documentUrl,referenceDocuments=[],expectedRevision,merge=false}){
-  const original=merge?readGeneration(sourceId):null;
-  if(merge&&(!expectedRevision||original.ref.revision!==expectedRevision))throw new Error('SOURCE_CHANGED：合并需要当前来源revision');
-  if(!Array.isArray(referenceDocuments)||referenceDocuments.length>32)throw new Error('REFERENCE_DOCUMENT_LIMIT');
-  let documentBytes=0;
-  const readDocument=input=>{
-   let file;
-   try{file=checkedArtifact(input,config.artifactRoots);}
-   catch(error){if(error.code)throw Object.assign(new Error('DOCUMENT_UNAVAILABLE：规范文档不可用'),{code:'DOCUMENT_UNAVAILABLE'});throw error;}
-   const {document,bytes}=readArtifactText(file,Math.min(8*1024*1024,16*1024*1024-documentBytes));
-   documentBytes+=bytes;
-   return {file,document};
+ function specificationInputContract(value){
+  const bad=()=>{throw Object.assign(new Error('OPENAPI_INPUT_PROVENANCE_INVALID'),{code:'OPENAPI_INPUT_PROVENANCE_INVALID'});};
+  const file=value=>typeof value==='string'&&value.length>0&&value.length<=8192&&path.isAbsolute(value);
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).sort().join(',')!=='documentPath,documentUrl,referenceDocuments,schemaVersion'||value.schemaVersion!==1||!file(value.documentPath)||(value.documentUrl!==null&&(typeof value.documentUrl!=='string'||value.documentUrl.length>8192))||!Array.isArray(value.referenceDocuments)||value.referenceDocuments.length>32)bad();
+  for(const ref of value.referenceDocuments)if(!ref||typeof ref!=='object'||Array.isArray(ref)||Object.keys(ref).sort().join(',')!=='documentPath,documentUrl'||!file(ref.documentPath)||typeof ref.documentUrl!=='string'||ref.documentUrl.length>8192)bad();
+  return value;
+ }
+ function validateHttpSupplements(value){
+  const plain=item=>item&&typeof item==='object'&&!Array.isArray(item)&&[Object.prototype,null].includes(Object.getPrototypeOf(item));
+  if(!Array.isArray(value)||value.length>32||value.some(item=>!plain(item)))throw Object.assign(new Error('SUPPLEMENT_LIMIT'),{code:'SUPPLEMENT_LIMIT'});
+ }
+ function specificationReadContext(bundleCount){
+  const fail=code=>{throw Object.assign(new Error(code+'：规范输入不可用、改变或超过预算'),{code});};
+  if(!Number.isSafeInteger(bundleCount)||bundleCount<0||bundleCount>33)fail('SPECIFICATION_BUNDLE_LIMIT');
+  const aliases=new Map(),files=new Map(),cache=new Map(),cacheLimit=16*1024*1024;let cacheBytes=0,uniqueInputBytes=0;
+  const same=(a,b)=>['dev','ino','size','mtimeNs','ctimeNs'].every(key=>a[key]===b[key]);
+  const resolve=input=>{try{return checkedArtifact(input,config.artifactRoots);}catch(error){if(error.code)fail('DOCUMENT_UNAVAILABLE');throw error;}};
+  const stamp=file=>{
+   let fd;try{fd=openSync(file,constants.O_RDONLY|(constants.O_NOFOLLOW||0)|(constants.O_NONBLOCK||0));const value=fstatSync(fd,{bigint:true});if(!value.isFile())fail('DOCUMENT_LIMIT');return value;}
+   catch(error){if(/^DOCUMENT_/.test(error.code||''))throw error;fail('DOCUMENT_UNAVAILABLE');}finally{if(fd!==undefined)closeSync(fd);}
   };
-  const {file,document}=readDocument(documentPath),references=referenceDocuments.map(entry=>{
-   if(!entry||typeof entry.documentPath!=='string'||typeof entry.documentUrl!=='string')throw new Error('INVALID_REFERENCE_DOCUMENT');
+  const validate=()=>{
+   for(const [alias,file]of aliases)if(resolve(alias)!==file)fail('DOCUMENT_CHANGED');
+   for(const [file,first]of files)if(!same(stamp(file),first.stamp))fail('DOCUMENT_CHANGED');
+  };
+  const read=(input,maxBytes)=>{
+   const alias=path.resolve(input),file=resolve(alias),knownAlias=aliases.get(alias),first=files.get(file);
+   if(knownAlias!==undefined&&knownAlias!==file)fail('DOCUMENT_CHANGED');
+   if(!knownAlias){if(aliases.size>=1089)fail('SPECIFICATION_INPUT_LIMIT');aliases.set(alias,file);}
+   let fd;
+   try{
+    let found=cache.get(file),before;
+    if(found){
+     fd=openSync(file,constants.O_RDONLY|(constants.O_NOFOLLOW||0)|(constants.O_NONBLOCK||0));before=fstatSync(fd,{bigint:true});
+     cache.delete(file);cache.set(file,found);
+    }else{
+     // Bytes and metadata must originate from the same descriptor. An outer
+     // descriptor A cannot attest bytes read by an independently opened B.
+     found=readArtifactTextSnapshot(file,maxBytes);before=found.stamp;
+     found={...found,hash:createHash('sha256').update(found.document,'utf8').digest('hex')};
+     if(first&&(found.hash!==first.hash||found.bytes!==first.bytes))fail('DOCUMENT_CHANGED');
+    }
+    if(!before.isFile()||before.size>BigInt(maxBytes))fail('DOCUMENT_LIMIT');
+    if(first&&!same(first.stamp,before))fail('DOCUMENT_CHANGED');
+    const after=fd===undefined?before:fstatSync(fd,{bigint:true});
+    if(!same(before,after)||!same(after,stamp(file))||resolve(alias)!==file)fail('DOCUMENT_CHANGED');
+    if(found.bytes>maxBytes)fail('DOCUMENT_LIMIT');
+    if(!first){
+     if(files.size>=1089||uniqueInputBytes+found.bytes>bundleCount*16*1024*1024)fail('SPECIFICATION_INPUT_LIMIT');
+     uniqueInputBytes+=found.bytes;files.set(file,{stamp:before,hash:found.hash,bytes:found.bytes});
+    }
+    if(!cache.has(file)){
+     // UTF-16 is a conservative bound on retained decoded string storage.
+     const retained=found.document.length*2;
+     while(cache.size&&cacheBytes+retained>cacheLimit){const oldest=cache.keys().next().value;cacheBytes-=cache.get(oldest).retained;cache.delete(oldest);}
+     if(retained<=cacheLimit){cache.set(file,{...found,retained});cacheBytes+=retained;}
+    }
+    return {document:found.document,bytes:found.bytes};
+   }catch(error){if(/^DOCUMENT_|^SPECIFICATION_/.test(error.code||''))throw error;fail('DOCUMENT_UNAVAILABLE');}
+   finally{if(fd!==undefined)closeSync(fd);}
+  };
+  return {read,validate};
+ }
+ async function readSpecificationInput({sourceId,documentPath,documentUrl,referenceDocuments=[]},allowedOrigins,context){
+  if(!Array.isArray(referenceDocuments)||referenceDocuments.length>32)throw new Error('REFERENCE_DOCUMENT_LIMIT');
+  const file=value=>typeof value==='string'&&value.length>0&&value.length<=8192;
+  if(!file(documentPath))throw new Error('INVALID_SPECIFICATION_DOCUMENT');
+  for(const entry of referenceDocuments)if(!entry||typeof entry!=='object'||Array.isArray(entry)||!file(entry.documentPath)||typeof entry.documentUrl!=='string'||entry.documentUrl.length>8192)throw new Error('INVALID_REFERENCE_DOCUMENT');
+  let documentBytes=0;
+  const readDocument=input=>{const found=context.read(input,Math.min(8*1024*1024,16*1024*1024-documentBytes));documentBytes+=found.bytes;return found;};
+  const {document}=readDocument(documentPath),boundReferences=[],references=referenceDocuments.map(entry=>{
+   boundReferences.push({documentPath:path.resolve(entry.documentPath),documentUrl:entry.documentUrl});
    return {documentUrl:entry.documentUrl,document:readDocument(entry.documentPath).document};
   });
   const {importOpenApi}=await import('./openapi-discovery.js');
-  const imported=importOpenApi({document,documentUrl,referenceDocuments:references,sourceId,allowedOrigins:config.bindings?.[sourceId]?.allowed_origins||original?.manifest.source.allowedOrigins?.map(value=>new URL(value).origin)||[]});
-  const documentFile=path.join(root,'private/spec-'+randomUUID()+'.json');atomicJson(documentFile,imported.manifest);if(merge){const id=digest(documentUrl||file),item={id,inventoryPath:documentFile,schemaOverrides:imported.schemaOverrides,gaps:imported.gaps,warnings:imported.warnings};return compileCurrent({sourceId,expectedRevision,httpSupplements:[...(original.ref.httpSupplements||[]).filter(previous=>previous.id!==id),item]});}return compile({sourceId,kind:'web',inventoryPath:documentFile,expectedRevision,schemaOverrides:imported.schemaOverrides,sourceGaps:imported.gaps,sourceWarnings:imported.warnings});}
- async function compileCurrent({sourceId,expectedRevision,...patch}){const ref=current(sourceId);return compile({sourceId,expectedRevision,inventoryPath:ref.inventoryPath,kind:ref.kind,runDir:ref.runDir,mobileDir:ref.mobileDir,deviceName:ref.deviceName,deviceConfigPath:ref.deviceConfigPath,workflowEntries:ref.workflowEntries,httpSupplements:ref.httpSupplements,schemaOverrides:ref.schemaOverrides,sourceGaps:ref.sourceGaps,sourceWarnings:ref.sourceWarnings,...patch});}
+  const imported=importOpenApi({document,documentUrl,referenceDocuments:references,sourceId,allowedOrigins});
+  const input=specificationInputContract({schemaVersion:1,documentPath:path.resolve(documentPath),documentUrl:documentUrl??null,referenceDocuments:boundReferences});
+  return {imported,input};
+ }
+ function storeSpecification(imported){
+  // Repeated refreshes of the same contract reuse an immutable derived file.
+  // Original paths remain private provenance and are revalidated on refresh.
+  const hash=digest(canonical(imported.manifest)),file=path.join(root,'private','spec-'+hash+'.json');
+  if(existsSync(file)){
+   const info=lstatSync(file);if(info.isSymbolicLink()||!info.isFile()||info.size>32*1024*1024||digest(canonical(json(file)))!==hash)throw Object.assign(new Error('OPENAPI_SNAPSHOT_CHANGED'),{code:'OPENAPI_SNAPSHOT_CHANGED'});
+  }else atomicJson(file,imported.manifest);
+  return file;
+ }
+ async function importSpecification({sourceId,documentPath,documentUrl,referenceDocuments=[],expectedRevision,merge=false}){
+  validId(sourceId);const original=merge?readGeneration(sourceId):null;
+  if(merge&&(!expectedRevision||original.ref.revision!==expectedRevision))throw new Error('SOURCE_CHANGED：合并需要当前来源revision');
+  const previous=original?.ref.httpSupplements===undefined?[]:original.ref.httpSupplements;validateHttpSupplements(previous);
+  const id=digest(documentUrl||path.resolve(documentPath));if(merge&&previous.filter(item=>item.id!==id).length>=32)throw Object.assign(new Error('SUPPLEMENT_LIMIT'),{code:'SUPPLEMENT_LIMIT'});
+  const allowed=config.bindings?.[sourceId]?.allowed_origins||original?.manifest.source.allowedOrigins?.map(value=>new URL(value).origin)||[],context=specificationReadContext(1);
+  const {imported,input}=await readSpecificationInput({sourceId,documentPath,documentUrl,referenceDocuments},allowed,context);context.validate();const documentFile=storeSpecification(imported);
+  if(merge){const item={id,inventoryPath:documentFile,schemaOverrides:imported.schemaOverrides,gaps:imported.gaps,warnings:imported.warnings,specificationInput:input};return compileCurrent({sourceId,expectedRevision,httpSupplements:[...previous.filter(previous=>previous.id!==id),item],validateSpecificationInputs:context.validate});}
+  return compile({sourceId,kind:'web',inventoryPath:documentFile,expectedRevision,schemaOverrides:imported.schemaOverrides,sourceGaps:imported.gaps,sourceWarnings:imported.warnings,specificationInput:input,validateSpecificationInputs:context.validate});
+ }
+ async function compileCurrent({sourceId,expectedRevision,...patch}){const ref=current(sourceId);return compile({sourceId,expectedRevision,inventoryPath:ref.inventoryPath,kind:ref.kind,runDir:ref.runDir,mobileDir:ref.mobileDir,deviceName:ref.deviceName,deviceConfigPath:ref.deviceConfigPath,workflowEntries:ref.workflowEntries,httpSupplements:ref.httpSupplements,schemaOverrides:ref.schemaOverrides,sourceGaps:ref.sourceGaps,sourceWarnings:ref.sourceWarnings,specificationInput:ref.specificationInput||null,...patch});}
+ async function refresh({sourceId,expectedRevision}){
+  const ref=current(sourceId);if(ref.revision!==expectedRevision)throw new Error('SOURCE_CHANGED');
+  const legacySnapshot=file=>typeof file==='string'&&path.dirname(path.resolve(file))===path.join(root,'private')&&/^spec-[a-f0-9-]{32,64}\.json$/.test(path.basename(file));
+  const reimport=()=>{throw Object.assign(new Error('OPENAPI_REFRESH_REIMPORT_REQUIRED：旧规范未绑定原文档，请重新导入规范及引用映射'),{code:'OPENAPI_REFRESH_REIMPORT_REQUIRED'});};
+  const supplements=ref.httpSupplements===undefined?[]:ref.httpSupplements;validateHttpSupplements(supplements);
+  if(ref.specificationInput)specificationInputContract(ref.specificationInput);for(const item of supplements)if(item.specificationInput)specificationInputContract(item.specificationInput);
+  const context=specificationReadContext((ref.specificationInput?1:0)+supplements.filter(item=>item.specificationInput).length);
+  if(!ref.specificationInput&&legacySnapshot(ref.inventoryPath))reimport();
+  for(const item of supplements)if(!item.specificationInput&&legacySnapshot(item.inventoryPath))reimport();
+  const source=json(path.join(ref.generation,'manifest.json')).source;
+  const allowed=config.bindings?.[sourceId]?.allowed_origins||source.allowedOrigins?.map(value=>new URL(value).origin)||[];
+  const base=ref.specificationInput?await readSpecificationInput({sourceId,...specificationInputContract(ref.specificationInput)},allowed,context):null;
+  // Parse and validate every original bundle before materializing any new data.
+  const importedSupplements=[];for(const item of supplements)importedSupplements.push(item.specificationInput?await readSpecificationInput({sourceId,...specificationInputContract(item.specificationInput)},allowed,context):null);
+  context.validate();
+  const patch=base?{inventoryPath:storeSpecification(base.imported),schemaOverrides:base.imported.schemaOverrides,sourceGaps:base.imported.gaps,sourceWarnings:base.imported.warnings,specificationInput:base.input}:{};
+  patch.httpSupplements=supplements.map((item,index)=>{const found=importedSupplements[index];return found?{...item,inventoryPath:storeSpecification(found.imported),schemaOverrides:found.imported.schemaOverrides,gaps:found.imported.gaps,warnings:found.imported.warnings,specificationInput:found.input}:item;});
+  return compileCurrent({sourceId,expectedRevision,...patch,validateSpecificationInputs:context.validate});
+ }
  async function observeMobile({sourceId,expectedRevision},outputDir,signal){
   validId(sourceId);const g=readGeneration(sourceId);if(g.ref.revision!==expectedRevision)throw new Error('SOURCE_CHANGED');if(!['apk','ios'].includes(g.ref.kind))throw new Error('MOBILE_SOURCE_REQUIRED');
   const settings=config.nativeVisual?.[sourceId];if(!settings||typeof settings!=='object'||Array.isArray(settings)||Object.keys(settings).some(key=>!['engine','language','minConfidence'].includes(key)))throw new Error('NATIVE_VISUAL_NOT_CONFIGURED');
@@ -326,5 +424,5 @@ export function createSoftwareRuntime(options={}){
   const client={mcpServers:{[sourceId]:{command:process.execPath,args:[entry]}}};atomicJson(path.join(bundle,'mcp-client.json'),client);
   return {sourceId,revision:g.ref.revision,capabilityCount:g.manifest.capabilities.length,bundleDir:bundle,entry,clientConfig:path.join(bundle,'mcp-client.json')};
  }
- return {root,config,runtimeFile,compile,discover,execute,generate,importSpecification,planWorkflows,bindWorkflow,observeMobile,refresh:args=>compileCurrent(args),listSources,listCapabilities,getSource:sourceId=>clone(readGeneration(sourceId).manifest.source)};
+ return {root,config,runtimeFile,compile,discover,execute,generate,importSpecification,planWorkflows,bindWorkflow,observeMobile,refresh,listSources,listCapabilities,getSource:sourceId=>clone(readGeneration(sourceId).manifest.source)};
 }

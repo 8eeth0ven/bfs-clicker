@@ -13,8 +13,9 @@ import {authenticationStatus} from './auth.js';
 import {createEvidence} from './evidence.js';
 import {locate,checkLiveAction,frameFor} from './discover.js';
 import {gotoStep} from './replay.js';
-import {closedTarget,closedKey} from './closed-shadow.js';
-import {assertWorkflowPermission} from './workflow-permissions.js';
+import {closedTarget,closedKey,pinClosedWorkflowStage} from './closed-shadow.js';
+import {assertWorkflowPermission,assertClosedStagePermission} from './workflow-permissions.js';
+import {beginTextReceipt} from './input-prefix.js';
 import {visualAction,visualRegion,approveVisualStep,overlap,canvasObservation,visualText,groundVisualStep,visualPoint} from './browser-visual.js';
 import {readBrowserSource,checkedBrowserRunDir,browserOperationDestination,readBrowserVisibleOutput,boundBrowserVisibleOutput} from './browser-capabilities.js';
 import {virtualPolicyFor,virtualOptionSelector,validVirtualEvidence,virtualDigest} from './aria-virtual-policy.js';
@@ -28,6 +29,7 @@ const hash=value=>createHash('sha256').update(JSON.stringify(stable(value))).dig
 const size=value=>Buffer.byteLength(typeof value==='string'?value:JSON.stringify(value));
 const fail=(code,message)=>{throw Object.assign(new Error(message),{code})};
 const idPattern=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/,capPattern=/^workflow_[a-f0-9]{64}$/;
+const CERTIFICATE_MAX_BYTES=1048576;
 const within=(root,file)=>{const rel=path.relative(root,file);return rel===''||rel!=='..'&&!rel.startsWith('..'+path.sep)&&!path.isAbsolute(rel)};
 const abortCheck=signal=>{if(signal?.aborted)fail('CANCELLED','workflow任务已取消')};
 const writeOutcome=status=>({status,automaticRetry:false});
@@ -134,7 +136,22 @@ function prepare(raw,source){
   if(schema.required!=null&&!Array.isArray(schema.required))fail('INPUT_SCHEMA_INVALID','required必须为字段数组');schema.required=[...new Set([...(schema.required||[]),...params])];
   try{validate=ajv.compile(schema)}catch{fail('INPUT_SCHEMA_INVALID','输入schema不能编译')}
   if(raw.networkEvidence!=null&&!['optional','required'].includes(raw.networkEvidence))fail('SPEC_INVALID','networkEvidence必须为optional或required');
-  const spec={schemaVersion:1,id:raw.id,name:String(raw.name||raw.id).slice(0,160),description:String(raw.description||(raw.effect==='write'?'已真实样例验证的受控浏览器写流程':'已真实样例验证的受控浏览器查询')).slice(0,500),effect:raw.effect,networkEvidence:raw.networkEvidence||'optional',inputSchema:schema,entry,steps,assertions,extract};
+  let closedStages;
+  if(raw.executionMode!==undefined||raw.closedStages!==undefined){
+    const plan=raw.closedStages;
+    if(raw.executionMode!=='closed-stages-v1'||!plain(plan)||Object.keys(plan).sort().join(',')!=='schemaVersion,stages'||plan.schemaVersion!==1||!Array.isArray(plan.stages)||plan.stages.length<2||plan.stages.length>31||size(plan)>32768||steps.some(step=>!step.closedShadow||!['fill','click'].includes(step.kind))||assertions.some(item=>item.visual)||extract.some(item=>item.kind!=='text'))fail('CLOSED_STAGE_SPEC_INVALID','阶段模式需要显式有限闭根原生文本/button合同');
+    const ids=new Set();let previous=-1;
+    closedStages={schemaVersion:1,stages:plan.stages.map((row,index)=>{
+      if(!plain(row)||Object.keys(row).some(key=>!['id','startStep','document','url','anchors'].includes(key))||!idPattern.test(row.id||'')||ids.has(row.id)||!Number.isSafeInteger(row.startStep)||row.startStep<=previous||row.startStep>steps.length||(index===0?(row.startStep!==0||row.document!=='initial'||row.url!==entry.url):(!['same','new'].includes(row.document)||steps[row.startStep-1]?.kind!=='click'))||typeof row.url!=='string'||!createPolicy(source.config).navigation(row.url).allow||new URL(row.url).href!==row.url||!Array.isArray(row.anchors)||!row.anchors.length||row.anchors.length>8)fail('CLOSED_STAGE_SPEC_INVALID','每阶段需要有序步骤边界、固定URL/document及语义锚点');
+      previous=row.startStep;ids.add(row.id);
+      const anchors=row.anchors.map(value=>{const anchor=locatorSpec(value,source.config);if(!anchor.closedShadow||typeof anchor.text!=='string'||!anchor.text.length||anchor.text.length>160||typeof anchor.tag!=='string'||!/^[a-z][a-z0-9]*$/.test(anchor.tag)||size(anchor)>4096)fail('CLOSED_STAGE_SPEC_INVALID','阶段锚点需要固定闭根普通文本、tag与非空文本');return anchor;});
+      return{id:row.id,startStep:row.startStep,document:row.document,url:row.url,anchors};
+    })};
+    if(closedStages.stages.at(-1).startStep!==steps.length)fail('CLOSED_STAGE_SPEC_INVALID','最后成功点击后需要显式终态阶段');
+    for(let i=1;i<closedStages.stages.length;i++)if(hash([closedStages.stages[i].url,closedStages.stages[i].anchors])===hash([closedStages.stages[i-1].url,closedStages.stages[i-1].anchors]))fail('CLOSED_STAGE_SPEC_INVALID','相邻阶段必须声明不同语义入口');
+    for(const name of params)if(!assertions.some(item=>item.textIncludesParam===name&&item.changedFromBefore===true))fail('ASSERTION_REQUIRED','阶段模式每参数需要独立结果变化证明');
+  }
+  const spec={schemaVersion:1,id:raw.id,name:String(raw.name||raw.id).slice(0,160),description:String(raw.description||(raw.effect==='write'?'已真实样例验证的受控浏览器写流程':'已真实样例验证的受控浏览器查询')).slice(0,500),effect:raw.effect,networkEvidence:raw.networkEvidence||'optional',inputSchema:schema,entry,steps,assertions,extract,...(closedStages?{executionMode:'closed-stages-v1',closedStages}:{})};
   const checkParams=params=>{if(!plain(params)||size(params)>4096||!validate(params))fail('PARAMS_INVALID','输入不符合workflow声明schema');for(const step of steps){const value=step.param?params[step.param]:step.value;if(step.closedShadow&&step.kind==='fill'&&(Buffer.byteLength(String(value))>4096||/[\x00-\x1f\x7f]/.test(String(value))))fail('PARAMS_INVALID','closed文本参数越出有限输入域');if(['fill','visualFill'].includes(step.kind)&&!['string','number'].includes(typeof value)||step.kind==='check'&&typeof value!=='boolean'||step.kind==='choose'&&typeof value!=='string'||step.kind==='select'&&!(typeof value==='string'||Array.isArray(value)&&value.length<=20&&value.every(item=>typeof item==='string')))fail('PARAMS_INVALID','参数类型与固定UI步骤不兼容');}return clone(params);};
   return {spec,params,checkParams};
 }
@@ -303,8 +320,28 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
   const onAbort=()=>budget.stop('cancelled','partial');signal?.addEventListener('abort',onAbort,{once:true});if(signal?.aborted)onAbort();
   const runtime=config._runtime={emit:store.emit,budget,currentActionId:null,currentExecutionId:null,currentStateId:null,currentControl:'',blockedRequests:[],dialogRejected:false,workflowActive:false,workflowEffect:spec.effect,signal};
   const base=createPolicy(config,store.emit),policy={...base,request(info){const decision=base.request(info);if(decision.allow&&runtime.workflowActive&&['fetch','xhr','document'].includes(info.type)&&!base.allowRule(info.method,info.url,info.postData))return {allow:false,reason:'workflow_request_not_approved'};return decision;}};config._policy=policy;
-  const contracts={anchors:[],steps:[],outputs:[]},executions=new Set(),optionLabels=new Map(),triggerBaselines=[];
+  const stagePlan=spec.closedStages,stageReceipts=[];
+  const contracts={anchors:[],steps:[],outputs:[],...(stagePlan?{closedStages:{schemaVersion:1,contractDigest:hash(stagePlan),stages:[]}}:{})},executions=new Set(),optionLabels=new Map(),triggerBaselines=[];
   const compare=(actual,expected)=>{if(expected&&hash(actual)!==hash(expected))fail('CONTROL_CHANGED','控件结构、目标或静态契约发生变化');};
+  const contractBudget=()=>{if(stagePlan&&Buffer.byteLength(JSON.stringify({recipe:{contracts},validated:true},null,2))>CERTIFICATE_MAX_BYTES)fail('WORKFLOW_CERTIFICATE_LIMIT','阶段契约超过既有证书读取上限');};
+  const disposeReceipts=async()=>{for(const receipt of stageReceipts.splice(0))await receipt.dispose();};
+  const stageAction=async(found,step)=>{
+    const owner=await found.locator.evaluate(element=>{const root=element.getRootNode(),owner=element.form||element.closest('[role="search"],[data-filter]');let selector=null;if(owner){if(!owner.id||root.querySelectorAll('#'+CSS.escape(owner.id)).length!==1)return null;selector='#'+CSS.escape(owner.id);}return{owner:selector,submission:{action:element.getAttribute('formaction'),method:element.getAttribute('formmethod'),enctype:element.getAttribute('formenctype'),target:element.getAttribute('formtarget'),noValidate:element.hasAttribute('formnovalidate')}};});
+    if(!owner)fail('CLOSED_STAGE_OWNER_UNSUPPORTED','阶段输入owner需要固定唯一id');
+    return {...found.metadata,...step,type:step.kind==='fill'?'text':'click',kind:'click',submission:owner.submission,groupSelector:owner.owner?'closed::'+step.closedShadow.policyId+'::'+owner.owner:null};
+  };
+  const admitStage=async(page,stageIndex)=>{
+    budget.check();abortCheck(signal);const stage=stagePlan.stages[stageIndex];if(page.url()!==stage.url||!policy.navigation(page.url()).allow)fail('CLOSED_SHADOW_STAGE_URL_CHANGED','阶段URL不符合固定合同');
+    const record={id:stage.id,anchors:[],steps:[]};
+    for(const anchor of stage.anchors){const found=await inspect(page,anchor,config,{text:true});if(found.metadata.tag!==anchor.tag||['input','textarea','select','button','iframe','canvas','table'].includes(found.metadata.tag)||found.metadata.editable||!await found.locator.isVisible()||found.metadata.text!==anchor.text)fail('CLOSED_STAGE_ANCHOR_CHANGED','阶段固定语义锚点不匹配');record.anchors.push(found.contract);}
+    const end=stagePlan.stages[stageIndex+1]?.startStep??spec.steps.length;
+    for(let index=stage.startStep;index<end;index++){const step=spec.steps[index],found=await inspect(page,step,config,{text:step.kind==='click'}),m=found.metadata;
+      if(!await found.locator.isVisible()||step.kind==='fill'&&(!['input','textarea'].includes(m.tag)||m.tag==='input'&&!['text','search'].includes(m.htmlType)||await found.locator.evaluate(e=>!!e.readOnly||!!e.disabled))||step.kind==='click'&&(!(m.tag==='button'||m.tag==='input'&&['button','submit'].includes(m.htmlType))||await found.locator.evaluate(e=>!!e.disabled)))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','当前阶段控件不在原生文本/button子集');
+      compare(found.contract,expectedContracts?.steps[index]);record.steps.push({index,contract:found.contract});
+    }
+    if(stage.startStep===spec.steps.length)for(const target of [...spec.assertions,...spec.extract].filter(item=>item.closedShadow)){const found=await inspect(page,target,config);if(['input','textarea','select','table','canvas','iframe','button'].includes(found.metadata.tag)||found.metadata.editable||['combobox','listbox','option'].includes(found.metadata.role))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','阶段结果需要独立普通文本');}
+    compare(record,expectedContracts?.closedStages?.stages[stageIndex]);contracts.closedStages.stages.push(record);contractBudget();budget.check();abortCheck(signal);
+  };
   const dispatch=async(page,step,found,index,kind,value,auth,suffix='')=>{
     budget.check();abortCheck(signal);budget.action();
     // An explicitly changedFromBefore result already changed by input or ARIA
@@ -324,7 +361,14 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
       await page.mouse.click(coordinate.x,coordinate.y);
       if(kind==='visualFill'){budget.check();abortCheck(signal);await page.keyboard.press('ControlOrMeta+A');budget.check();abortCheck(signal);await page.keyboard.press('Backspace');budget.check();abortCheck(signal);await page.keyboard.type(String(value));budget.check();abortCheck(signal);const after=await canvasObservation(found,config,{signal}),echo=visualText(after,step.visual.valueRegion,config.visual.minConfidence);if(echo!==String(value).replace(/\s+/g,' ').trim())fail('PARAM_VALUE_REJECTED','视觉输入未由独立区域实际回读确认');}
     }
-    else if(kind==='fill')await locator.fill(String(value),{timeout});else if(kind==='select')await locator.selectOption(value,{timeout});else if(kind==='check')await locator.setChecked(value,{timeout});else if(found.virtualTarget)await found.virtualTarget.context.quota.run(()=>locator.click({timeout}));else if(suffix){const element=await locator.elementHandle({timeout});if(!element)fail('LOCATOR_CHANGED','ARIA点击目标已移除');try{await element.click({timeout});}finally{await element.dispose();}}else await locator.click({timeout});
+    else if(kind==='fill')await locator.fill(String(value),{timeout});else if(kind==='select')await locator.selectOption(value,{timeout});else if(kind==='check')await locator.setChecked(value,{timeout});else if(found.virtualTarget)await found.virtualTarget.context.quota.run(()=>locator.click({timeout}));else if(suffix){const element=await locator.elementHandle({timeout});if(!element)fail('LOCATOR_CHANGED','ARIA点击目标已移除');try{await element.click({timeout});}finally{await element.dispose();}}else {
+      const boundary=stagePlan?.stages.findIndex(stage=>stage.startStep===index+1)??-1;
+      if(boundary>0){
+        let transition;
+        try{transition=await locator.clickForWorkflowStage({timeout});await dialogs.handle();await dialogs.stabilize();await auth();budget.check();abortCheck(signal);if(runtime.dialogRejected||runtime.blockedRequests.length)fail('WORKFLOW_POLICY_BLOCKED','原生确认或请求规则阻止阶段');await disposeReceipts();await transition.promote(stagePlan.stages[boundary],()=>admitStage(page,boundary));}
+        finally{await transition?.dispose();}
+      }else await locator.click({timeout});
+    }
     if(!['click','visualClick','visualFill'].includes(kind)){
       const live=await locator.evaluate(element=>({valid:element.validity?.valid!==false,value:element.isContentEditable?element.textContent:element.value,checked:element.checked,selected:element.tagName==='SELECT'?Array.from(element.selectedOptions).map(option=>option.value):null}));
       if(!live.valid||kind==='fill'&&live.value!==String(value)||kind==='check'&&live.checked!==value||kind==='select'&&hash([...live.selected].sort())!==hash((Array.isArray(value)?[...value]:[value]).sort()))fail('PARAM_VALUE_REJECTED','原生约束或实际控件值拒绝该输入');
@@ -333,6 +377,7 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
     store.emit('workflow_action_finished',{workflowId:spec.id,actionId:action.id,executionId:runtime.currentExecutionId,step:index,status:'succeeded'});
   };
   try{
+    if(stagePlan&&expectedContracts&&(!expectedContracts.closedStages||expectedContracts.closedStages.schemaVersion!==1||expectedContracts.closedStages.contractDigest!==hash(stagePlan)||expectedContracts.closedStages.stages?.length!==stagePlan.stages.length)||!stagePlan&&expectedContracts?.closedStages)fail('CLOSED_STAGE_CONTRACT_INVALID','阶段与旧合同不可互换');
     if(config.storageState)sessionRelease=acquireLock(config.storageState+'.bfs.lock',{runId:operationId});evidence=createEvidence(config,store,budget,policy);
     budget.check();abortCheck(signal);launched=await launchGuardedBrowser(config,policy,budget,store);evidence.attach(launched.context);const page=await launched.context.newPage();page.setDefaultTimeout(config.actionTimeoutMs);dialogs=makeDialogs(page,config,()=>{});
     const auth=async()=>{const status=await authenticationStatus(page,launched.context,config,store);if(!status.ok)throw new StopError(status.reason,status.status);};
@@ -345,14 +390,15 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
     }
     // Closed v1 is a finite top-level native text/button path. Reject unsupported
     // live controls before any workflow action, not after an earlier step writes.
-    for(const [index,step] of spec.steps.entries())if(step.closedShadow){
+    for(const [index,step] of spec.steps.entries())if(step.closedShadow&&!stagePlan){
       const found=await inspect(page,step,config,{text:step.kind==='click'}),m=found.metadata;compare(found.contract,expectedContracts?.steps[index]);
       if(step.kind==='fill'&&(!['input','textarea'].includes(m.tag)||m.tag==='input'&&!['text','search'].includes(m.htmlType)||await found.locator.evaluate(e=>!!e.readOnly||!!e.disabled))||step.kind==='click'&&!(m.tag==='button'||m.tag==='input'&&['button','submit'].includes(m.htmlType)))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','closed root控件不在固定原生文本/button子集中');
     }
-    for(const target of [...spec.assertions,...spec.extract].filter(target=>target.closedShadow)){
+    for(const target of [...spec.assertions,...spec.extract].filter(target=>target.closedShadow&&!stagePlan)){
       const found=await inspect(page,target,config);if(['input','textarea','select','table','canvas','iframe'].includes(found.metadata.tag)||found.metadata.editable||['combobox','listbox','option'].includes(found.metadata.role))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','closed root结果需要独立普通文本节点');
     }
-    for(const [index,target] of spec.extract.entries())if(target.closedShadow){const found=await inspect(page,target,config);compare(found.contract,expectedContracts?.outputs[index]);}
+    for(const [index,target] of spec.extract.entries())if(target.closedShadow&&!stagePlan){const found=await inspect(page,target,config);compare(found.contract,expectedContracts?.outputs[index]);}
+    if(stagePlan){await admitStage(page,0);await pinClosedWorkflowStage(page,config);}
     const baselines=await changedBaselines(page,spec,config);
     runtime.workflowActive=true;
     for(let i=0;i<spec.steps.length;i++){
@@ -411,19 +457,21 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
         if(step.selection){await waitAria(async()=>{const proof=await selectionProof(page,step,config);compare(proof.contract,proofBefore.contract);const after=await inspectChoiceControl(page,step,config);compare(after.control.contract,initial.control.contract);compare(after.identity,initial.identity);return proof.value===value;},config,{timeoutMs:step.timeoutMs,signal,auth});}
         else{const selected=await chosen.locator.evaluate(element=>element.getAttribute('aria-selected')==='true');if(!selected)fail('PARAM_VALUE_REJECTED','ARIA option未确认选中');}
       }else{
-        contracts.steps.push(found.contract);compare(found.contract,expectedContracts?.steps[i]);await dispatch(page,step,found,i,step.kind,value,auth);
+        contracts.steps.push(found.contract);contractBudget();compare(found.contract,expectedContracts?.steps[i]);
+        if(stagePlan){const action=await stageAction(found,step);for(const receipt of stageReceipts)await receipt.verify(step.kind==='click'?action:undefined);if(step.kind==='fill'){const receipt=await beginTextReceipt(page,action,found.locator,config,String(value));stageReceipts.push(receipt);await dispatch(page,step,found,i,step.kind,value,auth);await receipt.verify();}else await dispatch(page,step,found,i,step.kind,value,auth);}
+        else await dispatch(page,step,found,i,step.kind,value,auth);
       }
     }
     const asserted=await assertResults(page,spec,params,config,{baselines,triggerBaselines,auth,signal,optionLabels});await evidence.drain();budget.check();
     const approved=evidence.snapshot().apis.flatMap(api=>api.samples||[]).filter(sample=>sample.category==='observed_request'&&executions.has(sample.executionId)&&sample.status>=200&&sample.status<300&&base.allowRule(sample.method,sample.url,sample.postData));
     if(!approved.length&&spec.networkEvidence==='required')fail('NO_APPROVED_RESPONSE','未记录声明必需的已批准响应');
-    for(let i=0;i<spec.extract.length;i++){const found=await inspect(page,spec.extract[i],config);contracts.outputs.push(found.contract);compare(found.contract,expectedContracts?.outputs[i]);}
+    for(let i=0;i<spec.extract.length;i++){const found=await inspect(page,spec.extract[i],config);contracts.outputs.push(found.contract);contractBudget();compare(found.contract,expectedContracts?.outputs[i]);}
     const data=await extractData(page,spec,config,source.scrub),output=await readBrowserVisibleOutput(page,config,policy,source.scrub);
     await dialogs.stabilize();await auth();const afterExtraction=await assertResults(page,spec,params,config,{baselines,triggerBaselines,auth,wait:false,signal,optionLabels});if(hash(asserted.map(snapshot=>snapshot.digest))!==hash(afterExtraction.map(snapshot=>snapshot.digest)))fail('RESULT_CHANGED_DURING_EXTRACTION','结果目标在提取期间变化，拒绝返回旧观察');budget.check();
     result=source.scrub({ok:true,status:'completed',operationId,data,output,...(spec.effect==='write'?{writeOutcome:writeOutcome('observed')}:{}),observation:{...budget.counts,...(runtime.visualStats?{visual:{...runtime.visualStats,ocrMs:Math.round(runtime.visualStats.ocrMs)}}:{}),approvedResponses:approved.length,networkObserved:approved.length>0,changedFromBeforeAssertions:spec.assertions.filter(assertion=>assertion.changedFromBefore===true).length,effect:spec.effect==='write'?'trusted_write_intent_not_business_commit_proof':'trusted_read_intent_not_side_effect_proof'},evidence:{eventsPath:path.join(out,'events.jsonl'),requestsPath:path.join(out,'requests.json'),networkObserved:approved.length>0,approvedResponses:approved.length,changedFromBeforeAssertions:spec.assertions.filter(assertion=>assertion.changedFromBefore===true).length}});result.output=boundBrowserVisibleOutput(result.output,Math.max(1024,Math.min(8192,16000-size({...result,output:{}}))));if(size(result)>16384)fail('OUTPUT_LIMIT','workflow结果超过16KiB');
     store.emit('workflow_assertions_passed',{workflowId:spec.id,assertions:spec.assertions.length,resultDigest:hash(data)});
   }catch(error){result={ok:false,status:error instanceof StopError?error.status:'failed',...(spec.effect==='write'?{writeOutcome:writeOutcome(actionAttempted?'unknown':'not_started')}:{}),error:{code:error.code||error.reason||budget.reason||'WORKFLOW_FAILED',message:'workflow未完成：'+(error.code||error.reason||budget.reason||'目标操作或提取失败')},evidence:{eventsPath:path.join(out,'events.jsonl'),requestsPath:path.join(out,'requests.json')}};store.emit('workflow_failed',{workflowId:spec.id,code:result.error.code});}
-  finally{try{dialogs?.dispose();await evidence?.drain();await launched?.close();await evidence?.drain();await evidence?.export();store.update({status:result?.status||'failed',counts:budget.counts,finishedAt:new Date().toISOString()});atomicJson(path.join(out,'result.json'),result);}finally{signal?.removeEventListener('abort',onAbort);budget.dispose();sessionRelease();store.release();}}
+  finally{try{await disposeReceipts();dialogs?.dispose();await evidence?.drain();await launched?.close();await evidence?.drain();await evidence?.export();store.update({status:result?.status||'failed',counts:budget.counts,finishedAt:new Date().toISOString()});atomicJson(path.join(out,'result.json'),result);}finally{signal?.removeEventListener('abort',onAbort);budget.dispose();sessionRelease();store.release();}}
   return {result,contracts,outputDir:out};
 }
 
@@ -435,14 +483,16 @@ export async function compileBrowserWorkflow({runDir,sourceId,specFile,outputDir
   try{
     const source=await readBrowserSource(root,sourceId);abortCheck(signal);const local=localJson(specFile);rawSpec=local.value;
     if(rawSpec?.effect==='write')assertWorkflowPermission(permissions,rawSpec.id,{learning:true});
+    if(rawSpec?.executionMode!==undefined||rawSpec?.closedStages!==undefined)assertClosedStagePermission(permissions,rawSpec.id);
     const prepared=prepare(rawSpec,source),samples=rawSpec.samples;
     if(!Array.isArray(samples)||samples.length<2||samples.length>5||new Set(samples.map(hash)).size!==samples.length)fail('VALIDATION_SAMPLES_REQUIRED','需要2–5组互不相同的真实验证输入');
     for(const sample of samples)prepared.checkParams(sample);for(const name of prepared.params){const property=prepared.spec.inputSchema.properties[name],fixed=Object.hasOwn(property,'const')||Array.isArray(property.enum)&&new Set(property.enum.map(hash)).size===1;if(!fixed&&new Set(samples.map(sample=>hash(sample[name]))).size<2)fail('VALIDATION_SAMPLES_REQUIRED','每个可变参数都必须在验证样本中变化');}
     const out=browserOperationDestination(outputDir||path.join(path.dirname(root),'.browser-workflow-builds',randomUUID()));if(within(root,out)||within(out,root))fail('OUTPUT_REJECTED','验证目录必须独立于原任务');mkdirSync(out,{recursive:true,mode:0o700});buildRelease=acquireLock(path.join(out,'.build.lock'));if(['manifest.json','recipes.json','validation.json'].some(file=>existsSync(path.join(out,file))))fail('OUTPUT_EXISTS','workflow验证输出已存在');
     const runs=[];let contracts=null;
     for(let index=0;index<samples.length;index++){abortCheck(signal);const run=await runQuery(source,prepared,samples[index],path.join(out,'sample-'+(index+1)),contracts,signal,()=>{actionAttempted=true});runs.push({params:clone(samples[index]),...run.result,outputDir:run.outputDir});if(!run.result.ok){atomicJson(path.join(out,'validation.json'),{status:'failed',runs,...(prepared.spec.effect==='write'?{writeOutcome:writeOutcome(actionAttempted?'unknown':'not_started')}:{} )});fail('WORKFLOW_VALIDATION_FAILED','真实样本验证失败：'+run.result.error.code);}contracts??=run.contracts;}abortCheck(signal);
-    const id='workflow_'+hash([sourceId,prepared.spec.id]),recipe={schemaVersion:1,kind:'browser-workflow',sourceId,sourceRunId:source.meta.runId,sourceRevision:source.revision,capabilityId:id,specFile:local.file,specDigest:local.digest,spec:prepared.spec,contracts,validation:{runs:runs.map(run=>({operationId:run.operationId,params:run.params,resultDigest:hash(run.data),outputDir:run.outputDir}))}};recipe.revision=hash(recipe);
-    const sourceRevision=hash([source.revision,recipe.revision]),capability=source.scrub({id,name:prepared.spec.name,description:prepared.spec.description,kind:'browser',inputSchema:prepared.spec.inputSchema,readiness:'ready',effect:prepared.spec.effect,revision:recipe.revision,gaps:[...(prepared.spec.steps.some(step=>['visualClick','visualFill'].includes(step.kind))?['visual_parameter_constraints_not_observed','visual_control_semantics_not_inferred','post_trigger_change_is_temporal_evidence']:[]),...(prepared.spec.steps.some(step=>step.closedShadow)?['closed_shadow_top_level_native_text_button_subset','closed_shadow_host_and_targets_stable_for_entire_execution','closed_shadow_physical_edit_events_not_side_effect_proof','closed_shadow_hit_test_not_atomic']:[])],evidence:{kind:'live_workflow_validation',runs:runs.length,operationIds:runs.map(run=>run.operationId),networkObserved:runs.some(run=>run.observation.networkObserved),approvedResponses:runs.reduce((sum,run)=>sum+run.observation.approvedResponses,0),visualSteps:prepared.spec.steps.filter(step=>['visualClick','visualFill'].includes(step.kind)).length,visualAssertions:prepared.spec.assertions.filter(assertion=>assertion.visual).length,changedFromBeforeAssertions:prepared.spec.assertions.filter(assertion=>assertion.changedFromBefore===true).length,note:prepared.spec.effect==='write'?'write为启动配置明确授权的意图；样本真实写入，断言通过不保证任意后台提交语义':'read为可信声明；HTTP成功和断言通过不证明无业务副作用'}}),manifest={schemaVersion:1,source:{id:sourceId,kind:'web',revision:sourceRevision,runId:source.meta.runId,gaps:[]},capabilities:[capability]},recipes={[id]:recipe},validation={status:'validated',runs,...(prepared.spec.effect==='write'?{writeOutcome:writeOutcome('observed')}:{} )};
+    const id='workflow_'+hash([sourceId,prepared.spec.id]),recipe={schemaVersion:prepared.spec.closedStages?2:1,kind:'browser-workflow',sourceId,sourceRunId:source.meta.runId,sourceRevision:source.revision,capabilityId:id,specFile:local.file,specDigest:local.digest,spec:prepared.spec,contracts,validation:{runs:runs.map(run=>({operationId:run.operationId,params:run.params,resultDigest:hash(run.data),outputDir:run.outputDir}))}};recipe.revision=hash(recipe);
+    if(Buffer.byteLength(JSON.stringify({recipe,validated:true},null,2))>CERTIFICATE_MAX_BYTES)fail('WORKFLOW_CERTIFICATE_LIMIT','完整验证证书超过既有1MiB读取上限');
+    const sourceRevision=hash([source.revision,recipe.revision]),capability=source.scrub({id,name:prepared.spec.name,description:prepared.spec.description,kind:'browser',inputSchema:prepared.spec.inputSchema,readiness:'ready',effect:prepared.spec.effect,revision:recipe.revision,gaps:[...(prepared.spec.steps.some(step=>['visualClick','visualFill'].includes(step.kind))?['visual_parameter_constraints_not_observed','visual_control_semantics_not_inferred','post_trigger_change_is_temporal_evidence']:[]),...(prepared.spec.steps.some(step=>step.closedShadow)?['closed_shadow_top_level_native_text_button_subset',...(prepared.spec.closedStages?['closed_shadow_host_and_targets_stable_within_explicit_stage']:['closed_shadow_host_and_targets_stable_for_entire_execution']),'closed_shadow_physical_edit_events_not_side_effect_proof','closed_shadow_hit_test_not_atomic']:[])],evidence:{kind:'live_workflow_validation',runs:runs.length,operationIds:runs.map(run=>run.operationId),networkObserved:runs.some(run=>run.observation.networkObserved),approvedResponses:runs.reduce((sum,run)=>sum+run.observation.approvedResponses,0),visualSteps:prepared.spec.steps.filter(step=>['visualClick','visualFill'].includes(step.kind)).length,visualAssertions:prepared.spec.assertions.filter(assertion=>assertion.visual).length,changedFromBeforeAssertions:prepared.spec.assertions.filter(assertion=>assertion.changedFromBefore===true).length,note:prepared.spec.effect==='write'?'write为启动配置明确授权的意图；样本真实写入，断言通过不保证任意后台提交语义':'read为可信声明；HTTP成功和断言通过不证明无业务副作用'}}),manifest={schemaVersion:1,source:{id:sourceId,kind:'web',revision:sourceRevision,runId:source.meta.runId,gaps:[]},capabilities:[capability]},recipes={[id]:recipe},validation={status:'validated',runs,...(prepared.spec.effect==='write'?{writeOutcome:writeOutcome('observed')}:{} )};
     const certificate=certificateFile(root,id,recipe.revision);if(existsSync(certificate)){if(hash(localJson(certificate,1048576).value.recipe)!==hash(recipe))fail('CERTIFICATE_CONFLICT','不可变验证记录冲突');}else atomicJson(certificate,{recipe,validated:true},false);
     atomicJson(path.join(out,'recipes.json'),recipes);atomicJson(path.join(out,'validation.json'),validation);atomicJson(path.join(out,'manifest.json'),manifest);
     return {manifest,recipes,validation};
@@ -452,12 +502,12 @@ export async function compileBrowserWorkflow({runDir,sourceId,specFile,outputDir
 export const validateBrowserWorkflow=compileBrowserWorkflow;
 export async function executeBrowserWorkflow({runDir,recipe,params={},expectedRevision,outputDir,signal,permissions={}}={}){
   abortCheck(signal);
-  if(!plain(recipe)||recipe.schemaVersion!==1||!capPattern.test(recipe.capabilityId||''))fail('RECIPE_INVALID','需要验证过的私有workflow recipe');
+  if(!plain(recipe)||![1,2].includes(recipe.schemaVersion)||!capPattern.test(recipe.capabilityId||'')||((recipe.schemaVersion===2)!==(recipe.spec?.executionMode==='closed-stages-v1')))fail('RECIPE_INVALID','需要验证过的私有workflow recipe');
   const root=checkedBrowserRunDir(runDir),release=acquireLock(path.join(root,'.run.lock'),{task:'workflow_execute'});let executingSpec=recipe.spec,actionAttempted=false;
   try{
     const source=await readBrowserSource(root,recipe.sourceId);abortCheck(signal);const certificate=localJson(certificateFile(root,recipe.capabilityId,recipe.revision),1048576).value,canonical=certificate.recipe;
     if(!certificate.validated||hash(recipe)!==hash(canonical)||source.revision!==canonical.sourceRevision||expectedRevision!=null&&expectedRevision!==canonical.revision||localJson(canonical.specFile).digest!==canonical.specDigest)fail('SOURCE_CHANGED','原配置、workflow或验证契约已变化，请重新验证');
-    executingSpec=canonical.spec;if(executingSpec.effect==='write')assertWorkflowPermission(permissions,executingSpec.id);
+    executingSpec=canonical.spec;if(executingSpec.effect==='write')assertWorkflowPermission(permissions,executingSpec.id);if(executingSpec.executionMode==='closed-stages-v1')assertClosedStagePermission(permissions,executingSpec.id);
     const prepared=prepare(executingSpec,source);prepared.checkParams(params);
     const run=await runQuery(source,prepared,params,outputDir||path.join(path.dirname(root),'.browser-workflow-calls',randomUUID()),canonical.contracts,signal,()=>{actionAttempted=true});
     const result={...run.result,capabilityId:canonical.capabilityId,revision:canonical.revision};if(result.output)result.output=boundBrowserVisibleOutput(result.output,Math.max(1024,Math.min(8192,16000-size({...result,output:{}}))));if(size(result)>16384)fail('OUTPUT_LIMIT','workflow结果超过16KiB');return result;

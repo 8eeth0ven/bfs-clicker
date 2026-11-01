@@ -17,7 +17,7 @@
   },
   "actionAllowlist": [],
   "nativeVisualWorkflow": {
-    "enabled": true,
+    "enabled": false,
     "node": "/absolute/path/node",
     "allowedWorkflows": [
       "querytext"
@@ -35,15 +35,23 @@
       "enabled": true,
       "region": {
         "x": 0,
-        "y": 0.6081612586037365,
+        "y": "REPLACE_WITH_OWNER_APPROVED_SHELL_TOP_NORMALIZED",
         "width": 1,
-        "height": 0.3918387413962635
+        "height": "REPLACE_WITH_OWNER_APPROVED_SHELL_HEIGHT_NORMALIZED"
       },
       "dismissAnchor": "Dismiss",
       "caret": {
         "enabled": true,
-        "color": [66, 107, 242],
-        "background": [255, 255, 255],
+        "color": [
+          66,
+          107,
+          242
+        ],
+        "background": [
+          255,
+          255,
+          255
+        ],
         "colorTolerance": 2,
         "maxWidthPoints": 3,
         "minHeightPoints": 8,
@@ -52,9 +60,41 @@
       },
       "sourceRegion": {
         "x": 0,
-        "y": 0.616519174041298,
+        "y": "REPLACE_WITH_INSPECTED_KEYPLANE_TOP_NORMALIZED",
         "width": 1,
-        "height": 0.3613569321533923
+        "height": "REPLACE_WITH_INSPECTED_KEYPLANE_HEIGHT_NORMALIZED"
+      },
+      "geometryEvidence": {
+        "schemaVersion": 1,
+        "mode": "owner_approved_split",
+        "authority": "local_config",
+        "appId": "com.example.bfsmcp.iosvisualkeyboard",
+        "window": {
+          "width": "REPLACE_WITH_WINDOW_WIDTH_POINTS",
+          "height": "REPLACE_WITH_WINDOW_HEIGHT_POINTS"
+        },
+        "image": {
+          "width": "REPLACE_WITH_PNG_WIDTH_PIXELS",
+          "height": "REPLACE_WITH_PNG_HEIGHT_PIXELS"
+        },
+        "keyPlane": {
+          "x": 0,
+          "y": "REPLACE_WITH_INSPECTED_KEYPLANE_Y_POINTS",
+          "width": "REPLACE_WITH_WINDOW_WIDTH_POINTS",
+          "height": "REPLACE_WITH_INSPECTED_KEYPLANE_HEIGHT_POINTS"
+        },
+        "visualEnvelope": {
+          "x": 0,
+          "y": "REPLACE_WITH_OWNER_APPROVED_SHELL_Y_POINTS",
+          "width": "REPLACE_WITH_WINDOW_WIDTH_POINTS",
+          "height": "REPLACE_WITH_OWNER_APPROVED_SHELL_HEIGHT_POINTS"
+        },
+        "calibration": {
+          "kind": "owner_inspected_source_and_frame_pair",
+          "beforeImageSha256": "REPLACE_WITH_ACTUAL_BEFORE_FRAME_SHA256",
+          "visibleImageSha256": "REPLACE_WITH_ACTUAL_VISIBLE_FRAME_SHA256",
+          "visibleSourceSha256": "REPLACE_WITH_ACTUAL_INSPECTED_SOURCE_SHA256"
+        }
       }
     }
   }

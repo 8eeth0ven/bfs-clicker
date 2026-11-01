@@ -5,7 +5,7 @@ const sameFile=(a,b)=>['dev','ino','size','mtimeNs','ctimeNs'].every(key=>a[key]
 
 // The caller resolves this filename inside its trusted artifact roots. Read a
 // regular descriptor only, with a byte ceiling independent of pathname stat.
-export function readArtifactText(file,maxBytes){
+export function readArtifactTextSnapshot(file,maxBytes){
  if(typeof file!=='string'||!Number.isSafeInteger(maxBytes)||maxBytes<0||maxBytes>8*1024*1024)fail('DOCUMENT_LIMIT');
  let fd;
  try{
@@ -24,9 +24,14 @@ export function readArtifactText(file,maxBytes){
   let document;
   try{document=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(buffer.subarray(0,bytes));}
   catch{fail('DOCUMENT_ENCODING_INVALID');}
-  return {document,bytes};
+  return {document,bytes,stamp:before};
  }catch(error){
   if(/^DOCUMENT_(?:LIMIT|CHANGED|ENCODING_INVALID)$/.test(error.code||''))throw error;
   fail('DOCUMENT_UNAVAILABLE');
  }finally{if(fd!==undefined)closeSync(fd);}
+}
+
+// Preserve the original public reader shape for existing callers.
+export function readArtifactText(file,maxBytes){
+ const {document,bytes}=readArtifactTextSnapshot(file,maxBytes);return {document,bytes};
 }

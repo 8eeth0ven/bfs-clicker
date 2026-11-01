@@ -342,7 +342,8 @@ class AdbBackend:
                 callback()
         return self.command(["-s", self.device, "shell", shlex.join(args)])
 
-    def probe(self):
+    def _probe_identity(self):
+        """Check ADB/device availability only; return no artifact or IME proof."""
         if shutil.which(self.executable) is None:
             raise MobileError("ADB_UNAVAILABLE", "unsupported")
         lines = self.command(["devices", "-l"]).splitlines()
@@ -356,6 +357,9 @@ class AdbBackend:
             raise MobileError("DEVICE_NOT_AUTHORIZED_OR_OFFLINE", "needs_device")
         if not re.fullmatch(r"[A-Za-z0-9_.:\[\]-]{1,180}", self.device):
             raise MobileError("DEVICE_ID_INVALID")
+
+    def probe(self):
+        self._probe_identity()
         self.verify_artifact()
         if self.unicode_input:
             android_unicode.preflight(self)

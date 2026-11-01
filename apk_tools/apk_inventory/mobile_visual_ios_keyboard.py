@@ -81,13 +81,99 @@ def caret_contract(value):
 
 def gaps(config):
     from .mobile_visual_ios_keys import GAPS as key_gaps
-    return GAPS + (CARET_GAPS if "caret" in config else []) + (key_gaps if "keyInput" in config else [])
+    return GAPS + (CARET_GAPS if "caret" in config else []) + (key_gaps if "keyInput" in config else []) + ([
+        "explicit_keyplane_and_visual_shell_are_local_owner_authority_not_os_ownership",
+        "calibration_hashes_are_provenance_only_current_app_window_image_and_keyplane_are_rechecked",
+    ] if "geometryEvidence" in config else [])
+
+
+def _point_region(rect, window):
+    return {"x": rect["x"] / window["width"], "y": rect["y"] / window["height"],
+            "width": rect["width"] / window["width"], "height": rect["height"] / window["height"]}
+
+
+def _split_contract(config, definition=None):
+    """Explicit owner authority, never derived from a parent node or hash.
+
+    Frame/source digests retain the approval's provenance. Current evidence is
+    independently required at every phase; these hashes never authorize a tap.
+    """
+    if "geometryEvidence" not in config:
+        return None
+    evidence = config["geometryEvidence"]
+    def invalid(): fail("VISUAL_KEYBOARD_GEOMETRY_CONTRACT_INVALID")
+    fields = {"schemaVersion", "mode", "authority", "appId", "window", "image",
+              "keyPlane", "visualEnvelope", "calibration"}
+    if (not isinstance(evidence, dict) or set(evidence) != fields
+            or type(evidence["schemaVersion"]) is not int or evidence["schemaVersion"] != 1
+            or evidence["mode"] != "owner_approved_split" or evidence["authority"] != "local_config"
+            or not isinstance(evidence["appId"], str)
+            or not re.fullmatch(r"[A-Za-z0-9_.-]{1,256}", evidence["appId"])):
+        invalid()
+    for name in ("window", "image"):
+        size = evidence[name]
+        if (not isinstance(size, dict) or set(size) != {"width", "height"}
+                or any(type(v) is not int or not 1 <= v <= 16384 for v in size.values())):
+            invalid()
+    window, image = evidence["window"], evidence["image"]
+    if (image["width"] * image["height"] > 16000000
+            or image["width"] * window["height"] != image["height"] * window["width"]):
+        invalid()
+    for name in ("keyPlane", "visualEnvelope"):
+        rect = evidence[name]
+        if (not isinstance(rect, dict) or set(rect) != {"x", "y", "width", "height"}
+                or any(not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) for v in rect.values())
+                or rect["x"] != 0 or rect["width"] != window["width"]
+                or rect["y"] < 0 or rect["height"] <= 0 or rect["y"] + rect["height"] > window["height"]):
+            invalid()
+    plane, shell = evidence["keyPlane"], evidence["visualEnvelope"]
+    if (not .5 <= shell["y"] / window["height"] <= .85
+            or not .95 <= (shell["y"] + shell["height"]) / window["height"] <= 1
+            or not shell["y"] <= plane["y"] <= .85 * window["height"]
+            or plane["y"] + plane["height"] > shell["y"] + shell["height"]
+            or "sourceRegion" not in config
+            or _region(config["region"]) != _point_region(shell, window)
+            or _region(config["sourceRegion"]) != _point_region(plane, window)):
+        invalid()
+    calibration = evidence["calibration"]
+    hashes = {"beforeImageSha256", "visibleImageSha256", "visibleSourceSha256"}
+    if (not isinstance(calibration, dict) or set(calibration) != hashes | {"kind"}
+            or calibration["kind"] != "owner_inspected_source_and_frame_pair"
+            or any(not isinstance(calibration[k], str) or not re.fullmatch(r"[a-f0-9]{64}", calibration[k])
+                   or calibration[k] == "0" * 64 for k in hashes)
+            or calibration["beforeImageSha256"] == calibration["visibleImageSha256"]):
+        invalid()
+    if definition is not None:
+        v = _visual()
+        box = v._box(config["region"], image["width"], image["height"])
+        for name in ("valueRegion", "resultRegion"):
+            if v._intersects(box, v._box(definition[name], image["width"], image["height"])):
+                fail("VISUAL_KEYBOARD_OCCLUDES_INPUT" if name == "valueRegion" else "VISUAL_KEYBOARD_OCCLUDES_RESULT")
+    return evidence
+
+
+def _split_context(config, observation, geometry, app_id):
+    evidence = _split_contract(config)
+    if evidence is None:
+        return None
+    if app_id != evidence["appId"]:
+        fail("VISUAL_KEYBOARD_APP_UNVERIFIED")
+    # The first hidden source precedes the initial capture/window reading. It
+    # grants no region or action; the complete observation must match afterward.
+    if geometry is not None:
+        if (not isinstance(geometry, (tuple, list)) or len(geometry) != 2
+                or tuple(geometry) != (evidence["window"]["width"], evidence["window"]["height"])
+                or any(isinstance(v, bool) for v in geometry)
+                or any(type(observation.get(k)) is not int for k in ("width", "height"))
+                or {k: observation.get(k) for k in ("width", "height")} != evidence["image"]):
+            fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+    return evidence
 
 
 def keyboard_contract(value, definition):
     if (
         not isinstance(value, dict) or not {"enabled", "region", "dismissAnchor"} <= set(value)
-        or set(value) - {"enabled", "region", "sourceRegion", "dismissAnchor", "caret", "keyInput"}
+        or set(value) - {"enabled", "region", "sourceRegion", "dismissAnchor", "caret", "keyInput", "geometryEvidence"}
         or value.get("enabled") is not True
         or not isinstance(value.get("dismissAnchor"), str)
         or not re.fullmatch(r"[A-Za-z0-9_]{1,32}", value["dismissAnchor"])
@@ -101,6 +187,8 @@ def keyboard_contract(value, definition):
         key_input_contract(value["keyInput"], definition)
     region = _region(value["region"])
     source = _region(value.get("sourceRegion", region))
+    if _split_contract(value, definition) is not None:
+        return value
     # A single owner-approved full-width near-bottom keyboard, not an arbitrary
     # collection of areas whose changes could conceal application navigation.
     # iOS may exclude its home-indicator strip from AX Keyboard bounds. Without
@@ -317,6 +405,7 @@ def _preparation_proposal(session, geometry, sampling=None):
 
 def keyboard_state(session, config, observation, geometry, visible, stabilize=False, sampling=None):
     """Read a bounded WDA hierarchy; no role or dismissal receipt is proof."""
+    split = _split_context(config, observation, geometry, session.backend.app_id)
     if stabilize:
         # This opt-in is confined to the first preparation read after clear or
         # type. Focus, OCR-after, freshness, dispatch and restored checks remain
@@ -333,11 +422,11 @@ def keyboard_state(session, config, observation, geometry, visible, stabilize=Fa
             session.backend.foreground()
             raw = session.backend.request("GET", "/source")
         if visible is False:
-            if _parse_source(raw, session.backend.app_id):
+            if _parse_source(raw, session.backend.app_id, unique=split is not None):
                 fail("VISUAL_KEYBOARD_NOT_HIDDEN")
             session.backend.foreground()
             return None
-        proposal = _inspect_source(raw, geometry, session.backend.app_id, unique=visible is None)
+        proposal = _inspect_source(raw, geometry, session.backend.app_id, unique=visible is None or split is not None)
         session.backend.foreground()
     if proposal is None:
         if visible is True:
@@ -361,6 +450,12 @@ def _keyboard_region(config, observation, geometry, proposal):
     envelope_box = v._box(config["region"], observation["width"], observation["height"])
     if any(actual_box[index] < envelope_box[index] for index in (0, 1)) or any(actual_box[index] > envelope_box[index] for index in (2, 3)):
         fail("VISUAL_KEYBOARD_PADDING_INVALID")
+    split = _split_contract(config)
+    if split is not None:
+        # Outward pixel equality alone must not hide a subpixel key-plane drift.
+        if actual != _point_region(split["keyPlane"], split["window"]):
+            fail("VISUAL_KEYBOARD_REGION_MISMATCH")
+        return actual
     top = (source["y"] - config["region"]["y"]) * geometry[1]
     bottom = (config["region"]["y"] + config["region"]["height"] - source["y"] - source["height"]) * geometry[1]
     if top > 12 + 1e-9 or bottom > 24 + 1e-9 or top < -1e-9 or bottom < -1e-9:
@@ -373,6 +468,12 @@ def _observe(session, lease, config, geometry=None, visible=False, reference=Non
     # Dimensions from geometry are needed to compare the source rectangle;
     # the initial hidden check does not use rectangle math.
     provisional = reference or ({"width": 1, "height": 1} if geometry is None else {"width": geometry[0], "height": geometry[1]})
+    split = _split_contract(config["keyboard"])
+    if split is not None and reference is None and geometry is not None:
+        # Projection dimensions for this source-only precheck, not an image
+        # observation. The new full OCR image and post-source below must match
+        # independently before this function can return any usable evidence.
+        provisional = split["image"]
     keyboard_state(session, config["keyboard"], provisional, geometry, visible)
     observation = v._observe(session, lease, config)
     actual_geometry = v._geometry(session, observation, geometry)
@@ -392,6 +493,7 @@ def _focus_state(session, config, observation, geometry, sampling, instability):
     guard; a hidden result itself never grants a mask or an input action.
     """
     session.budget.check()
+    _split_context(config, observation, geometry, session.backend.app_id)
     if sampling["sourceReads"] >= 6:
         fail("VISUAL_KEYBOARD_NOT_VISIBLE")
     session.backend.foreground()

@@ -61,7 +61,7 @@ WebDriver iOS/Android 的普通可编辑控件在输入前后读取新鲜语义�
 
 ### 当前页面上的多步骤探索
 
-compiler17 在获准动作完整返回后，为新观察到的语义状态建立新的页面许可。冷启动按钮后出现的表单、普通 DOM/open shadow 中销毁重建的表单，以及通过导航策略检查的跨 URL 页面均可继续探索。closed root 的探索可在成功动作后只读检查新一代节点，再销毁旧许可；其参数化工作流仍要求同一次执行内节点稳定，探索覆盖不能当成重建流程的学习/调用通过。
+compiler17 在获准动作完整返回后，为新观察到的语义状态建立新的页面许可。冷启动按钮后出现的表单、普通 DOM/open shadow 中销毁重建的表单，以及通过导航策略检查的跨 URL 页面均可继续探索。closed root 的探索可在成功动作后只读检查新一代节点，再销毁旧许可；缺省参数化工作流仍要求同一次执行内节点稳定。compiler18 的[显式闭根多阶段流程](#显式闭根多阶段流程)另需本地阶段合同与启动授权；不能仅由探索覆盖推导学习/调用通过。
 
 依赖不可重放动作的当前页面链会优先推进；其余可重放状态维持原 BFS/DFS 队列的相对顺序。因此这不是严格全局 BFS。仍显示的旧控件延后处理，只依据真实节点和完整语义比较；同名的新 Next 不继承旧身份。已有动作数、深度、状态数、时长、内存及每后端 CDP 调用预算不变。页面关闭、未知或失败动作、策略拒绝、节点或文档漂移、恢复任务失去许可时，会记录缺口并拒绝自动重放。成功状态的控件也不能证明任意隐藏 JavaScript 状态相同。
 
@@ -85,7 +85,7 @@ DOM 的 value 回显、原生提供者逐码点回报、OCR 呈现文字和 HTTP
 
 读取上限按实际打开的普通文件及实际字节检查；读取中增长、截断或可检测的替换，以及非法 UTF-8 都会拒绝导入。FIFO 不会作为文档阻塞读取。不存在的主文档或引用只返回固定错误码，不回传文件名与本地路径，失败不推进来源 revision。这些检查不构成对恶意文件系统并发修改的完整原子保证。
 
-这里导入的是本地文档；需先把取得的规范保存进 artifactRoots。默认生成独立来源；传 `merge:true` 和已有来源的 `expectedRevision`，可补充到 Web/APK/iOS 来源，保留原始观测、App 身份、浏览器/移动能力和凭据绑定。补充规范不扩大原调用 origin 范围；同一路径/方法的多份正式契约冲突会保留候选及缺口，不按最后写入者放宽。再次导入同一文档位置会替换该份补充证据，refresh 保留补充内容。
+这里导入的是本地文档；需先把取得的规范保存进 artifactRoots。默认生成独立来源；传 `merge:true` 和已有来源的 `expectedRevision`，可补充到 Web/APK/iOS 来源，保留原始观测、App 身份、浏览器/移动能力和凭据绑定。补充规范不扩大原调用 origin 范围；同一路径/方法的多份正式契约冲突会保留候选及缺口，不按最后写入者放宽。再次导入同一文档位置会替换该份补充证据；compiler18 的 refresh 会按登记的原件重新编译这些补充规范，见下一节。
 
 规范不支持的 wire 编码和明确不可能满足的 schema 不会发布为 ready 工具，即使 HTTP 方法本身已获准。合并失败或 revision 冲突不会推进当前版本。
 
@@ -94,6 +94,16 @@ DOM 的 value 回显、原生提供者逐码点回报、OCR 呈现文字和 HTTP
 CSV 分隔符与数据中的逗号分别处理，Unicode、加号、斜线及保留字符编码后发送。空格/竖线/制表分隔的数据若包含同一分隔符，会被公开 schema 和执行器明确拒绝，避免生成歧义请求。deepObject 的嵌套对象/数组不猜测表示；组合 schema、引用及 tuple 中出现未支持的复杂输入时保留候选。展开对象发生参数名碰撞时在请求前拒绝；总查询最多 1000 项、64 KiB。空集合按该格式的未定义值处理，不发送对应字段。
 
 同一文档不同服务器别名归一成相同端点时，会同时比较 schema、查询编码和请求体媒体类型；多份文档的查询编码冲突也不会按最后一份放宽。`query_serialization` / `evidence.querySerialization` 只公开固定编码规则，凭据字段的实际值仍脱敏。enum/const 对象中的凭据常量保持候选，不写进公开 schema。
+
+### 刷新规范原件
+
+compiler18 的 `software_refresh({sourceId,expectedRevision})` 重新读取首次导入登记的主文档及 `referenceDocuments` 本地映射，不沿用旧的规范化副本。独立 API 来源会替换对应契约；合并到 Web/APK/iOS 的正式规范也逐份重读，保留原浏览器/移动能力、来源身份及调用 origin 范围。最多32份补充规范；每组主文档与引用仍分别受单文件8 MiB、合计16 MiB、最多32引用的限制。文档 URL 只作身份与相对解析依据，不触发 URL fetch。
+
+同一次导入或刷新使用跨组共享的读取记录：同一原件的首次字节与文件元数据绑定在同一个有界 descriptor；解析后和发布 current 前复核别名及文件元数据，缓存淘汰后重读时再核对首次内容摘要。已解码文本缓存最多16 MiB，只在本次操作内复用；命中缓存仍计入各组预算，淘汰后重新读取也必须符合首次记录。此缓存上限不是整轮输入总额或整个进程内存保证：一个独立主规范加32份补充可以有33组，各组分别限额。
+
+原件缺失、非法 UTF-8、读取中变化、组间共享引用不一致、超限、解析失败或 revision 冲突均不会切换旧 current，也不会用旧缓存兜底。较晚失败可能留下未被 current 引用的私有衍生产物；是否发布以 current 为准。这是有界读及可检测变化的一致性检查，不承诺任意恶意文件系统的原子快照。旧来源若没有原件 provenance，需明确重新导入，不能猜原路径或退回旧规范化副本。普通 bind/内部重编译不自动重读原件；要更新原件须显式导入或 refresh。
+
+复现见[规范刷新与真实 SDK 测试](../test/software-openapi-refresh.test.mjs)、[文档读取边界测试](../test/artifact-text.test.mjs)和[多文档引用测试](../test/openapi-reference-documents.test.mjs)。刷新本身不发送业务 HTTP 请求；契约变化后旧生成入口拒绝旧 revision，重新生成后再调用。
 
 ### URL 编码表单请求体
 
@@ -162,7 +172,59 @@ compiler15 可通过可信启动配置 `webConfig.closedShadowRoots` 显式批�
 
 当前支持 text/search/textarea 输入、按钮及独立 DOM 文本结果。可由探索证据生成候选，仍须两组变化样本、结果断言和每次实际调用验证；结果 baseline 也保留闭根作用域。每次实际编辑前复核焦点、固定语义、来源、跨 host 祖先排除规则、可见性和命中范围。闭根输入采用真实聚焦、选择、删除与插入事件，页面事件处理器可能产生副作用；几何与派发仍不原子。
 
-同一次执行中的 host 或目标节点被重建会拒绝，业务更新重建结果 DOM 也一样。跨 frame、select/check、ARIA 选择器、视觉步骤及表格提取等组合暂不支持，并在动作前拒绝。某次闭根探索动作已尝试但未成功确认时，整个 run 的恢复会拒绝，避免从其他 frontier 重复未知业务；单独的已验证调用也不自动重试。不能据有限示例推导任意封装组件或站点兼容。
+缺省工作流中，同一次执行的 host 或目标节点被重建会拒绝，业务更新重建结果 DOM 也一样。跨 frame、select/check、ARIA 选择器、视觉步骤及表格提取等组合暂不支持，并在动作前拒绝。某次闭根探索动作已尝试但未成功确认时，整个 run 的恢复会拒绝，避免从其他 frontier 重复未知业务；单独的已验证调用也不自动重试。不能据有限示例推导任意封装组件或站点兼容。
+
+#### 显式闭根多阶段流程
+
+compiler18 可为 Start → 表单 → 下一表单 → 独立结果这类真实重建流程建立参数化 MCP。当前由 owner 提供完整本地 spec，再通过 `software_bind_workflow` 的 `specPath` 学习；规划器不会自动补造阶段计划。来源启动配置另按精确 workflow ID 授权，和写入执行/真实学习授权分别管理，例如：
+
+```json
+{
+  "workflowPermissions": {"console": {"allowClosedStages": ["closed_search"]}},
+  "webConfig": {
+    "actionProfile": "forms",
+    "fillText": true,
+    "closedShadowRoots": [{"id": "lookup", "hosts": ["#lookup-widget"], "maxNodes": 128}],
+    "actionAllowlist": ["closed::lookup::#start", "closed::lookup::#query", "closed::lookup::#search"],
+    "requestAllowlist": [{"method": "POST", "url": "https://console.example.test/api/search"}]
+  }
+}
+```
+
+`console` 是 sourceId，`closed_search` 是本地 spec 的 id。`allowClosedStages` 不能由 spec、MCP 参数或 webOptions 授给自己，也不代替原动作/网络/导航范围或写权限。每次编译学习和调用都检查该授权；改启动权限后仍按新的服务配置与 revision 使用，旧生成入口的私有配置快照不会因编辑别处文件而即时改变。
+
+在完整 spec 中设置 `executionMode:"closed-stages-v1"`，并增加 `closedStages`。以下只展示阶段字段：假定原 `steps` 为第0步 click Start、第1步 fill query、第2步 click Search，`entry.url` 为同一固定入口。完整 inputSchema、两组变化样本、绑定步骤及独立结果断言/提取仍必需。
+
+```json
+{
+  "id": "closed_search",
+  "executionMode": "closed-stages-v1",
+  "closedStages": {
+    "schemaVersion": 1,
+    "stages": [
+      {"id":"entry","startStep":0,"document":"initial","url":"https://console.example.test/","anchors":[
+        {"selector":"closed::lookup::#phase","framePath":[],"closedShadow":{"schemaVersion":1,"policyId":"lookup","hosts":["#lookup-widget"],"selector":"#phase"},"tag":"h2","text":"Entry"}
+      ]},
+      {"id":"form","startStep":1,"document":"same","url":"https://console.example.test/","anchors":[
+        {"selector":"closed::lookup::#phase","framePath":[],"closedShadow":{"schemaVersion":1,"policyId":"lookup","hosts":["#lookup-widget"],"selector":"#phase"},"tag":"h2","text":"Search form"}
+      ]},
+      {"id":"complete","startStep":3,"document":"same","url":"https://console.example.test/","anchors":[
+        {"selector":"closed::lookup::#phase","framePath":[],"closedShadow":{"schemaVersion":1,"policyId":"lookup","hosts":["#lookup-widget"],"selector":"#phase"},"tag":"h2","text":"Complete"}
+      ]}
+    ]
+  }
+}
+```
+
+阶段计划版本为1，共2–31个有序阶段，每阶段1–8个固定文字/tag/闭根锚点。首阶段从0开始、`document:"initial"` 且 URL 等于 entry；末阶段从 `steps.length` 开始，表示最终点击后仍要验证终态。其余阶段只能紧接一个已批准 closed click，明确声明 `document:"same"` 或 `"new"` 和固定完整 URL；相邻阶段要有不同语义锚点或 URL，不能把同态点击当成新阶段。跨 URL 新 document 仍须原导航、请求和认证批准，不能跳过入口直接调用后续页面。
+
+只有本次物理 click 完整成功，并通过认证、对话框、请求和原总预算检查后，执行器才读取一次只读新 generation。新语义、document/URL、当前阶段全部控件与已学习合同都匹配，复读也未漂移，才提交新阶段。阶段内 host/target、owner、语义和实际输入回读仍须稳定；新 document 不继承旧输入 receipt。未知、超时、遮挡、错误导航、身份或权限变化不会晋升或自动重试。每个可变参数须在两组不同样本中变化并由独立结果验证，所有阶段完整通过才发布 ready；新阶段 recipe 与旧整次执行合同分版本。
+
+同 document 的有界内存记录保留已观察元素的最近所属 root：不能先把另一个批准根的控件移入隐藏容器，再借后续重建洗白来源。原本指向同一实际 root 的策略别名同源，嵌套祖先不冒充最近 root；旧独立根也不能合并成一个域来继承 foreign 控件。自己批准根内的合法控件复用可继续，失败候选/rollback 不清历史；只有已验证的新 document 才清旧 document 来源。记录不写入 recipe 或 checkpoint，不存输入值/摘要；它不证明尚未观察到的节点历史或浏览器原子性。
+
+当前所有配置的 roots 在每阶段都须存在可见，同 document 的 host shell 语义固定；form/search owner 若存在须有固定唯一 id。仅支持既有 closed 原生 text/search/textarea、button 与普通文字结果，不扩 frame、select/check、ARIA、visual 或 table 权限。原4 roots、4层 host、256节点/根、4096 CDP调用/backend、30步及总动作/请求/时长限制不变；来源记录溢出会拒绝，不删旧记录续行。完整验证证书最多1 MiB，超限不写新证书或 ready。
+
+[真实闭根销毁重建 SDK 与负例测试](../test/software-closed-multistage.test.mjs)包含两样本、统一新值、生成第四值，以及跨批准根搬迁、阶段前隐藏洗源、同根合法复用、未知派发、超时、错误 document 和预算/证书上限反例。跨 URL/new-document 另有真实浏览器 direct compile/execute 测试，其证据范围与独立生成入口分列。默认旧工作流不会因新增此模式而自动重绑。
 
 ## 参数化流程
 
@@ -210,7 +272,7 @@ Android/iOS 后端执行替换输入、点击/滑动、断言和类型化提取�
 
 视觉合同 `schemaVersion:2` 对解码后的整张 Canvas 像素建立指纹；只遮罩同 selector、同 frame 中此前已填写并回读的输入区，结果区不作为动态遮罩。同一区域多次输入以最后一次为准；当前输入区及动作锚点不得与其他遮罩按像素重叠，点击点也不得落入遮罩。`visualClick` 必须落在当前 OCR 锚点文字框内。每个后续视觉动作前使用同一张 OCR 截图重读此前关联的输入值；检查后仍会核对画面，发生变化则拒绝动作。不同 selector 的别名不自动视为同一宿主，动态时间、动画或光标等未遮罩变化可能导致保守拒绝；画面一致也不能证明隐藏处理器语义未变。
 
-PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-17`。
+PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-18`。
 
 声明 `changedFromBefore:true` 的 DOM、ARIA 与视觉流程在最后触发动作前另取结果基线，防止输入时已更新的结果令无操作触发通过；提取后还会复核结果。该变化仍是时间上的证据：异步结果更新可能独立于触发动作，不能据此证明因果或后台业务完成。同一结果验证阶段中，同一 Canvas 的多个结果区域共享一次截图与 OCR；缓存仅限当前阶段，不跨动作或断言轮次复用。复用时固定 ElementHandle 并检查当前节点仍是同一宿主，替换则拒绝；触发前基线、触发后断言和提取后复核各自保留。
 
@@ -341,6 +403,12 @@ python apk_tools/visual_helper/build.py --sdk /absolute/android-sdk --out /absol
 文本流程当前有 34 项相关模拟测试（其中文本 26 项）及实际安装 Appium 路由探针；这些模拟证据本身不证明实际键入或业务成功。自建 iOS 27.1 模拟器已完成 alpha/beta 学习，统一入口返回 RESULT gamma 3，生成入口返回 RESULT delta 4；输入被忽略、输入时自动更新结果但提交无操作、非法输入反例和清理均通过。本次实际范围为无系统软键盘的 UIKeyInput 夹具与拉丁文字/英文 OCR；中文、物理 iPhone 与第三方 App 仍未证明。默认严格像素合同只遮罩输入与结果区，普通系统键盘、光标或选区造成的区域外变化会拒绝执行。compiler12 可选键盘合同见下一节；默认路径没有替换。派发后失败标为 unknown、不自动重试且不可恢复，派发前拒绝为 not_started。已有 WebDriver session 仍不证明安装字节，截图回显也不证明隐藏文本缓冲区或事件处理器的语义。
 
 #### iOS 普通系统软键盘
+
+compiler18 新增显式本地 `keyboard.geometryEvidence.mode:"owner_approved_split"`，分别固定实际 AX `keyPlane` 与 owner 批准的 `visualEnvelope`。参见[禁用的几何配置模板](../examples/software/ios-visual-keyboard-device.example.json)、[几何合同测试](../apk_tools/tests/test_mobile_visual_ios_keyboard_geometry.py)与[本地审批读取测试](../test/ios-keyboard-owner-approval.test.mjs)。模板中的窗口、像素尺寸、矩形和校准摘要必须由目标自己的实际证据替换，不能从 MCP 参数启用，也不能从变化像素或 AX parent/Other 自动扩大外壳。
+
+新合同逐阶段及按键前核对当前 app、实际 window/image 尺寸、唯一合法 AX 键面及完整 OCR 观察；只读 source 初检中的声明尺寸不代替之后真实帧。外壳须固定全宽、屏内、下半区，包含精确键面并避开输入/结果 ROI；按键仍只取 Keyboard 子树且检查实际整数中心排他。校准 SHA 仅记录本地批准所用原件，不证明系统所有权，也不单独授权 UI。初始/恢复完整帧、输入/结果回读、Dismiss、caret 颜色、OCR阈值、预算与 unknown/no-retry 均保留；未启用该字段时仍用旧12/24点 padding 和至少.95底边合同。
+
+该模式的 source/PNG 与模拟反例已验证，不能代替实际设备闭环。普通系统键盘第18轮已通过新几何校准与来源发现，第一样本完成，第二样本键入时因 `VISUAL_FRAME_CHANGED` 停止学习；未发布 ready，也未进入统一/生成入口验收，仍无完整两样本及双入口通过结论；最新设备终态以[验证记录](software-to-mcp-verification.md)为准。
 
 compiler15 将逐键校验中相邻的只读 PNG 操作合并到作用域子进程，每一步仍重读并验证原图，不跨 UI 动作缓存。旧第12轮两张拒绝帧的三轮离线对照中，这段像素计算的实际子进程从 8 个减为 3 个，中位耗时约 1.33 秒降为 1.06 秒，PNG 解码仍为 10 次，判定结果完全一致。该测量不包含整条设备流程，也不能证明新的键盘验收通过。compiler15 的第14轮真实验收在一次 Focus 后因 `VISUAL_KEYBOARD_NOT_VISIBLE` 拒绝，尚未清除、键入或提交。compiler16 新增仅在聚焦后使用的有界只读采样：最多3个候选、6次helper source和3次全新OCR；首次严格hidden或V/H不一致只开启一次2秒追加候选启动窗，已准入候选仍须在原总预算内完成全部前后核验，hidden不授权输入。该入口要求唯一Keyboard（包括拒绝额外hidden节点），未放宽像素、颜色、输入、Dismiss或结果门禁。第15轮进入第二样本后仍因 `VISUAL_FRAME_CHANGED` 拒绝，完整学习及双入口尚未通过；当前边界见验证摘要。
 
@@ -474,6 +542,8 @@ iOS 首次真实模拟器验收已通过：iOS 27.1 / iPhone Duo 模拟设备、
 验收结束删除真实 session、停止透明记录代理/Appium、卸载 fixture 并删除自建模拟器，五项清理均通过；四个自有端口无监听，无自有进程遗留，既有设备 ID 保留。首次截图无法证明可见界面，未作为通过证据；另建独占模拟器后由实际 WDA 截图确认结果，命令、UI 树和清理审计再次通过。该结果只覆盖自建 App 的真实模拟器，物理 iPhone 仍未验收。
 
 复验使用 `npm run test:ios-device -- --appium-prefix /absolute/owned-appium-prefix --output /absolute/new-output`，需要已初始化 Xcode、可用模拟器运行时和隔离 Appium/XCUITest 安装。`--prepare-only` 只验证准备，不等于设备通过。
+
+compiler18 另只移除截图流程中更早且重复的一组身份 proof，最终截图前和截图后的前台/安装字节核验保留，默认 probe、IME 通路与失败处理不变，也不跨次缓存安装证明。[ADB截图身份专项](../apk_tools/tests/test_adb_capture_identity.py)覆盖11个局部协议反例。三轮本地子进程对照中，单次流程命令13→10，中位1120.818→894.507毫秒；使用受控协议子进程和合成图，没有真机采图/UI，不能解释为真机或整条 MCP 业务的速度。
 
 ### Android Unicode 输入
 

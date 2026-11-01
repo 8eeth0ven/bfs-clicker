@@ -84,14 +84,10 @@ def capture_locked(session, output, lease):
     if isinstance(backend, AdbBackend) and not backend.device:
         raise MobileError('DEVICE_SELECTION_REQUIRED', 'needs_device')
     # Screenshot observation does not require the optional input method.
-    # Probe device identity without activating or requiring that transport.
+    # Check identity only: the explicit fresh pre/post artifact proofs below
+    # must remain, while probe() would repeat the pre-capture proof and IME work.
     if isinstance(backend, AdbBackend):
-        unicode_input = backend.unicode_input
-        backend.unicode_input = None
-        try:
-            backend.probe()
-        finally:
-            backend.unicode_input = unicode_input
+        backend._probe_identity()
     # W3C foreground verification below is a live session check.  Do not
     # require /source: visual observation must work when no semantic tree
     # is provided or the hierarchy endpoint is unsupported.

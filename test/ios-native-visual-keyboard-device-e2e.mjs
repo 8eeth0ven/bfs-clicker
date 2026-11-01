@@ -3,7 +3,8 @@
 // Prepared script only: its existence is not device acceptance evidence.
 // Own app, simulator UUID, Appium home, WDA derived data, and service ports only.
 import assert from 'node:assert/strict';
-import {keyboardEnvelope} from './ios-keyboard-envelope.mjs';
+import {keyboardEnvelope,approvedKeyboardEnvelope} from './ios-keyboard-envelope.mjs';
+import {keyboardOwnerApproval} from './ios-keyboard-owner-approval.mjs';
 import {assertDeviceRequestWindow} from './ios-keyboard-request-audit.mjs';
 import {nativeWorkflowBudget,nativeMcpRequestOptions,waitNativeOperation} from '../src/native-workflow-budget.js';
 import {runPython} from '../src/software-python.js';
@@ -20,11 +21,12 @@ import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 
 const project=path.resolve(import.meta.dirname,'..'),reportDir=path.join(project,'output-vision-implementation');
-const {values}=parseArgs({options:{output:{type:'string'},python:{type:'string'},'appium-prefix':{type:'string'},runtime:{type:'string'},'device-type':{type:'string'},'prepare-only':{type:'boolean'},'await-ocr-ready':{type:'string'},'prebuilt-wda-from':{type:'string'},'keyboard-transport-probe':{type:'boolean'},'keyboard-probe-text':{type:'string'},'onscreen-key-input':{type:'boolean'},'onscreen-complete-text':{type:'boolean'},'onscreen-fixed-clear':{type:'boolean'}}});
+const {values}=parseArgs({options:{output:{type:'string'},python:{type:'string'},'appium-prefix':{type:'string'},runtime:{type:'string'},'device-type':{type:'string'},'prepare-only':{type:'boolean'},'await-ocr-ready':{type:'string'},'prebuilt-wda-from':{type:'string'},'keyboard-transport-probe':{type:'boolean'},'keyboard-probe-text':{type:'string'},'onscreen-key-input':{type:'boolean'},'onscreen-complete-text':{type:'boolean'},'onscreen-fixed-clear':{type:'boolean'},'owner-keyboard-envelope':{type:'string'}}});
 assert(!values['keyboard-probe-text']||values['keyboard-transport-probe']&&['alpha','Ab7z'].includes(values['keyboard-probe-text']),'Probe text requires transport-only mode and one fixed diagnostic sequence');
 assert(!(values['onscreen-key-input']&&values['keyboard-transport-probe']),'Production acceptance and transport-only diagnostic are separate runs');
 assert(!values['onscreen-complete-text']||values['onscreen-key-input'],'Complete text confirmation requires explicit onscreen key input');
 assert(!values['onscreen-fixed-clear']||values['onscreen-key-input'],'Fixed clear requires explicit onscreen key input');
+assert(!values['owner-keyboard-envelope']||values['onscreen-key-input'],'An explicit owner envelope requires onscreen key acceptance');
 const output=path.resolve(values.output||path.join(reportDir,'ios-text-next-device-'+Date.now())),python=path.resolve(values.python||path.join(project,'.venv/bin/python'));
 const appiumPrefix=path.resolve(values['appium-prefix']||path.join(reportDir,'ios-appium-owned-20261029')),appiumHome=path.join(appiumPrefix,'appium-home'),appiumEntry=path.join(appiumPrefix,'node_modules/appium/build/lib/main.js');
 const appId='com.example.bfsmcp.iosvisualkeyboard',hash=value=>createHash('sha256').update(value).digest('hex'),record={date:new Date().toISOString(),kind:'real_ios_simulator',interface:'unified_and_generated_mcp',status:'running',outputDir:output,scope:{userDevicesErased:false,userAppsTouched:false,licensesAccepted:false,developerDirectoryChanged:false,globalAppiumInstalled:false,runtimeDownloadedByThisScript:false},steps:[],cleanup:{}};
@@ -236,6 +238,10 @@ async function main(){
   // focuses/dismisses the owned field; no search or result assertion is granted.
   const rect=(await httpJson('GET','/session/'+sessionId+'/window/rect')).value;
   assert.equal(rect.x,0);assert.equal(rect.y,0);assert(rect.width>0&&rect.height>0);
+  // Validate the fixed local approval before the first calibration focus. A
+  // measured diff or parent AX node cannot broaden this declared rectangle.
+  const ownerEnvelope=values['owner-keyboard-envelope']?keyboardOwnerApproval(path.resolve(values['owner-keyboard-envelope']),{root:reportDir,appId,window:rect}):null;
+  if(ownerEnvelope)record.keyboardEnvelopeApproval=ownerEnvelope.record;
   const tap=async(x,y)=>httpJson('POST','/session/'+sessionId+'/actions',{actions:[{type:'pointer',id:'calibration',parameters:{pointerType:'touch'},actions:[{type:'pointerMove',duration:0,x:Math.round(x*rect.width),y:Math.round(y*rect.height),origin:'viewport'},{type:'pointerDown',button:0},{type:'pointerUp',button:0}]}]});
   const proposal=async(label)=>{const xml=(await httpJson('GET','/session/'+sessionId+'/source')).value,file=path.join(output,label+'.xml');await writeFile(file,xml);const result=await run(python,[path.join(project,'test/ios-keyboard-inspect.py'),'--source',file,'--width',String(rect.width),'--height',String(rect.height),'--app-id',appId]);return JSON.parse(result.stdout).proposal};
   assert.equal(await proposal('calibration-before'),null);
@@ -245,7 +251,8 @@ async function main(){
   assert(measured.keyCount>0);assert.equal(measured.region.x,0);assert.equal(measured.region.width,1);
   const calibrationPng=Buffer.from((await httpJson('GET','/session/'+sessionId+'/screenshot')).value,'base64');
   await writeFile(path.join(output,'calibration-keyboard.png'),calibrationPng);
-  const envelope=keyboardEnvelope(calibrationBefore,path.join(output,'calibration-keyboard.png'),{valueRegion:definition.valueRegion,resultRegion:definition.resultRegion,sourceRegion:measured.region,geometry:rect});
+  const envelopeOptions={valueRegion:definition.valueRegion,resultRegion:definition.resultRegion,sourceRegion:measured.region,geometry:rect};
+  const envelope=ownerEnvelope?approvedKeyboardEnvelope(calibrationBefore,path.join(output,'calibration-keyboard.png'),{...envelopeOptions,approval:ownerEnvelope.approval,visibleSourcePath:path.join(output,'calibration-visible.xml')}):keyboardEnvelope(calibrationBefore,path.join(output,'calibration-keyboard.png'),envelopeOptions);
   record.keyboardCalibration={observation:measured,visualEnvelopeProposal:envelope,ownerApproved:true,configuredRegion:envelope.region,configuredSourceRegion:measured.region,publicMcpAuthorization:false,preparationTouches:2};
   await tap(.72,.36);await delay(700);
   assert.equal(await proposal('calibration-restored'),null,'Dismiss must actually remove Keyboard before learning');
@@ -262,6 +269,7 @@ async function main(){
   // The fixture owner explicitly grants this narrow pixel exception. Geometry
   // calibration and OCR cannot establish that a thin blue glyph is an OS caret.
   const keyboardPolicy={enabled:true,region:envelope.region,sourceRegion:measured.region,dismissAnchor:'Dismiss',caret:caretPolicy};
+  if(envelope.geometryEvidence)keyboardPolicy.geometryEvidence=envelope.geometryEvidence;
   if(values['onscreen-key-input']){
    keyboardPolicy.keyInput={mode:'onscreen',controls:{shift:{type:'XCUIElementTypeButton',name:'shift',label:'shift'},numbers:{type:'XCUIElementTypeKey',name:'more',label:'numbers'},letters:{type:'XCUIElementTypeKey',name:'more',label:'letters'},delete:{type:'XCUIElementTypeKey',name:'delete',label:'delete'}}};
    if(values['onscreen-complete-text'])keyboardPolicy.keyInput.confirmation='complete_text';
