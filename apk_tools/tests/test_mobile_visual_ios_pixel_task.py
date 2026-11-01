@@ -180,16 +180,24 @@ class PixelTaskTests(unittest.TestCase):
             self.assertEqual(calls.count([h.definition['resultRegion']]),1)
             self.assertEqual(h.physical,[]);self.assertEqual(h.session.budget.count,1)
 
-    def test_nominal_two_second_guard_stops_after_first_failed_fresh_frame(self):
+    def test_nominal_window_after_first_complete_mismatch_stops_before_next_candidate(self):
         from apk_inventory import mobile_visual_ios_keys as keys
         with tempfile.TemporaryDirectory() as directory,KeyHarness(self,directory,lateKeyboardOverlay=True) as h:
-            h.value='';times=iter([0,3]);clock=SimpleNamespace(monotonic=lambda:next(times),sleep=lambda *_:None)
+            h.value='';now=[0]
+            # Controlled steps, independent of how many timing fields are read:
+            # the first complete mismatch occurs at0; its existing pause then
+            # crosses the unique candidate-admission window, before another IO.
+            clock=SimpleNamespace(monotonic=lambda:now[0],sleep=lambda *_:now.__setitem__(0,2))
             with patch.object(keys,'time',clock),self.assertRaisesRegex(MobileError,'VISUAL_FRAME_CHANGED'):
                 h.run('a')
             self.assertEqual(h.physical,[]);self.assertEqual(h.session.budget.count,1)
             # The legacy unchanged-image helper is mocked in this harness;
             # its only capture here is the rejected key freshness frame.
             self.assertEqual(len(h.captures),1)
+            record,=list((h.session.output/'visual-private').glob('keyboard-key-sampling-*.json'))
+            sampled=json.loads(record.read_text())
+            self.assertEqual(sampled['firstMismatchAtMs'],0)
+            self.assertEqual(sampled['stopReason'],'candidate_window_expired')
 
     def test_legal_result_followed_by_nonzero_exit_never_authorizes_caller(self):
         with tempfile.TemporaryDirectory() as directory:

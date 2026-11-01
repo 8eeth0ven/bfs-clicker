@@ -101,10 +101,10 @@ for(const mode of ['click','hover'])test('same-state '+mode+' does not authorize
 
 test('a changed child path records both actual input steps and keeps them unsafe for replay',{timeout:30000},async t=>{
  const dir=temp(t),site=await inputSite(t,{onQuery:"const result=document.createElement('p');result.textContent='new result';document.body.append(result);"});
- const result=await run(settings(site,dir)),data=readRun(dir);assert.equal(result.status,'partial');assert.deepEqual(site.submissions,[expected(2)]);
+ const result=await run(settings(site,dir)),data=readRun(dir);assert.equal(result.status,'partial');assert.deepEqual(site.submissions,[expected(2),{...expected(2),events:['first','second','first','second']}]);assert.equal(result.stopReason,'max_depth');
  const child=data.cp.states.find(state=>state.path.at(-1)?.selector==='#search');assert(child);
  assert.deepEqual(child.path.map(step=>step.selector),['#first','#second','#search']);assert(child.path.every(step=>step.safeReplay===false));
- assert(data.events.some(event=>event.kind==='coverage_gap'&&event.reason==='unsafe_replay_requires_manual_state'));
+ assert.equal(data.events.filter(event=>event.kind==='action_replay').length,0);assert(child.liveOnly?.requiresLiveLease);
 });
 
 test('live preparation continuity remains correct when optional general resident-state reuse is disabled',{timeout:30000},async t=>{

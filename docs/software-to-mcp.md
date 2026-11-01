@@ -59,6 +59,20 @@ WebDriver iOS/Android 的普通可编辑控件在输入前后读取新鲜语义�
 
 例如 UI 预算 480 秒时，Python 外层时限为 490 秒；设备验收辅助代码对每个后台操作设置单一 512 秒轮询窗口，逐次扣除已用时间，进度通知不重置期限。这不是整个多操作验收脚本的总时长，也不表示其他 MCP 客户端自动采用相同等待设置。耗时能力仍返回 operationId；客户端应设置自己的有界请求/轮询期限，并在停止后等待任务实际结束。
 
+### 当前页面上的多步骤探索
+
+compiler17 在获准动作完整返回后，为新观察到的语义状态建立新的页面许可。冷启动按钮后出现的表单、普通 DOM/open shadow 中销毁重建的表单，以及通过导航策略检查的跨 URL 页面均可继续探索。closed root 的探索可在成功动作后只读检查新一代节点，再销毁旧许可；其参数化工作流仍要求同一次执行内节点稳定，探索覆盖不能当成重建流程的学习/调用通过。
+
+依赖不可重放动作的当前页面链会优先推进；其余可重放状态维持原 BFS/DFS 队列的相对顺序。因此这不是严格全局 BFS。仍显示的旧控件延后处理，只依据真实节点和完整语义比较；同名的新 Next 不继承旧身份。已有动作数、深度、状态数、时长、内存及每后端 CDP 调用预算不变。页面关闭、未知或失败动作、策略拒绝、节点或文档漂移、恢复任务失去许可时，会记录缺口并拒绝自动重放。成功状态的控件也不能证明任意隐藏 JavaScript 状态相同。
+
+### 能力通路与文本回读合同
+
+目录中的 `modality` 与 `fidelity` 由编译器根据实际绑定生成。`modality.channels` 可包含 `browser_dom`、`closed_shadow_dom`、`native_semantic`、`rendered_ocr`、`fixed_ui_actions` 或 `http_wire`。`fidelity.inputText` 描述每个受支持输入参数的回读方式和域；`fidelity.outputs` 描述输出投影。标注以成功执行时的合同为依据，不证明提供者证据的真实性，`sourceCodepointsProven` 保持 false。
+
+DOM 的 value 回显、原生提供者逐码点回报、OCR 呈现文字和 HTTP 编码各有边界。默认 ADB 文本命令没有精确回显保证；有效本地 Unicode IME 才采用对应提供者回读合同。OCR 可能折叠空格，无法由识别结果恢复原始码点。旧合同、私有配方或设备执行配置（后端、控件白名单、时限、视觉策略等）发生变化时须先 `software_refresh` 并使用新的 revision；旧生成入口不能继续执行。启动配置中的写入和学习授权仍按当前值逐次检查：撤销学习权限可保留已批准的执行权限，撤销执行权限则不能由旧配方或设备缓存重新授权。
+
+`software_sources` 的 `routeDiscovery.http.readyPreview` 有界列出同来源已就绪 HTTP 能力的 ID、revision 与 effect，完整内容仍通过 `software_capabilities({sourceId,kind:"http",offset,limit})` 分页获取。它是通路目录，既不会自动从 UI 切换到 HTTP，也不判定两者业务等价。每个调用继续受原来源、方法、凭据和写权限约束。合同变更时来源显示 `refresh_required`，不把旧通路标成当前可用。
+
 ## OpenAPI / Swagger
 
 `software_import_openapi({sourceId:"api",documentPath:"/绝对路径/openapi.yaml",documentUrl:"https://example.test/openapi.yaml"})` 支持 OpenAPI 3.0/3.1 和 Swagger 2 的 JSON/YAML 文档。先在启动配置中为该 sourceId 声明 `bindings.api.allowed_origins`；documentUrl 只用于解析相对 URL，不触发下载。
@@ -196,7 +210,7 @@ Android/iOS 后端执行替换输入、点击/滑动、断言和类型化提取�
 
 视觉合同 `schemaVersion:2` 对解码后的整张 Canvas 像素建立指纹；只遮罩同 selector、同 frame 中此前已填写并回读的输入区，结果区不作为动态遮罩。同一区域多次输入以最后一次为准；当前输入区及动作锚点不得与其他遮罩按像素重叠，点击点也不得落入遮罩。`visualClick` 必须落在当前 OCR 锚点文字框内。每个后续视觉动作前使用同一张 OCR 截图重读此前关联的输入值；检查后仍会核对画面，发生变化则拒绝动作。不同 selector 的别名不自动视为同一宿主，动态时间、动画或光标等未遮罩变化可能导致保守拒绝；画面一致也不能证明隐藏处理器语义未变。
 
-PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-16`。
+PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-17`。
 
 声明 `changedFromBefore:true` 的 DOM、ARIA 与视觉流程在最后触发动作前另取结果基线，防止输入时已更新的结果令无操作触发通过；提取后还会复核结果。该变化仍是时间上的证据：异步结果更新可能独立于触发动作，不能据此证明因果或后台业务完成。同一结果验证阶段中，同一 Canvas 的多个结果区域共享一次截图与 OCR；缓存仅限当前阶段，不跨动作或断言轮次复用。复用时固定 ElementHandle 并检查当前节点仍是同一宿主，替换则拒绝；触发前基线、触发后断言和提取后复核各自保留。
 
@@ -345,6 +359,8 @@ compiler12 新增本地显式启用的 `nativeVisualWorkflow.keyboard`，参照[
 第七轮原始界面树确认，清除指令后键盘已变为 hidden，尚未键入样本。适配器已扩展输入准备阶段的状态识别：可见时仍须精确匹配批准区域；隐藏时不增加键盘遮罩；原键盘区域中未被既有结果遮罩覆盖的像素仍须一致。初次 focus 后仍要求真实可见键盘，清除和输入不重试，也不额外聚焦；输入后始终执行一次批准的 Dismiss。此调整已通过专项和独立复核；第八轮原始界面树仍出现“visible=true 但框已在视口外”的矛盾，几何守卫拒绝后续输入，实际设备闭环仍未通过。
 
 光标例外只用于输入准备阶段，可见或隐藏状态分别采用对应的严格布局与遮罩。键盘消失后恢复原合同，重新验证完整输入、同帧结果基线与原完整 PNG SHA，再提交。只有输入与独立结果验证通过才可发布 ready；派发后失败继续 unknown/no-retry。匹配后派发仍存在非原子竞态，不声称局部等价模型与完整 SHA 具有相同保证。新策略的专项测试和设备终态分别记录在[验证摘要](software-to-mcp-validation.json)，不能由策略存在推导设备通过。
+
+compiler17 的单键新鲜度检查固定同一个完整 OCR 参考。首个完整、普通像素不匹配完成后，开启一次不重置的 2 秒追加候选启动窗，最多 6 个候选；已准入的 source→新截图→几何→source→像素核对仍受原传输与整体预算约束，不承诺 2 秒内全部完成。像素 worker 正常退出及取消检查都通过后才可接受。输入区不额外遮罩，键盘布局、目标身份、全图、caret 颜色与底色守卫保留；不重复按键、聚焦、清除或提交。私有小型时序记录仅用于诊断，不能授权后续动作。第16轮在另一次 WDA 截图 20 秒超时后终止，未通过学习或双入口；已完成的19次单键新鲜度检查均在第一候选通过，追加窗口未被该设备轮次实际触发。
 
 复现脚本为 [iOS 普通键盘设备验收](../test/ios-native-visual-keyboard-device-e2e.mjs)，无设备反例见[键盘测试](../apk_tools/tests/test_mobile_visual_ios_keyboard.py)。需准备隔离的 Appium/XCUITest、已初始化 Xcode 与可用模拟器；脚本存在不等于设备验收通过。物理设备、任意键盘/第三方 App、iOS 安装字节、隐藏输入缓冲区和业务因果仍未证明。
 

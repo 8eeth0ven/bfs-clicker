@@ -7,6 +7,7 @@ import {resetClosedShadow} from './closed-shadow.js';
 import {beginTextReceipt,isTextPreparation} from './input-prefix.js';
 export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={}) {
   config._runtime?.budget?.check();
+  if(opts.liveElement&&el.closedShadow)throw Object.assign(new Error('live_state_unavailable'),{name:'PolicyError',reason:'live_state_unavailable'});
   if(el.skipped || el.excluded)throw Object.assign(new Error(el.skipReason||'excluded_action'),{name:'PolicyError'});
   if(opts.inputReceipt&&(!isTextPreparation(el)||el.role==='combobox'&&virtualPolicyFor(config,el)))throw Object.assign(new Error('input_prefix_primitive_unsupported'),{name:'PolicyError',reason:'input_prefix_primitive_unsupported'});
   dialogs.invalidate?.();
@@ -25,7 +26,7 @@ export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={})
   let loc=locate(page,target,config);
   if(await loc.count()!==1){
     if(el.closedShadow||el.selector?.startsWith('closed::'))throw Object.assign(new Error('closed target changed'),{code:'CLOSED_SHADOW_LOCATOR_CHANGED'});
-    if(opts.inputReceipt)throw Object.assign(new Error('input_prefix_target_changed'),{name:'PolicyError',reason:'input_prefix_target_changed'});
+    if(opts.inputReceipt||opts.liveElement)throw Object.assign(new Error('input_prefix_target_changed'),{name:'PolicyError',reason:'input_prefix_target_changed'});
     const items=await collectInteractives(page,config);
     target=items.find(v=>!v.skipped&&v.label===el.label&&JSON.stringify(v.framePath)===JSON.stringify(el.framePath))||null;
     if(!target)throw new Error('找不到唯一元素: '+el.label);
@@ -33,6 +34,7 @@ export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={})
     if(await loc.count()!==1)throw new Error('重定位结果不唯一: '+el.label);
   }
   loc=await checkLiveAction(page,target,config);
+  if(opts.liveElement){if(!await loc.evaluate((node,pin)=>node===pin,opts.liveElement))throw Object.assign(new Error('live_state_unavailable'),{name:'PolicyError',reason:'live_state_unavailable'});loc=opts.liveElement;}
   if(opts.inputReceipt&&!isTextPreparation(target))throw Object.assign(new Error('input_prefix_target_changed'),{name:'PolicyError',reason:'input_prefix_target_changed'});
   const timeout=Math.max(1,Math.min(config.actionTimeoutMs||4000,config._runtime?.budget?.remainingMs??Infinity));
   if(config.formExplore && isFormAction(target))await prepareForm(page,config,log);
@@ -49,12 +51,12 @@ export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={})
     if(!config.fillText&&!config.formExplore)throw Object.assign(new Error('form_fill_disabled'),{name:'PolicyError',reason:'form_fill_disabled'});
     const value=config.formValues?.[target.selector]??fillValueFor(target,config);
     if(value==null)throw Object.assign(new Error('form_value_unavailable'),{name:'PolicyError',reason:'form_value_unavailable'});
-    if(opts.inputReceipt)receipt=await beginTextReceipt(page,target,loc,config,value);
+    if(opts.inputReceipt)receipt=await beginTextReceipt(page,target,locate(page,target,config),config,value);
     try{await loc.fill(value,{timeout});}catch(error){await receipt?.dispose();throw error;}
   }else{
     try{await loc.click({timeout});}
     catch(error){
-      if(config.jsClickFallback!==true||target.closedShadow)throw error;
+      if(config.jsClickFallback!==true||target.closedShadow||opts.liveElement)throw error;
       // JS fallback only uses the same uniquely located, newly checked element.
       loc=await checkLiveAction(page,target,config);await loc.evaluate(element=>element.click());
     }

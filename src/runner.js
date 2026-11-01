@@ -18,6 +18,8 @@ import { redact } from './redact.js';
 import { buildSiteGraph } from './graph.js';
 import { writeSiteGraph, updateGraphRun } from './graph-export.js';
 import {inputScope,isTextPreparation} from './input-prefix.js';
+import {beginLiveTransition,bindLiveState} from './browser-live-state.js';
+import {beginClosedExplorationGeneration} from './closed-shadow.js';
 
 const isPending=a=>a.status==='planned'||a.status==='running';
 const hasPending=s=>(s.interactives||[]).some(isPending);
@@ -42,7 +44,10 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
   let lastPublished=0,lastCheckpoint=0,journaledEdges=backEdges.length,actionsSinceSeed=0;
   const dirtyStates=new Map();
   const perf={stateReuses:0,replayActions:0,checkpoints:0,journalWrites:0,persistenceMs:0,fingerprints:0,fingerprintMs:0,graphMs:0};
-  let inputLease=null;
+  let inputLease=null,liveLease=null,liveNext=null;
+  const unsafePath=state=>state.path.some(step=>step.safeReplay===false||isTextPreparation(step));
+  const releaseLiveLease=async reason=>{const previous=liveLease;liveLease=null;if(previous){const state=states.get(previous.stateId);if(state?.liveOnly){state.liveOnly.outcome=reason;dirtyStates.set(state.id,state);}await previous.dispose();}};
+  const liveGap=(state,cause)=>{store.emit('coverage_gap',{reason:'live_state_unavailable',stateId:state.id,cause});throw Object.assign(new Error('live_state_unavailable'),{name:'PolicyError',reason:'live_state_unavailable'});};
   const observe=async()=>{const at=performance.now();try{return await fingerprint(page,config)}finally{perf.fingerprints++;perf.fingerprintMs+=performance.now()-at}};
   const save=(changed=[],force=false)=>{
     const at=performance.now();
@@ -82,11 +87,11 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
   };
   const newPage=async()=>{
     budget.check();if(page&&!page.isClosed())return;
-    await releaseInputLease('page_closed');
+    await releaseInputLease('page_closed');await releaseLiveLease('page_closed');
     dialogs?.dispose();residentId=null;page=await launched.context.newPage();dialogs=makeDialogs(page,config,log);
     page.setDefaultTimeout(config.actionTimeoutMs);
   };
-  const navigate=async url=>{await releaseInputLease('navigation');await newPage();residentId=null;setHint(null);dialogs.invalidate();const response=await gotoWithRetry(page,url,config,log);await dialogs.handle();await dialogs.stabilize();return response;};
+  const navigate=async url=>{await releaseInputLease('navigation');await releaseLiveLease('navigation');await newPage();residentId=null;setHint(null);dialogs.invalidate();const response=await gotoWithRetry(page,url,config,log);await dialogs.handle();await dialogs.stabilize();return response;};
   const checkAuth=async(force=false)=>{
     if(!force&&Date.now()-lastAuthCheck<config.authCheckIntervalMs)return;lastAuthCheck=Date.now();
     const result=await authenticationStatus(page,launched.context,config,store);store.emit('auth_check',{...result,url:page.url()});
@@ -94,7 +99,11 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
   };
   const actionsFor=items=>{
     const actions=[];
-    for(const item of items){
+    for(const observed of items){
+      // The DOM collector can see a value left in a post-submit input. Do not
+      // turn that private preparation into checkpoint text/action labels. Its
+      // original discovery policy decision (including skipped) remains intact.
+      const item=observed.type==='text'?{...observed,text:'',label:observed.aria||observed.associatedLabel||observed.placeholder||observed.title||observed.name||observed.tag}:observed;
       const base={...item,kind:'click'};
       if(item.type==='select'&&!item.skipped){
         const options=item.options.filter(v=>v.value!=='').slice(0,config.maxSelectOptions);
@@ -109,7 +118,15 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
   };
   const collectState=async(parent,pathSteps,depth)=>{
     budget.check();const decision=policy.navigation(page.url());if(!decision.allow){store.emit('coverage_gap',{reason:decision.reason,url:page.url()});return null;}
-    await dialogs.stabilize();const f=lastObservation=await observe();
+    await dialogs.stabilize();
+    // Inventory can perform bounded read-only waiting for a lazy ARIA mount
+    // (or validate a completed finite scan). Its returned surface, rather than
+    // an earlier pre-mount frame, is the basis for this state's one official
+    // fingerprint. A later lease mismatch still rejects; it never rebases.
+    const items=await collectInteractives(page,config);
+    await dialogs.stabilize();budget.check();
+    const afterInventory=policy.navigation(page.url());if(!afterInventory.allow){store.emit('coverage_gap',{reason:afterInventory.reason,url:page.url()});return null;}
+    const f=lastObservation=await observe();
     if(visited.has(f.fp)){
       // Equal DOM does not prove equal hidden JavaScript state. A duplicate
       // reached after a click must replay before its next action, as before.
@@ -119,7 +136,6 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
     const host=new URL(f.url).host;if(limitReached(config,'maxStatesPerHost',hosts.get(host)||0))throw new StopError('max_states_per_host');
     if(config.maxDepth!=null&&depth>config.maxDepth)throw new StopError('max_depth');
     const id=++nextId;
-    const items=await collectInteractives(page,config);
     const actions=actionsFor(items);
     if(config.exploreScroll){
       const scrollable=await page.evaluate(()=>[document.scrollingElement,...document.querySelectorAll('[data-bfs-scroll],[role="list"],[role="listbox"]')].filter(Boolean).some(v=>v.scrollHeight>v.clientHeight+10));
@@ -145,8 +161,15 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
     log(`[状态] #${id} d${depth} ${f.title||f.url} · ${actions.length} 动作`);lastProgress=Date.now();failureCount=0;save([state,...(parent?[parent]:[])]);return state;
   };
   const reach=async(state,action)=>{
+    let liveElement=null;
     const scope=inputScope(action);
     if(inputLease&&(inputLease.stateId!==state.id||inputLease.scope!==scope))await releaseInputLease('different_scope');
+    if(liveLease&&liveLease.stateId!==state.id)await releaseLiveLease('different_state');
+    if(unsafePath(state)&&(!liveLease||liveLease.stateId!==state.id))liveGap(state,'lease_lost');
+    if(liveLease?.stateId===state.id){
+      try{await dialogs.stabilize();liveElement=await liveLease.verify(action);const f=await observe();if(f.fp!==state.fp)liveGap(state,'semantic_state_changed');}
+      catch(error){await releaseLiveLease('validation_failed');if(error instanceof StopError||budget.reason)throw error;liveGap(state,'validation_failed');}
+    }
     const marker=prefixMarker(state,scope);
     if(marker){
       if(!inputLease||inputLease.page!==page||page.isClosed()||page.url()!==state.url||inputLease.stateId!==state.id)unavailablePrefix(state,marker,'lease_lost');
@@ -156,8 +179,9 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
         setHint(null);await checkAuth();
       }catch(error){await releaseInputLease('receipt_failed');if(error instanceof StopError||budget.reason)throw error;unavailablePrefix(state,marker,'receipt_failed');}
       store.emit('input_prefix_reused',{stateId:state.id,scope,actionIds:[...marker.actionIds],liveOnly:true});
-      return;
+      return {element:liveElement};
     }
+    if(liveLease?.stateId===state.id){setHint(null);await checkAuth();store.emit('live_state_reused',{stateId:state.id,liveOnly:true});return {element:liveElement};}
     // Reuse only a known resident state, after checking the complete semantic
     // fingerprint again. A matching URL alone never skips replay or live policy.
     if(config.reuseVerifiedState&&residentId===state.id&&!page.isClosed()&&page.url()===state.url&&state.path.every(step=>step.safeReplay!==false)){
@@ -199,15 +223,15 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
   };
   async function finalize() {
     if(guardedFinalized)return;guardedFinalized=true;
-    await releaseInputLease('run_ended');
+    await releaseInputLease('run_ended');await releaseLiveLease('run_ended');
     // Drain responses while context still exists, then save the latest auth state.
     if(launched){await evidence.drain();if(!manualLogin||status==='completed')await saveSession(launched.context,config,store).catch(()=>{if(status==='completed'){status='partial';stopReason='session_save_failed'}});await launched.close();await evidence.drain();}
     const finalChanges=[];
-    for(const st of states.values())for(const action of st.interactives){if(action.status==='running'){const text=isTextPreparation(action);action.status=action.closedShadow||text?'failed':'planned';action.reason=action.closedShadow?'closed_shadow_unknown_no_retry':text?'input_prefix_unknown_no_retry':'interrupted_before_commit';if(action.closedShadow||text)action.noRetry=true;if(!finalChanges.includes(st))finalChanges.push(st);}}
+    for(const st of states.values())for(const action of st.interactives){if(action.status==='running'){const text=isTextPreparation(action),live=action.liveOnlyAttempt===true;action.status=action.closedShadow||text||live?'failed':'planned';action.reason=action.closedShadow?'closed_shadow_unknown_no_retry':text?'input_prefix_unknown_no_retry':live?'live_state_unknown_no_retry':'interrupted_before_commit';if(action.closedShadow||text||live)action.noRetry=true;if(!finalChanges.includes(st))finalChanges.push(st);}}
     const pending={states:[...states.values()].filter(hasPending).length,actions:[...states.values()].reduce((n,s)=>n+s.interactives.filter(isPending).length,0),failed:[...states.values()].reduce((n,s)=>n+s.interactives.filter(a=>a.status==='failed').length,0),seeds:[...evidence.seeds].filter(u=>!seedsVisited.has(u)).length};
     pending.bootstrap=states.size?0:1;
     if(status==='running'){status=pending.actions||pending.failed||pending.seeds?'partial':'completed';stopReason=status==='completed'?'frontier_exhausted':pending.failed?'failed_actions':'pending_actions';}
-    if(status==='completed'&&[...gaps.values()].some(g=>['replay_state_changed','unsafe_replay_requires_manual_state','input_prefix_unavailable','evidence_drain_timeout','seed_http_error','seed_navigation_failed'].includes(g.reason))){status='partial';stopReason='unresolved_coverage_errors';}
+    if(status==='completed'&&[...gaps.values()].some(g=>['replay_state_changed','unsafe_replay_requires_manual_state','input_prefix_unavailable','live_state_unavailable','evidence_drain_timeout','seed_http_error','seed_navigation_failed'].includes(g.reason))){status='partial';stopReason='unresolved_coverage_errors';}
     store.emit('run_finalized',{status,stopReason,pending});
     // Export failures must surface as structured results, never as a stuck "running".
     let harEntries=0,exportFailed=null;
@@ -263,6 +287,7 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
   try {
     if(resume&&existsSync(path.join(store.dir,'STOP'))){rmSync(path.join(store.dir,'STOP'));store.emit('resume_stop_cleared');}
     if(resume)for(const state of states.values())for(const action of state.interactives){
+      if((action.safeReplay===false||unsafePath(state)||action.liveOnlyAttempt===true)&&(action.attempts||0)>0&&action.status!=='succeeded'){action.status='failed';action.reason='live_state_unknown_no_retry';action.noRetry=true;dirtyStates.set(state.id,state);}
       if(!isTextPreparation(action)||!(action.attempts>0))continue;
       const marker=prefixMarker(state,inputScope(action),true);if(!marker.actionIds.includes(action.id))marker.actionIds.push(action.id);marker.outcome='resume_has_no_live_lease';
       if(action.status!=='succeeded'){action.status='failed';action.reason='input_prefix_unknown_no_retry';action.noRetry=true;}
@@ -323,23 +348,27 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
       budget.check();
       if(config.maxDurationMs!=null&&Date.now()-lastProgress>Math.min(config.maxDurationMs,60000)){throw new StopError('no_progress');}
       if(!frontier.length){const seed=[...evidence.seeds].find(u=>!seedsVisited.has(u));await seedVisit(seed);continue;}
-      const id=config.order==='dfs'?frontier.pop():frontier.shift();const state=states.get(id);if(!state)continue;
+      const id=liveNext??(config.order==='dfs'?frontier.pop():frontier.shift());if(liveNext!==null){frontier=frontier.filter(value=>value!==liveNext);liveNext=null;}const state=states.get(id);if(!state)continue;
       if(!hasPending(state)){state.expanded=true;dirtyStates.set(state.id,state);continue;}
       if(limitReached(config,'maxDepth',state.depth)){depthClipped=true;continue;}
       if(limitReached(config,'maxStates',states.size))throw new StopError('max_states');
-      for(const action of state.interactives){
+      // Observe newly available work before revisiting the still-visible
+      // controls that survived its incoming primitive. Ordinary frontier order is unchanged.
+      const orderedActions=liveLease?.stateId===state.id?[...state.interactives.filter(action=>!liveLease.deferred.has(action.id)),...state.interactives.filter(action=>liveLease.deferred.has(action.id))]:state.interactives;
+      for(const action of orderedActions){
         if(!isPending(action))continue;budget.check();
         if(actionsSinceSeed>=config.seedInterleaveActions){
           const seed=[...evidence.seeds].find(u=>!seedsVisited.has(u));
           if(seed){await seedVisit(seed);actionsSinceSeed=0;}
         }
         if(limitReached(config,'maxStates',states.size))throw new StopError('max_states');
-        if(state.path.some(p=>p.safeReplay===false||isTextPreparation(p))){action.status='skipped';action.reason='unsafe_replay_requires_manual_state';dirtyStates.set(state.id,state);store.emit('coverage_gap',{reason:action.reason,stateId:state.id});continue;}
-        let receipt,attemptedHere=false;
+        if(unsafePath(state)&&liveLease?.stateId!==state.id){action.status='skipped';action.reason='unsafe_replay_requires_manual_state';dirtyStates.set(state.id,state);store.emit('coverage_gap',{reason:action.reason,stateId:state.id});continue;}
+        let receipt,transition,post,generation,attemptedHere=false,yieldLive=false;
         try{
-          await reach(state,action);
+          const reached=await reach(state,action);
           if(isTextPreparation(action)&&(inputLease?.receipts.length||0)>=32)throw Object.assign(new Error('input_prefix_limit'),{name:'PolicyError'});
-          budget.action();setHint(action,state.id);action.status='running';action.attempts++;attemptedHere=true;
+          transition=await beginLiveTransition(page,action,config,{...reached,priorActions:action.safeReplay===false||unsafePath(state)?state.interactives:[]});
+          budget.action();setHint(action,state.id);action.status='running';action.attempts++;action.liveOnlyAttempt=unsafePath(state)||action.safeReplay===false;attemptedHere=true;
           const textPreparation=isTextPreparation(action),scope=inputScope(action),prefixSteps=inputLease?[...inputLease.steps]:[];
           if(textPreparation){const marker=prefixMarker(state,scope,true);if(!marker.actionIds.includes(action.id))marker.actionIds.push(action.id);marker.outcome='dispatched';}
           save([state]);
@@ -348,37 +377,52 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
           // Any attempted action can mutate hidden state, including one rejected
           // by a dialog or request guard. Only a newly collected state re-arms reuse.
           residentId=null;
-          receipt=await clickElement(page,dialogs,action,config,log,{inputReceipt:textPreparation});
+          receipt=await clickElement(page,dialogs,action,config,log,{inputReceipt:textPreparation,liveElement:transition.element});
           if(textPreparation&&!receipt)throw Object.assign(new Error('input_prefix_receipt_missing'),{name:'PolicyError',reason:'input_prefix_receipt_missing'});
-          await checkAuth(true);
+          post=await transition.finish();await checkAuth(true);
           if(config._runtime.dialogRejected){action.status='skipped';action.reason='native_confirmation_rejected';}
           else if(config._runtime.blockedRequests.some(r=>r.navigation||['unsafe_endpoint','unapproved_write_method','graphql_operation_not_read_query'].includes(r.reason))){action.status='skipped';action.reason='request_policy_blocked';}
           else{
             const d=policy.navigation(page.url());if(!d.allow){action.status='skipped';action.reason=d.reason;}
             else{
               const step={...action,fromStateId:state.id,status:undefined,evidenceId:undefined};
+              // A completed primitive may establish a NEW observed generation.
+              // Old preparations and control pins cannot cross that boundary.
+              if(!textPreparation){await releaseInputLease('primitive_completed');await releaseLiveLease('primitive_completed');generation=await beginClosedExplorationGeneration(page,config);}
+              await post.guard.verify();
               const child=await collectState(state,[...state.path,...prefixSteps,step],state.depth+1);
+              await post.guard.verify();
+              if(child?.id&&unsafePath(child)&&hasPending(child)){
+                await releaseInputLease('new_state');await releaseLiveLease('new_state');
+                const lease=await bindLiveState(page,child,config,post);
+                try{if((await observe()).fp!==child.fp)throw Object.assign(new Error('live_state_unavailable'),{name:'PolicyError'});await lease.verify();await generation?.commit();}
+                catch(error){await lease.dispose();throw error;}
+                liveLease=lease;post=null;child.liveOnly={schemaVersion:1,parentId:state.id,actionId:action.id,outcome:'resident',requiresLiveLease:true};
+                liveNext=child.id;yieldLive=true;
+              }
               if(child?.id)frontier.push(child.id);else if(child?.dup){backEdges.push({from:state.id,to:child.dup,actionId:action.id,executionId:action.evidenceId,label:action.label,url:child.url});store.emit('state_merged',{stateId:state.id,actionId:action.id,executionId:action.evidenceId,into:child.dup,reason:'same_semantic_fingerprint'});}
               action.status='succeeded';action.reason=lastObservation?.fp===state.fp?'triggered_without_new_state':'triggered_state_change';state.processed.push(action.id);
               if(receipt&&child?.dup===state.id){
                 if(!inputLease)inputLease={stateId:state.id,scope,page,receipts:[],steps:[]};
-                inputLease.receipts.push(receipt);inputLease.steps.push(step);receipt=null;
-                prefixMarker(state,scope).outcome='live_only';
+                inputLease.receipts.push(receipt);inputLease.steps.push(step);
+                prefixMarker(state,scope).outcome='live_only';if(liveLease?.stateId===state.id)await liveLease.refreshText(action,receipt);receipt=null;
               }else{await releaseInputLease('consumed_or_state_changed');if(receipt)prefixMarker(state,scope).outcome='changed_state_not_replayable';}
             }
           }
-          if(action.status!=='succeeded'){await releaseInputLease('action_rejected');if(textPreparation)store.emit('coverage_gap',{reason:'input_prefix_unavailable',stateId:state.id,scope,cause:'preparation_rejected'});}
+          if(action.status!=='succeeded'){await releaseLiveLease('action_rejected');await releaseInputLease('action_rejected');if(textPreparation)store.emit('coverage_gap',{reason:'input_prefix_unavailable',stateId:state.id,scope,cause:'preparation_rejected'});}
           store.emit('action_finished',{stateId:state.id,actionId:action.id,executionId:action.evidenceId,status:action.status,reason:action.reason,url:page.url()});failureCount=0;lastProgress=Date.now();actionsSinceSeed++;save([state]);
         }catch(error){
           residentId=null;
-          await releaseInputLease('action_failed');
+          await releaseLiveLease('action_failed');await releaseInputLease('action_failed');
+          if(attemptedHere&&(action.safeReplay===false||unsafePath(state))){action.noRetry=true;store.emit('coverage_gap',{reason:'live_state_unavailable',stateId:state.id,cause:'unknown_action_outcome'});}
           if(attemptedHere&&isTextPreparation(action)){action.noRetry=true;const marker=prefixMarker(state,inputScope(action),true);marker.outcome='unknown_no_retry';store.emit('coverage_gap',{reason:'input_prefix_unavailable',stateId:state.id,scope:marker.scope,cause:'preparation_failed'});}
-          if(error instanceof StopError||budget.reason){const text=isTextPreparation(action)&&attemptedHere;action.status=action.closedShadow||text?'failed':'planned';action.reason=action.closedShadow?'closed_shadow_unknown_no_retry':text?'input_prefix_unknown_no_retry':'interrupted';if(action.closedShadow||text)action.noRetry=true;dirtyStates.set(state.id,state);throw error;}
+          if(error instanceof StopError||budget.reason){const text=isTextPreparation(action)&&attemptedHere,unknown=attemptedHere&&(action.safeReplay===false||unsafePath(state));action.status=action.closedShadow||text||unknown?'failed':'planned';action.reason=action.closedShadow?'closed_shadow_unknown_no_retry':text?'input_prefix_unknown_no_retry':'interrupted';if(action.closedShadow||text||unknown)action.noRetry=true;dirtyStates.set(state.id,state);throw error;}
           if(error.name==='PolicyError'){action.status='skipped';action.reason=error.reason||error.message;}
           else{action.status='failed';action.reason=String(error.message||error).slice(0,800);if(action.closedShadow)action.noRetry=true;state.failed.push({selector:action.selector,message:action.reason});failureCount++;}
           store.emit('action_finished',{stateId:state.id,actionId:action.id,executionId:action.evidenceId,status:action.status,reason:action.reason});actionsSinceSeed++;save([state]);
           if((config.circuitBreakerMax??5)>0&&failureCount>=(config.circuitBreakerMax??5))throw new StopError('consecutive_failures','partial');
-        }finally{await receipt?.dispose();setHint(null);}
+        }finally{await receipt?.dispose();await post?.guard.dispose();await generation?.dispose();await transition?.dispose();setHint(null);}
+        if(yieldLive){if(hasPending(state)&&!frontier.includes(state.id))frontier.push(state.id);break;}
       }
       state.expanded=!hasPending(state);save([state]);
     }

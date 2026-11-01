@@ -24,7 +24,32 @@ export function closedTarget(target,config){
 export const closedKey=target=>target.closedShadow?JSON.stringify(target.closedShadow):null;
 export function closedDescriptor(policy,selector){return{selector:closedSelector(policy.id,selector),framePath:[],closedShadow:{schemaVersion:1,policyId:policy.id,hosts:[...policy.hosts],selector}}}
 export function bindClosedShadow(page,config){bindings.set(page,config)}
-export async function resetClosedShadow(page){const previous=backends.get(page);if(previous){try{const b=await boundedCleanup(previous);b.dead=true;await boundedCleanup(b.session.detach());backends.delete(page)}catch{fail('CLOSED_SHADOW_CLEANUP_FAILED')}}}
+export async function resetClosedShadow(page){const previous=backends.get(page);if(previous){try{const b=await boundedCleanup(previous);if(b.explorationCleanupFailed)fail('CLOSED_SHADOW_CLEANUP_FAILED');b.dead=true;await boundedCleanup(b.session.detach());backends.delete(page)}catch{fail('CLOSED_SHADOW_CLEANUP_FAILED')}}}
+
+// Only the explorer calls this after a fully returned primitive. The candidate
+// can read a new semantic generation but cannot dispatch UI. Workflows retain
+// their original lifetime pins and never implicitly reset a rebuilt target.
+export async function beginClosedExplorationGeneration(page,config){
+ if(!config.closedShadowRoots?.length)return {async commit(){},async dispose(){}};
+ checkAction(config);
+ const previous=backends.get(page),old=previous?await previous:null;
+ backends.delete(page);let candidate,done=false;
+ try{if(old?.dead)fail('CLOSED_SHADOW_GENERATION_EXPIRED');candidate=await backend(page,config);candidate.readOnly=true;}
+ catch(error){if(previous)backends.set(page,previous);throw error;}
+ const poison=()=>{candidate.dead=true;candidate.explorationCleanupFailed=true;if(old){old.dead=true;old.explorationCleanupFailed=true;}backends.set(page,previous||Promise.resolve(candidate));};
+ return {async commit(){
+  if(done)fail('CLOSED_SHADOW_GENERATION_EXPIRED');checkAction(config);
+  if(old){old.dead=true;try{await boundedCleanup(old.session.detach())}catch{poison();await boundedCleanup(candidate.session.detach()).catch(()=>{});done=true;fail('CLOSED_SHADOW_CLEANUP_FAILED')}}
+  candidate.readOnly=false;done=true;
+  config._runtime?.emit?.('closed_shadow_exploration_generation',{previousCalls:old?.calls||0,candidateCalls:candidate.calls,callLimit:4096});
+ },async dispose(){
+  if(done)return;done=true;candidate.dead=true;
+  // Failed read-only observations still consume the original CDP call budget.
+  if(old)old.calls+=candidate.calls;
+  try{await boundedCleanup(candidate.session.detach())}catch{poison();fail('CLOSED_SHADOW_CLEANUP_FAILED')}
+  if(previous)backends.set(page,previous);else backends.delete(page);
+ }};
+}
 
 // Fixed DOM semantics exclude mutable input values and result text. All reads
 // execute on isolated-world wrappers, not page-modifiable DOM prototypes.
@@ -87,7 +112,7 @@ class Backend{
 async function backend(page,config){checkAction(config);if(!backends.has(page)){let expired=false,timer;const pending=page.context().newCDPSession(page),timeout=Math.max(1,Math.min(actionTimeout(config),config?._closedAction?config._closedAction.deadline-Date.now():Infinity));
  const result=Promise.race([pending.then(session=>new Backend(page,session)),new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(Object.assign(new Error('closed backend timeout'),{code:'CLOSED_SHADOW_TIMEOUT'}))},timeout)})]).finally(()=>clearTimeout(timer));
  pending.then(session=>{if(expired)boundedCleanup(session.detach()).catch(()=>{})}).catch(()=>{});backends.set(page,result);
- }let timer;try{const pending=backends.get(page),timeout=config?._closedAction?Math.max(1,config._closedAction.deadline-Date.now()):actionTimeout(config);const value=await Promise.race([pending,new Promise((_,reject)=>{timer=setTimeout(()=>{pending.then(b=>{b.dead=true;boundedCleanup(b.session.detach()).catch(()=>{})}).catch(()=>{});reject(Object.assign(new Error('closed backend deadline'),{code:'CLOSED_SHADOW_TIMEOUT'}))},timeout)})]);checkAction(config);return value}finally{clearTimeout(timer)}}
+ }let timer;try{const pending=backends.get(page),timeout=config?._closedAction?Math.max(1,config._closedAction.deadline-Date.now()):actionTimeout(config);const value=await Promise.race([pending,new Promise((_,reject)=>{timer=setTimeout(()=>{pending.then(b=>{b.dead=true;boundedCleanup(b.session.detach()).catch(()=>{})}).catch(()=>{});reject(Object.assign(new Error('closed backend deadline'),{code:'CLOSED_SHADOW_TIMEOUT'}))},timeout)})]);checkAction(config);if(value.explorationCleanupFailed)fail('CLOSED_SHADOW_CLEANUP_FAILED');return value}finally{clearTimeout(timer)}}
 export class ClosedLocator{
  constructor(page,target,config){this.page=page;this.target=target;this.config=config||bindings.get(page);closedTarget(target,this.config);}
  async use(fn,options){const config=options?{...this.config,_closedAction:{deadline:Math.min(Date.now()+actionTimeout(this.config,options),this.config._closedAction?.deadline??Infinity),expired:false}}:this.config;const b=await backend(this.page,config);return b.scope(this.target,config,(ref,group)=>fn(b,ref,group,config));}
@@ -100,7 +125,7 @@ export class ClosedLocator{
  async getAttribute(name,options){return this.evaluate((e,name)=>e.getAttribute(name)?.slice(0,4096)??null,name,options)}
  async ui(fn,options){
   const action={deadline:Date.now()+actionTimeout(this.config,options),expired:false},local=new ClosedLocator(this.page,this.target,{...this.config,_closedAction:action});let timer;
-  try{return await Promise.race([Promise.resolve().then(()=>fn(local)),new Promise((_,reject)=>{timer=setTimeout(()=>{action.expired=true;const pending=backends.get(this.page);pending?.then(b=>{b.dead=true}).catch(()=>{});boundedCleanup(this.page.close({runBeforeUnload:false})).catch(()=>{});reject(Object.assign(new Error('closed action timeout'),{code:'CLOSED_SHADOW_TIMEOUT'}))},Math.max(1,action.deadline-Date.now()))})]);}
+  try{return await Promise.race([Promise.resolve().then(async()=>{if((await backend(this.page,local.config)).readOnly)fail('CLOSED_SHADOW_READ_ONLY_GENERATION');return fn(local)}),new Promise((_,reject)=>{timer=setTimeout(()=>{action.expired=true;const pending=backends.get(this.page);pending?.then(b=>{b.dead=true}).catch(()=>{});boundedCleanup(this.page.close({runBeforeUnload:false})).catch(()=>{});reject(Object.assign(new Error('closed action timeout'),{code:'CLOSED_SHADOW_TIMEOUT'}))},Math.max(1,action.deadline-Date.now()))})]);}
   catch(error){if(error.code==='CLOSED_SHADOW_TIMEOUT'){action.expired=true;backends.get(this.page)?.then(b=>{b.dead=true}).catch(()=>{});boundedCleanup(this.page.close({runBeforeUnload:false})).catch(()=>{});}throw error}
   finally{clearTimeout(timer);action.expired=true;}
  }
@@ -129,6 +154,18 @@ export class ClosedLocator{
  }
 }
 export const closedLocator=(page,target,config)=>new ClosedLocator(page,target,config);
+
+// Internal exploration comparison. Node ids never enter descriptors/events.
+// Unlike identity(), the private closure distinguishes two generations that
+// happen to reuse the same CSS selector and label.
+export async function closedExplorationIdentity(page,target,config){
+ const locator=closedLocator(page,target,config);
+ return locator.use((backend,ref)=>{
+  if(ref?.count!==1)fail('CLOSED_SHADOW_LOCATOR_CHANGED');
+  const document=backend.doc,id=ref.backendNodeId,chain=JSON.stringify(ref.lease.chain),semantic=JSON.stringify(ref.semantic);
+  return next=>closedLocator(page,next,config).use((current,value)=>!!value&&value.count===1&&current.doc===document&&value.backendNodeId===id&&JSON.stringify(value.lease.chain)===chain&&JSON.stringify(value.semantic)===semantic);
+ });
+}
 
 export async function collectClosedInteractives(page,config,selector){
  if(!config.closedShadowRoots?.length)return[];bindClosedShadow(page,config);const result=[];

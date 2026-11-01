@@ -1,12 +1,48 @@
 # 软件转 MCP：能力与验证范围
 
-统一服务提供 28 个工具：12 个 Web 探索/图工具，以及 16 个来源发现、规划、绑定、执行、观察、验证、生成和任务管理工具。生成入口包含具名工具、分页能力目录、通用调用与任务查询。`ready` 表示某个来源通过受支持契约和样本验证，不表示任意网站或 App 的全部业务已经覆盖。
+统一服务保留28个工具。`ready`指某个有限来源通过受支持契约及真实样本验证，不表示任意网站或App的所有业务已覆盖。本记录面向`software-to-mcp-17`的[草稿PR检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)，主分支未合并、npm未发布；[compiler16检查点9454aee](https://github.com/8eeth0ven/bfs-clicker/commit/9454aee8c515db26cd6e78f98a6d745c6c699a7d)是历史参考。实际最终提交、精确归档及隐私审核由PR/交付记录核验，不在文档内自嵌未来commit或tar哈希。
 
-本记录采用 `software-to-mcp-16` 的[草稿 PR 检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)分发范围，主分支未合并、npm 未发布；[compiler15 检查点 6f5ce05](https://github.com/8eeth0ven/bfs-clicker/commit/6f5ce059b25298de69b60c0bcd23456dadee5dff)作为历史参考。当前完整回归和独立生产包 SDK 基线已通过；最终 index/tar 文档投影和内容隐私在每次提交前单独复核，实际新提交由 PR 与交付记录核验。
+机器可读状态见[公开验证摘要](software-to-mcp-validation.json)，配置见[统一入口指南](software-to-mcp.md)。本页只投影核实过的公开计数与范围，不包含本机路径、设备/会话标识、原截图或模型。未终态的数据保持待定；交叠专项和不同源码cohort不相加。
 
-机器可读状态见[公开验证摘要](software-to-mcp-validation.json)，使用与配置见[统一入口指南](software-to-mcp.md)。不同来源、版本、重复回归和交叠专项不相加。原始截图、设备标识、会话、模型与个人路径留在私有证据中，公开复现以仓库测试、配置和明确适用范围为入口。
+## compiler17 当前证据
 
-## compiler16 当前证据与待验范围
+| 项目 | 已取得证据或待项 | 范围 |
+| --- | --- | --- |
+| 主项目回归 | 239/239，0失败/跳过 | 修复后119runtime/429公开代码冻结；结束逐SHA复核 |
+| 完整软件回归 | 420/420，0失败/跳过 | 使用postfix新终态；原419=417通过/2失败保留为历史 |
+| Python完整回归 | 549项：548通过、1个Hermes编译样本跳过；126.643秒 | 71份Python/相关producer源前后同；实际签名APK夹具；不是设备验收 |
+| 多状态live探索 | 正式inventory/fp修正后38/38，兼容54/54；独立5项纯VM检查分列 | 单page live链，普通frontier相对次序保留；unsafe path不重放；早期101与49属于各自旧源码cohort |
+| 执行通路与文本契约目录 | 早期producer12与独立helper9交叠；权限收口后15/15（13 metadata+原native-write2） | 成功执行合同，不是原始业务/隐藏App缓冲区真值；学习与执行写权限仍分离 |
+| 按键前有限只读采样 | 最终206/206已含原200；独立4项异常优先级mock分列 | 最多6完整候选/12次source/6次capture，原OCR reference固定；没有增加UI重试或mask权限 |
+| 普通iOS第16轮 | 截图provider500、20000ms超时，`WEBDRIVER_COMMAND_FAILED` | 19条已完成采样都用首候选，未实际触发额外窗口；旧493源/meta1、无新live；六清理已核，未通过MCP |
+| 普通iOS第17轮 | 在MCP前的owned-fixture键盘包络校准以 `CALIBRATION_UNRELATED_PIXELS_CHANGED` 终态失败；setup聚焦1次/HTTP200，探索与学习均未开始，MCP按键/指针及业务提交0 | 27.0/兼容设备类型、fresh WDA；496复制源/32dist与当前119/429代码相符；实际fresh WDA库minOS27.0/SDK27.1、无cache；host依赖共享、不hermetic |
+| 独立生产包与SDK | 363文件/32dist，官方SDK28工具、stderr0；独立安装DOM/open两表单与provider/HTTP正链通过 | 实际SDK基线之后，仅两份验证文档可作批准投影；最终index/tar与完整内容隐私仍须提交前实际检查 |
+
+第17轮的1次校准聚焦直接进入Appium，绕过只记录settings的透明proxy；不能用proxy指针0来声称总UI动作0。键面与视觉外壳边界未满足现有校准合同。该轮在MCP发现/学习之前即停止，ready、两样本及双入口均未完成；六清理、fresh进程/端口/owned模拟器退出、旧设备ID保留与496源bytes复核通过。此结论不推断像素变化的身份，也不把本轮当作采样/MCP恢复通过。
+
+多状态探索能在许可primitive完整返回后，沿当前实际观察到的新表单/新document继续；每次仍核scope/auth、正式semantic fp、真实节点/owner/值和新鲜度。lost lease、恢复、未知结果、非预期导航或原地身份漂移不会靠重播unsafe动作恢复。新输入descriptor不直接复制input.value派生的text/label，receipt值/摘要与handles留在闭包；这不扩大成整个私有配置、页面输出或API账本没有业务数据。
+
+本轮另外核验只清理已被替代安装的可重建依赖：逻辑估算45,936,135字节、allocated估算57,745,408字节，754份保护文件不变，原件/模型/源码删除0。旧48目录清理保留为下方历史，不相加成物理释放总数；APFS与系统并发使df增量不能全部归因于本次清理。
+
+普通DOM/open的真实SDK夹具从原根入口Start进入两张销毁重建的表单，探索1次业务请求，学习2次，统一与生成入口各1次，每fixture共5次。另一个lazy ARIA夹具探索只open1次、业务query0，之后学习/统一/生成共4次业务query；不能把两种夹具的探索当学习样本。inventory完成有界延迟挂载/有限scan回读后才形成一次正式fp；不是lease失败后的反复rebase。仍可点击的控件可能在不同semantic state继续探索，0 replay并不承诺全站只submit一次。
+
+closed新generation仅限探索在完整成功动作后的全新已验证state；现有closed MCP workflow仍要求整次执行的host/target稳定，不把重建closed wizard宣传成已学习双入口。已有字体/像素/遮挡、source与scope守卫不放宽。
+
+目录中的modality/fidelity由真实执行adapter及完整recipe/可信配置绑定，DOM/provider/HTTP/OCR分别说明。所有输出的sourceCodepointsProven仍为false；已知通路不会提升candidate readiness。同来源HTTP只提供最多8条ready预览及分页，由调用者明确选择，无自动fallback，不断言与UI业务等价。改变实际backend/limits/allowlist/visual策略仍需刷新，撤学习授权不撤已保留的执行授权，撤执行授权仍在provider调用前拒绝。
+
+按键采样的2秒是首个完整K/global/caret不等价之后的额外候选启动窗，不是整个函数耗时保证；已准入pair仍受原总预算。6候选上限、原reference、颜色/形状/underlay/input/结果守卫都保留。诊断写失败不能替代已有取消/transport等错误，原本要接受但首写失败仍拒绝；诊断trace本身不授权UI。第16轮没有进入额外采样窗口，不能以其19条首候选记录宣称新恢复分支已真机通过。
+
+## 复现与发布范围
+
+直接入口见[多状态探索](../test/browser-live-state.test.mjs)、[多表单官方SDK](../test/software-live-state-workflow.test.mjs)、[lazy ARIA原回归](../test/software-lazy-aria.test.mjs)、[目录与契约SDK](../test/software-capability-fidelity.test.mjs)、[独立写权限](../test/software-native-write.test.mjs)和[有限按键采样](../apk_tools/tests/test_mobile_visual_ios_key_sampling.py)。完整命令为`npm test`、`npm run test:software`、`npm run test:python`。缺少私有历史XML/PNG的环境还可能跳过归档回放；跳过不算通过。
+
+中文空格OCR、字段分区误接受、普通UIKit历史失败、物理设备与任意App兼容性仍按下方历史与research-only边界保留。新的通路标签、更多采样机会或API入口不会自动解决这些问题。10GiB保留是本任务运维门槛，不是产品自动清理或对系统并发写入的硬保证。
+
+## compiler16及更早版本：原记录作为历史保留
+
+以下计数、失败、设备cohort与包记录均保留其当时源码范围，不能移作compiler17通过项。历史“当前”措辞只指当时检查点；机器摘要中的原current块完整移入`previousCompiler16`，其余更早历史不覆盖。
+
+## compiler16 历史证据与待验范围
 
 | 项目 | 已取得证据 | 适用范围与限制 |
 | --- | --- | --- |
@@ -21,7 +57,7 @@
 
 新输入receipt的marker和事件不持久化原值或值摘要；值/摘要及DOM handles仅在闭包中。这个结论不扩展成整个私有checkpoint、配置和API账本全无输入原文。跨frame/root/form或搜索组的许可不通用转移，重载、切换范围、非文本动作、owner/submitter或回显漂移会使许可失效；相同DOM指纹不能证明任意隐藏JavaScript状态相同。
 
-## 普通iOS第15轮：仍未完成两样本与双入口
+## compiler16 普通iOS第15轮历史失败
 
 实际以`VISUAL_FRAME_CHANGED`终态失败，非transport/global timeout。执行38个键盘按键与4个外部指针动作，共42动作；外部顺序为Focus→Dismiss→submit→Focus。首个alpha样本包含16次固定delete、alpha5键、一次Dismiss与一次业务submit，OCR结果为`RESULT alpha 1`，已进入第二样本，证明首个单样本函数完整返回。第二样本执行16次delete与b1键后，在e派发前被新鲜度守卫拒绝；没有第二次Dismiss/submit、ready或recipe，统一gamma及生成Ab7z均未到达。
 
@@ -67,7 +103,7 @@ closed select/check/ARIA/visual/table、跨frame、未知nested/UA root、不支
 
 独立生产安装使用根锁文件执行 `npm ci --omit=dev --ignore-scripts --no-audit --no-fund --prefer-offline`，未借用源码工作区配置。SDK基线包包含closed-shadow、像素任务、预算/Python桥和两项新配置示例，排除experiments与旧生产字段分区模块；五个公开凭据模板保持原批准哈希。打包时357份源文件逐字节一致，不代表文档更新后的最终tar已复核。每次提交前须验证实际暂存index与精确tar：仅两份验证文档可相对SDK基线发生批准投影，其他打包文件及runtime应逐字节保持一致，并完成全内容隐私审核。
 
-## 本轮存储边界
+## 历史任务存储审计与清理边界
 
 本任务保守保留10GiB可用空间。重build、依赖安装、模型/SDK下载或大复制前，应校验“可用空间−计划写出量≥10GiB”；本轮已有任务级预检并留本地记录。这是运行者的运维约束，不是产品runtime自动删除或全系统存储保证。
 

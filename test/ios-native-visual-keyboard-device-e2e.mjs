@@ -53,6 +53,7 @@ async function until(fn,label,timeout=180000){const deadline=Date.now()+timeout;
 async function portFree(port){return new Promise(resolve=>{const server=createNetServer();server.once('error',()=>resolve(false));server.listen(port,'127.0.0.1',()=>server.close(()=>resolve(true)))})}
 async function choosePort(start){while(!await portFree(start))start++;return start}
 async function httpJson(method,route,body,{timeout=180000,allowError=false,port=appiumPort}={}){
+ if(method==='POST')record.lastOperationObservation=null;
  const raw=body===undefined?undefined:JSON.stringify(body);
  const response=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>request.destroy(Object.assign(new Error('HTTP_RESPONSE_TIMEOUT'),{code:'HTTP_RESPONSE_TIMEOUT'})),timeout);const request=httpRequest({hostname:'127.0.0.1',port,path:route,method,headers:{'content-type':'application/json',...(raw===undefined?{}:{'content-length':Buffer.byteLength(raw)})}},reply=>{let chunks=[],size=0;reply.on('data',chunk=>{size+=chunk.length;if(size>8*1024*1024)request.destroy(new Error('HTTP_RESPONSE_LIMIT'));else chunks.push(chunk)});reply.on('end',()=>{clearTimeout(timer);resolve({status:reply.statusCode,text:Buffer.concat(chunks).toString()})});reply.on('error',error=>{clearTimeout(timer);reject(error)})});request.on('error',error=>{clearTimeout(timer);reject(error)});request.end(raw)});
  const text=response.text;let value;try{value=JSON.parse(text)}catch{throw Error('Non-JSON actual Appium reply: '+text.slice(0,500))}if(!allowError&&(response.status<200||response.status>=300||value.value?.error))throw Error('Actual Appium '+method+' '+route+' ('+response.status+'): '+text.slice(0,3000));return {status:response.status,...value};
@@ -113,6 +114,7 @@ async function checkCleanup(){
 }
 const driver = path.join(project, 'test', 'ios-visual-text-inspect.py');
 async function moduleOperation(operation,label,extra=[],timeout=nativeBudget.timeoutMs){
+ record.lastOperationObservation=null;
  const target=path.join(output,label),args=[driver,'--operation',operation,'--config',path.join(output,'device.json'),'--output',target,...extra];
  let result;try{result=await runPython({python},args,{timeoutMs:timeout,cleanupGraceMs:nativeBudget.cleanupGraceMs,signal:commandAbort.signal});}catch(error){await appendFile(path.join(output,'host-commands.jsonl'),JSON.stringify({at:new Date().toISOString(),exe:python,args,error:String(error.message),timeoutMs:timeout,cleanupGraceMs:nativeBudget.cleanupGraceMs})+'\n');throw error;}
  await appendFile(path.join(output,'host-commands.jsonl'),JSON.stringify({at:new Date().toISOString(),exe:python,args,code:0,stderr:result.stderr.slice(-4000),timeoutMs:timeout,cleanupGraceMs:nativeBudget.cleanupGraceMs})+'\n');
@@ -120,6 +122,7 @@ async function moduleOperation(operation,label,extra=[],timeout=nativeBudget.tim
 }
 const content=reply=>reply.structuredContent??JSON.parse(reply.content.find(item=>item.type==='text').text);
 async function call(c,name,args={},requestOptions=nativeMcpRequestOptions(nativeBudget)){
+ record.lastOperationObservation=null;
  const reply=await c.callTool({name,arguments:args},{...requestOptions,signal:commandAbort.signal});assert.ok(!reply.isError,JSON.stringify(reply));return content(reply);
 }
 async function connect(entry,args=[]){
@@ -128,7 +131,10 @@ async function connect(entry,args=[]){
  const c=new Client({name:'bfs-real-ios-text',version:'1'});await c.connect(transport);return c;
 }
 async function operation(c,started,statusTool='software_operation'){
- let last=0;return waitNativeOperation(options=>call(c,statusTool,{operationId:started.operationId},options),nativeBudget,{signal:commandAbort.signal,onPending(){if(Date.now()-last>15000){log('waiting',{for:'MCP '+started.operationId});last=Date.now();}}});
+ record.lastOperationObservation=null;
+ let last=0;const result=await waitNativeOperation(options=>call(c,statusTool,{operationId:started.operationId},options),nativeBudget,{signal:commandAbort.signal,onPending(){if(Date.now()-last>15000){log('waiting',{for:'MCP '+started.operationId});last=Date.now();}}});
+ record.lastOperationObservation={operationId:started.operationId,status:result.status,active:result.active,at:new Date().toISOString()};
+ return result;
 }
 async function completed(c,started,statusTool='software_operation'){
  const value=await operation(c,started,statusTool);assert.equal(value.status,'completed',JSON.stringify(value));return value;
@@ -439,6 +445,24 @@ async function main(){
   record.status=ownedUdid?'failed':'blocked';record.deviceAcceptancePassed=false;record.moduleAcceptancePassed=false;record.mcpAcceptancePassed=false;
   record.error={message:String(error.message).slice(0,7000),stack:String(error.stack).slice(0,9000),cause:String(error.cause?.message||''),code:error.code||error.cause?.code||null};
   log('ios_text_module_failed',{error:record.error});process.exitCode=1;
+  // Keep a bounded read-only failure observation after a confirmed terminal
+  // operation. It cannot authorize another UI command or alter acceptance.
+  const terminal=record.lastOperationObservation;
+  if(!interrupted&&!commandAbort.signal.aborted&&ownedUdid&&sessionId&&ownedAppiumAlive()&&terminal?.active===false&&['completed','failed','stopped','cancelled'].includes(terminal.status)){
+   const deadline=Date.now()+5000,prefix='failure-observation-'+Date.now();
+   const diagnostic=record.failureDiagnostics={scope:'owned_session_readonly_after_observed_terminal_operation',operation:terminal,uiCommands:0,acceptanceGrant:false,networkWindowMs:5000};
+   for(const kind of ['source','screenshot']){
+    if(interrupted||commandAbort.signal.aborted){diagnostic.interrupted=true;break;}
+    const remaining=deadline-Date.now();if(remaining<=0){diagnostic.deadlineReached=true;break;}
+    try{
+     const value=(await httpJson('GET','/session/'+encodeURIComponent(sessionId)+'/'+kind,undefined,{port:proxyPort,timeout:remaining})).value;
+     let bytes,extension;
+     if(kind==='source'){assert.equal(typeof value,'string');bytes=Buffer.from(value);assert(bytes.length<=4*1024*1024);extension='xml';}
+     else{assert.equal(typeof value,'string');bytes=Buffer.from(value,'base64');assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');extension='png';}
+     const file=prefix+'-'+kind+'.'+extension;await writeFile(path.join(output,file),bytes,{mode:0o600,flag:'wx'});diagnostic[kind]={file,sha256:hash(bytes),bytes:bytes.length};
+    }catch(e){diagnostic[kind]={error:String(e.code||e.name||'diagnostic_failed').slice(0,100)};}
+   }
+  }
  }finally{
   await generatedClient?.close().catch(()=>{});await client?.close().catch(()=>{});
   if(sessionId&&ownedAppiumAlive())try{await httpJson('DELETE','/session/'+sessionId,undefined,{timeout:60000});record.cleanup.realSessionDeleted=true}catch(e){record.cleanup.sessionError=String(e.message)}

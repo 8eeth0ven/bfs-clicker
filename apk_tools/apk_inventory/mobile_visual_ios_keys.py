@@ -161,35 +161,125 @@ def _keyboard_only_masks(config, observation):
 
 
 def _fresh_key(session, lease, config, definition, observation, geometry, source, name, literal):
+    """Keep one OCR reference; bound only admission of later pixel candidates.
+
+    A complete ordinary pixel mismatch opens one two-second window. Already
+    admitted source/capture/source/pixel work retains the original overall and
+    transport budgets, while malformed evidence/errors never start a retry.
+    """
     k, v = _keyboard(), _keyboard()._visual()
-    target = _target(source, name, literal)
-    masks = [definition["resultRegion"]]
-    keyboard_masks = _keyboard_only_masks(config, observation)
-    with v.ios._pixel_task(config["node"], session) as task:
-        expected = task.fingerprint(observation, masks)
-        expected_keyboard = task.fingerprint(observation, keyboard_masks)
-    deadline = time.monotonic() + 2
-    for attempt in range(6):
+    started, deadline, first_mismatch = time.monotonic(), None, None
+    candidates, stop_reason = [], "observation_incomplete"
+    primary_error = None
+    elapsed = lambda: round((time.monotonic() - started) * 1000, 3)
+    try:
         session.budget.check()
-        before = read_source(session, config, observation, geometry)
-        if before["layout"] != source["layout"] or _target(before, name, literal) != target:
-            fail("VISUAL_KEYBOARD_LAYOUT_CHANGED")
-        captured = capture_locked(session, session.output / "visual-private" / ("key-fresh-" + uuid.uuid4().hex), lease)
-        fresh = {**captured, "_imagePath": captured["imagePath"]}
-        v._geometry(session, fresh, geometry)
-        after = read_source(session, config, fresh, geometry)
-        if after["layout"] != source["layout"] or _target(after, name, literal) != target:
-            fail("VISUAL_KEYBOARD_LAYOUT_CHANGED")
+        target = _target(source, name, literal)
+        masks = [definition["resultRegion"]]
+        keyboard_masks = _keyboard_only_masks(config, observation)
         with v.ios._pixel_task(config["node"], session) as task:
-            if task.fingerprint(fresh, keyboard_masks) == expected_keyboard:
-                if task.fingerprint(fresh, masks) == expected:
+            expected = task.fingerprint(observation, masks)
+            expected_keyboard = task.fingerprint(observation, keyboard_masks)
+        session.budget.check()
+        for attempt in range(6):
+            session.budget.check()
+            admitted = time.monotonic()
+            if deadline is not None and admitted >= deadline:
+                stop_reason = "candidate_window_expired"
+                break
+            row = {"ordinal": attempt + 1, "admittedAtMs": round((admitted - started) * 1000, 3),
+                   "completedAtMs": None, "result": "incomplete"}
+            candidates.append(row)
+            try:
+                before = read_source(session, config, observation, geometry)
+                row["sourceBeforeCompletedAtMs"] = elapsed()
+                if before["layout"] != source["layout"] or _target(before, name, literal) != target:
+                    fail("VISUAL_KEYBOARD_LAYOUT_CHANGED")
+                row["captureStartedAtMs"] = elapsed()
+                captured = capture_locked(session, session.output / "visual-private" / ("key-fresh-" + uuid.uuid4().hex), lease)
+                row["captureCompletedAtMs"] = elapsed()
+                fresh = {**captured, "_imagePath": captured["imagePath"]}
+                v._geometry(session, fresh, geometry)
+                row["geometryCompletedAtMs"] = elapsed()
+                after = read_source(session, config, fresh, geometry)
+                row["sourceAfterCompletedAtMs"] = elapsed()
+                if after["layout"] != source["layout"] or _target(after, name, literal) != target:
+                    fail("VISUAL_KEYBOARD_LAYOUT_CHANGED")
+                row["pixelStartedAtMs"] = elapsed()
+                result = "keyboard_pixels_changed"
+                with v.ios._pixel_task(config["node"], session) as task:
+                    if task.fingerprint(fresh, keyboard_masks) == expected_keyboard:
+                        result = "unapproved_pixels_changed"
+                        if task.fingerprint(fresh, masks) == expected:
+                            result = "exact"
+                        elif "caret" in config["keyboard"] and k._caret_equivalent(session, config, definition, observation, fresh, geometry, masks, task=task):
+                            result = "caret_equivalent"
+                # A legal response alone is not complete evidence: worker exit
+                # and the original cancellation/overall budget must also pass.
+                session.budget.check()
+                completed = time.monotonic()
+                row.update(result=result, pixelCompletedAtMs=round((completed - started) * 1000, 3),
+                           completedAtMs=round((completed - started) * 1000, 3))
+                if result in ("exact", "caret_equivalent"):
+                    stop_reason = result
                     return after
-                if "caret" in config["keyboard"] and k._caret_equivalent(session, config, definition, observation, fresh, geometry, masks, task=task):
-                    return after
-        if attempt == 5 or time.monotonic() >= deadline:
-            break
-        time.sleep(min(.05, session.budget.timeout()))
-    fail("VISUAL_FRAME_CHANGED")
+                if deadline is None:
+                    first_mismatch, deadline = completed, completed + 2
+            except Exception as exc:
+                code = getattr(exc, "code", None)
+                row["result"] = "observation_error"
+                row["reason"] = code if isinstance(code, str) and re.fullmatch(r"[A-Z0-9_]{1,64}", code) else "OBSERVATION_ERROR"
+                raise
+            finally:
+                row["finishedAtMs"] = elapsed()
+            if attempt == 5:
+                stop_reason = "maximum_candidates"
+                break
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                # Keep the existing bounded50ms pause. No random phase jitter
+                # or inferred caret period is introduced from two saved frames.
+                time.sleep(min(.05, remaining, session.budget.timeout()))
+        fail("VISUAL_FRAME_CHANGED")
+    except BaseException as exc:
+        primary_error = exc
+        if stop_reason not in ("candidate_window_expired", "maximum_candidates"):
+            code = getattr(exc, "code", None)
+            stop_reason = code if isinstance(code, str) and re.fullmatch(r"[A-Z0-9_]{1,64}", code) else "OBSERVATION_ERROR"
+        raise
+    finally:
+        # Fixed small schema: never persist the key name/input, source/layout
+        # digests, screenshot paths, exception messages, or provider responses.
+        trace_path = session.output / "visual-private" / ("keyboard-key-sampling-" + uuid.uuid4().hex + ".json")
+        trace = {
+            "status": "accepted" if stop_reason in ("exact", "caret_equivalent") else "rejected",
+            "stopReason": stop_reason, "maximumCandidates": 6,
+            "additionalCandidateStartWindowMs": 2000, "windowLimitsCandidateStartOnly": True,
+            "firstMismatchAtMs": None if first_mismatch is None else round((first_mismatch - started) * 1000, 3),
+            "elapsedMs": elapsed(), "candidates": candidates,
+            "fixedOcrReference": True, "uiActionRetried": False,
+        }
+        try:
+            atomic_json(trace_path, trace)
+        except BaseException:
+            # A diagnostic failure cannot replace this invocation's original
+            # failure. Without one, writing the acceptance trace must succeed.
+            if primary_error is None:
+                raise
+        if trace["status"] == "accepted":
+            try:
+                # The bounded local audit write is also before return. A stop
+                # during that write cannot leave an accepted helper outcome.
+                session.budget.check()
+            except BaseException as exc:
+                code = getattr(exc, "code", None)
+                trace.update(status="rejected", stopReason=code if isinstance(code, str) and re.fullmatch(r"[A-Z0-9_]{1,64}", code) else "OBSERVATION_ERROR")
+                try:
+                    atomic_json(trace_path, trace)
+                except BaseException:
+                    # Preserve the budget/cancellation failure already raised.
+                    pass
+                raise
 
 
 def dispatch_key(session, lease, config, definition, observation, geometry, bound, source, name, quota, *, literal=False, phase):

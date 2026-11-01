@@ -95,9 +95,11 @@ test('explicit form submission fills allowed data while an excluded shadow field
   const result=await run(config(site.origin,dir,{actionProfile:'forms',formExplore:true,exploreHover:false,exploreScroll:false,
     actionAllowlist:['#submit'],requestAllowlist:[{method:'POST',url:site.origin+'/api/apply'}],excludeSelectors:['#protected-host'],
     formValues:{'#email':'sunshine-4-26@example.invalid','#protected':'must-stay-empty'},fillTextValue:'fixture-value'}));
-  const data=readRun(dir);assert.equal(result.status,'partial');assert.equal(result.stopReason,'unresolved_coverage_errors');
-  assert.ok(!actions(data).some(action=>action.status==='failed'));assert.equal(hit(site,'/api/apply').length,1);assert.equal(hit(site,'/api/denied').length,0);
-  assert.deepEqual(JSON.parse(hit(site,'/api/apply')[0].body),{email:'sunshine-4-26@example.invalid',protected:''});
+  const data=readRun(dir);assert.equal(result.status,'completed');assert.equal(result.stopReason,'frontier_exhausted');
+  assert.ok(!actions(data).some(action=>action.status==='failed'));assert.equal(hit(site,'/api/apply').length,2);assert.equal(hit(site,'/api/denied').length,0);
+  // The changed result is a new state; the retained approved form is explored
+  // once again there. Neither request is a replay of an unsafe path.
+  assert.deepEqual(hit(site,'/api/apply').map(row=>JSON.parse(row.body)),[{email:'sunshine-4-26@example.invalid',protected:''},{email:'sunshine-4-26@example.invalid',protected:''}]);assert.equal(data.events.filter(event=>event.kind==='action_replay').length,0);
   const protectedAction=data.cp.states[0].interactives.find(action=>action.selector==='#protected-host >> #protected');assert.ok(protectedAction);
   assert.equal(protectedAction.status,'skipped');assert.equal(protectedAction.reason,'excluded_selector');
   assert.equal(data.cp.states[0].interactives.find(action=>action.selector==='#denied').status,'skipped');
@@ -108,7 +110,7 @@ test('explicit form submission fills allowed data while an excluded shadow field
   assert.ok(view.tree.clickables.some(action=>action.selector===protectedAction.selector&&action.status==='skipped'&&action.reason==='excluded_selector'));
 });
 
-test('a freshly resident forms state still refuses unsafe path replay and reports the uncovered child action', {timeout:30000},async t=>{
+test('a freshly resident forms child continues new work without replaying its unsafe ingress', {timeout:30000},async t=>{
   const dir=temp(t);
   const site=await fixture(t,({url})=>{
     if(url.pathname.startsWith('/api/'))return {type:'application/json',body:'{"ok":true}'};
@@ -117,11 +119,11 @@ test('a freshly resident forms state still refuses unsafe path replay and report
   });
   const result=await run(config(site.origin,dir,{actionProfile:'forms',requestAllowlist:[{method:'POST',url:site.origin+'/api/explicit-unused'}],exploreHover:false,exploreScroll:false}));
   const data=readRun(dir);assert.equal(result.status,'partial');assert.equal(result.stopReason,'unresolved_coverage_errors');
-  assert.equal(hit(site,'/api/opened').length,1);assert.equal(hit(site,'/api/child').length,0);
+  assert.equal(hit(site,'/api/opened').length,1);assert.equal(hit(site,'/api/child').length,1);
   const childState=data.cp.states.find(state=>state.path.some(step=>step.selector==='#open'));assert.ok(childState);
   assert.equal(childState.path.at(-1).safeReplay,false);
   const childAction=childState.interactives.find(action=>action.selector==='#child');assert.ok(childAction);
-  assert.equal(childAction.status,'skipped');assert.equal(childAction.reason,'unsafe_replay_requires_manual_state');
+  assert.equal(childAction.status,'succeeded');assert.equal(childState.interactives.find(action=>action.selector==='#open').reason,'unsafe_replay_requires_manual_state');
   assert.ok(data.events.some(event=>event.kind==='coverage_gap'&&event.reason==='unsafe_replay_requires_manual_state'));
   assert.ok(!data.events.some(event=>event.kind==='state_reused'&&event.stateId===childState.id));
   assert.ok(!data.events.some(event=>event.kind==='action_replay'&&event.actionId.includes('#open')));
