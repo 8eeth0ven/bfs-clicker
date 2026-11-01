@@ -33,6 +33,8 @@ GAPS = [
     "outside_keyboard_dismiss_anchor_required",
     "other_keyboard_layouts_physical_and_third_party_coverage_pending",
     "visible_keyboard_freshness_uses_post_ocr_pixels_with_keyboard_and_result_masks",
+    "preparation_source_stabilization_is_read_only_bounded_and_does_not_prove_atomicity",
+    "preparation_phase_pair_stabilization_requires_a_new_complete_observation",
 ]
 CARET_GAPS = [
     "local_caret_color_shape_equivalence_is_not_system_caret_identity_proof",
@@ -151,7 +153,7 @@ def _rect(node):
     return values
 
 
-def _parse_source(raw, app_id):
+def _parse_source(raw, app_id, unique=False):
     if not isinstance(app_id, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,256}", app_id):
         fail("VISUAL_KEYBOARD_APP_UNVERIFIED")
     try:
@@ -164,7 +166,7 @@ def _parse_source(raw, app_id):
         root = ET.fromstring(raw)
     except (ET.ParseError, ValueError):
         fail("VISUAL_KEYBOARD_SOURCE_INVALID")
-    stack, keyboards, applications, count = [(root, 0)], [], [], 0
+    stack, keyboards, all_keyboards, applications, count = [(root, 0)], [], [], [], 0
     while stack:
         node, depth = stack.pop()
         count += 1
@@ -174,6 +176,7 @@ def _parse_source(raw, app_id):
         if kind == "XCUIElementTypeApplication":
             applications.append(node)
         if kind == "XCUIElementTypeKeyboard":
+            all_keyboards.append(node)
             # A hidden keyboard may be translated below the viewport (as in
             # the captured WDA evidence), but malformed geometry is not a phase.
             _rect(node)
@@ -184,20 +187,19 @@ def _parse_source(raw, app_id):
         stack.extend((child, depth + 1) for child in node)
     if len(applications) != 1 or applications[0].attrib.get("bundleId") != app_id:
         fail("VISUAL_KEYBOARD_APP_UNVERIFIED")
-    if any(keyboard not in set(applications[0].iter()) for keyboard in keyboards):
+    if any(keyboard not in set(applications[0].iter()) for keyboard in (all_keyboards if unique else keyboards)):
         fail("VISUAL_KEYBOARD_APP_UNVERIFIED")
-    if len(keyboards) > 1:
+    if len(all_keyboards if unique else keyboards) > 1:
         fail("VISUAL_KEYBOARD_AMBIGUOUS")
     return keyboards
 
 
-def inspect_source(raw, geometry, app_id):
-    """Observation only: a calibration proposal, never an action grant.
+class _KeyboardBelowViewport(Exception):
+    """A validated visible tree contradicts its wholly below-window rectangle."""
 
-    The owner must approve the returned rectangle in local device configuration.
-    This function deliberately does not dispatch, alter settings, or mask pixels.
-    """
-    keyboards = _parse_source(raw, app_id)
+
+def _inspect_source(raw, geometry, app_id, allow_below=False, unique=False):
+    keyboards = _parse_source(raw, app_id, unique=allow_below or unique)
     if not keyboards:
         return None
     if (not isinstance(geometry, (tuple, list)) or len(geometry) != 2
@@ -207,7 +209,8 @@ def inspect_source(raw, geometry, app_id):
     keyboard = keyboards[0]
     x, y, width, height = _rect(keyboard)
     screen_width, screen_height = geometry
-    if x + width > screen_width or y + height > screen_height:
+    outside = x + width > screen_width or y + height > screen_height
+    if outside and not allow_below:
         fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
     keys = [node for node in keyboard.iter()
             if node.attrib.get("type", node.tag) == "XCUIElementTypeKey" and node.attrib.get("visible") == "true"]
@@ -217,22 +220,121 @@ def inspect_source(raw, geometry, app_id):
         kx, ky, kw, kh = _rect(key)
         if kx < x or ky < y or kx + kw > x + width or ky + kh > y + height:
             fail("VISUAL_KEYBOARD_KEYS_UNVERIFIED")
+    if outside:
+        if allow_below and x == 0 and width == screen_width and height <= screen_height and y >= screen_height:
+            raise _KeyboardBelowViewport()
+        fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
     return {"region": {"x": x / screen_width, "y": y / screen_height,
                        "width": width / screen_width, "height": height / screen_height},
             "keyCount": len(keys)}
 
 
-def keyboard_state(session, config, observation, geometry, visible):
-    """Read a bounded WDA hierarchy; no role or dismissal receipt is proof."""
+def inspect_source(raw, geometry, app_id):
+    """Observation only: a calibration proposal, never an action grant.
+
+    The owner must approve the returned rectangle in local device configuration.
+    This function deliberately does not dispatch, alter settings, or mask pixels.
+    """
+    return _inspect_source(raw, geometry, app_id)
+
+
+def _preparation_sampling():
+    return {"deadline": None, "firstInstability": None, "sourceReads": 0,
+            "pairs": 0, "observations": 0, "completedObservations": 0,
+            "ocrStartChecks": 0, "mismatches": 0}
+
+
+def _sampling_check(budget, sampling, code="VISUAL_KEYBOARD_PHASE_UNSTABLE"):
+    budget.check()
+    if sampling["deadline"] is not None and time.monotonic() >= sampling["deadline"]:
+        fail(code)
+
+
+def _sampling_unstable(sampling, kind):
+    # One additional window for the entire preparation, starting at its first
+    # explicit instability. A later phase mismatch never renews a below-source
+    # window that was already started.
+    if sampling["deadline"] is None:
+        sampling["deadline"] = time.monotonic() + 2
+        sampling["firstInstability"] = kind
+
+
+def _preparation_source(session, sampling, code="VISUAL_KEYBOARD_PHASE_UNSTABLE"):
+    _sampling_check(session.budget, sampling, code)
+    if sampling["sourceReads"] >= 12:
+        fail("VISUAL_KEYBOARD_PHASE_UNSTABLE")
     session.backend.foreground()
+    _sampling_check(session.budget, sampling, code)
+    sampling["sourceReads"] += 1
     raw = session.backend.request("GET", "/source")
-    if visible is False:
-        if _parse_source(raw, session.backend.app_id):
-            fail("VISUAL_KEYBOARD_NOT_HIDDEN")
+    session.budget.check()
+    return raw
+
+
+def _preparation_proposal(session, geometry, sampling=None):
+    """At most three source reads, only for a strictly identified contradiction.
+
+    WDA can report visible=true during a keyboard's offscreen transition. That
+    snapshot grants no phase and no mask: wait for a new, independently parsed
+    hidden or in-window snapshot. The additional window begins at the first
+    contradiction and is shared with any later whole-observation resampling.
+    Individual transport and overall session timeouts remain unchanged.
+    """
+    started, contradictions, status = time.monotonic(), 0, "rejected"
+    sampling = _preparation_sampling() if sampling is None else sampling
+    initial_reads = sampling["sourceReads"]
+    try:
+        for attempt in range(3):
+            raw = _preparation_source(session, sampling, "VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+            try:
+                proposal = _inspect_source(raw, geometry, session.backend.app_id, allow_below=True)
+            except _KeyboardBelowViewport:
+                contradictions += 1
+                _sampling_unstable(sampling, "below_visible_source")
+                session.backend.foreground()
+                _sampling_check(session.budget, sampling, "VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+                if attempt == 2:
+                    fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+                time.sleep(min(.05, max(0, sampling["deadline"] - time.monotonic()), session.budget.timeout()))
+                continue
+            session.backend.foreground()
+            session.budget.check()
+            status = "observed_visible" if proposal is not None else "observed_hidden"
+            return proposal
+    finally:
+        if contradictions:
+            atomic_json(session.output / "visual-private" / ("keyboard-source-stabilization-" + uuid.uuid4().hex + ".json"), {
+                "sourceReads": sampling["sourceReads"] - initial_reads, "contradictions": contradictions, "status": status,
+                "elapsedMs": round((time.monotonic() - started) * 1000),
+                "maximumSourceReads": 3, "nominalWindowMs": 2000,
+                "uiActionRetried": False, "offscreenVisibleAcceptedAsHidden": False,
+            })
+
+
+def keyboard_state(session, config, observation, geometry, visible, stabilize=False, sampling=None):
+    """Read a bounded WDA hierarchy; no role or dismissal receipt is proof."""
+    if stabilize:
+        # This opt-in is confined to the first preparation read after clear or
+        # type. Focus, OCR-after, freshness, dispatch and restored checks remain
+        # single strict observations, never phase-normalized retries.
+        if visible is not None:
+            fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+        proposal = _preparation_proposal(session, geometry, sampling)
+    else:
+        if sampling is not None:
+            if visible is not None:
+                fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+            raw = _preparation_source(session, sampling)
+        else:
+            session.backend.foreground()
+            raw = session.backend.request("GET", "/source")
+        if visible is False:
+            if _parse_source(raw, session.backend.app_id):
+                fail("VISUAL_KEYBOARD_NOT_HIDDEN")
+            session.backend.foreground()
+            return None
+        proposal = _inspect_source(raw, geometry, session.backend.app_id, unique=visible is None)
         session.backend.foreground()
-        return None
-    proposal = inspect_source(raw, geometry, session.backend.app_id)
-    session.backend.foreground()
     if proposal is None:
         if visible is True:
             fail("VISUAL_KEYBOARD_NOT_VISIBLE")
@@ -273,6 +375,49 @@ def _observe(session, lease, config, geometry=None, visible=False, reference=Non
     return observation, actual_geometry
 
 
+class _PreparationObservationBudget:
+    """Delegate the original budget; guard only the new OCR payload boundary.
+
+    The iOS backend keeps its original budget object. capture_locked uses this
+    session budget only for check(), and observe_locked first calls timeout()
+    after capture and immediately before starting its OCR child. Once that
+    start check passes, in-flight OCR keeps the original overall budget.
+    """
+    def __init__(self, original, sampling):
+        self.original, self.sampling, self.ocr_started = original, sampling, False
+
+    def __getattr__(self, name):
+        return getattr(self.original, name)
+
+    def timeout(self, *args, **kwargs):
+        if not self.ocr_started:
+            _sampling_check(self.original, self.sampling)
+            remaining = self.original.timeout(*args, **kwargs)
+            self.ocr_started = True
+            self.sampling["ocrStartChecks"] += 1
+            return remaining
+        return self.original.timeout(*args, **kwargs)
+
+
+def _preparation_observation(session, lease, config, sampling):
+    original = session.budget
+    if session.backend.budget is not original or getattr(session, "_preparation_observing", False):
+        fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+    _sampling_check(original, sampling)
+    if sampling["observations"] >= 3:
+        fail("VISUAL_KEYBOARD_PHASE_UNSTABLE")
+    sampling["observations"] += 1
+    session._preparation_observing = True
+    session.budget = _PreparationObservationBudget(original, sampling)
+    try:
+        observation = _visual()._observe(session, lease, config)
+        sampling["completedObservations"] += 1
+        return observation
+    finally:
+        session.budget = original
+        del session._preparation_observing
+
+
 def _prepare_observe(session, lease, config, geometry, reference):
     """Lock the source-observed phase around OCR after one clear/type action.
 
@@ -280,12 +425,40 @@ def _prepare_observe(session, lease, config, geometry, reference):
     active caret. Its dispatch guard checks decoded pixels with only the result
     masked when hidden; it never borrows a keyboard mask from an earlier phase.
     """
-    v = _visual()
-    visible = keyboard_state(session, config["keyboard"], reference, geometry, None) is not None
-    observation = v._observe(session, lease, config)
-    actual_geometry = v._geometry(session, observation, geometry)
-    keyboard_state(session, config["keyboard"], observation, actual_geometry, visible)
-    return observation, actual_geometry, visible
+    v, sampling, status = _visual(), _preparation_sampling(), "rejected"
+    started = time.monotonic()
+    try:
+        for attempt in range(3):
+            _sampling_check(session.budget, sampling)
+            sampling["pairs"] += 1
+            visible = keyboard_state(session, config["keyboard"], reference, geometry, None,
+                                     stabilize=True, sampling=sampling) is not None
+            observation = _preparation_observation(session, lease, config, sampling)
+            _sampling_check(session.budget, sampling)
+            actual_geometry = v._geometry(session, observation, geometry)
+            after_visible = keyboard_state(session, config["keyboard"], observation, actual_geometry,
+                                           None, sampling=sampling) is not None
+            if visible == after_visible:
+                status = "observed_visible" if visible else "observed_hidden"
+                return observation, actual_geometry, visible
+            sampling["mismatches"] += 1
+            _sampling_unstable(sampling, "phase_mismatch")
+            if attempt == 2:
+                fail("VISUAL_KEYBOARD_PHASE_UNSTABLE")
+            _sampling_check(session.budget, sampling)
+            # The mismatched image is discarded. The next pair must capture
+            # and OCR a complete new frame; no existing image is reclassified.
+    finally:
+        if sampling["firstInstability"] is not None:
+            atomic_json(session.output / "visual-private" / ("keyboard-pair-stabilization-" + uuid.uuid4().hex + ".json"), {
+                "pairs": sampling["pairs"], "sourceReads": sampling["sourceReads"],
+                "observationAttempts": sampling["observations"], "completedObservations": sampling["completedObservations"],
+                "ocrStartChecks": sampling["ocrStartChecks"], "phaseMismatches": sampling["mismatches"],
+                "firstInstability": sampling["firstInstability"], "status": status,
+                "elapsedMs": round((time.monotonic() - started) * 1000),
+                "maximumPairs": 3, "maximumSourceReads": 12, "maximumNewObservations": 3,
+                "additionalWindowMs": 2000, "uiActionRetried": False, "discardedFrameReused": False,
+            })
 
 
 def _dismiss_anchor(observation, definition, keyboard, expected=None):

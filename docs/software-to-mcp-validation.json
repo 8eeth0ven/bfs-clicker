@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "compilerVersion": "software-to-mcp-12",
+  "compilerVersion": "software-to-mcp-13",
   "status": "verified_framework_with_experimental_device_gaps",
   "scope": "Generic Web/APK/iOS MCP framework; finite fixture evidence, not universal business coverage",
   "stableBaseline": {
@@ -27,18 +27,37 @@
   },
   "currentFocused": {
     "iosKeyboard": {
-      "passed": 81,
+      "passed": 109,
       "nodeCaretPassed": 9,
-      "scope": "phase-aware preparation focused mock/transport and local PNG; not device acceptance"
+      "scope": "bounded source/observation-pair preparation, budget recovery, caret and transport mocks; not device acceptance"
     },
     "visualPython": {
       "passed": 102,
-      "scope": "visual test modules within current full Python run; not device coverage",
-      "regionBoundaryTests": 6
+      "scope": "historical compiler12 visual subset; current complete Python run listed separately",
+      "regionBoundaryTests": 6,
+      "compilerVersion": "software-to-mcp-12"
     },
     "visionRegions": {
       "passed": 15,
       "scope": "mock boundary + actual local OCR known-pixel coordinates; not Android business acceptance"
+    },
+    "openApiDocuments": {
+      "passed": 32,
+      "failed": 0,
+      "scope": "29 parser/runtime tests plus 3 official SDK end-to-end tests; zero implicit reference fetch"
+    },
+    "ariaSubmitBaseline": {
+      "passed": 22,
+      "failed": 0,
+      "newTests": 4,
+      "scope": "explicit changedFromBefore only; text-only matching semantics retained"
+    },
+    "nativeText": {
+      "protocolNodePassed": 9,
+      "publicProjectionPassed": 1,
+      "pythonPassed": 16,
+      "defaultVisualNodePassed": 14,
+      "scope": "strict TXT/TSV evidence and defaults; overlapping groups are not summed; not device acceptance"
     }
   },
   "deviceEvidence": {
@@ -60,23 +79,24 @@
       "environment": "owned emulator; mixed text layout retained",
       "readyPublished": true,
       "unifiedAndGeneratedClosedLoopPassed": false,
-      "latestCompletedAttempt": 9,
-      "latestCompletedOutcome": "Beijing/Shanghai learning completed and ready; unified Guangzhou rejected full-image Query广州 versus regional token conflict before submit",
+      "latestCompletedAttempt": 10,
+      "latestCompletedOutcome": "Native Tesseract first Beijing sample completed; Shanghai echo contained an extra quote at confidence 0.37 and was rejected before submit",
       "currentAttempt": null,
-      "currentAttemptStatus": "language word-boundary investigation; full double-entry acceptance not passed",
+      "currentAttemptStatus": "fixed OCR configuration quality investigation; no nativeText two-sample or double-entry acceptance",
       "learnedSamples": [
         "北京",
         "上海"
-      ]
+      ],
+      "readyPublishedScope": "Vision attempt9 only; nativeText attempt10 did not publish ready"
     },
     "iosOrdinarySoftKeyboard": {
       "status": "not_passed",
       "environment": "owned simulator; real UITextField caret retained",
-      "latestAttempt": 8,
-      "latestOutcome": "Source marked keyboard visible while its rect was outside the viewport after clear; geometry guard rejected before sample input",
+      "latestAttempt": 9,
+      "latestOutcome": "After clear, source hidden before OCR and valid visible after OCR; phase guard rejected before sample input",
       "readyPublished": false,
       "unifiedAndGeneratedClosedLoopPassed": false,
-      "latestCompletedAttempt": 8,
+      "latestCompletedAttempt": 9,
       "currentAttempt": null
     },
     "webChineseVision": {
@@ -113,10 +133,105 @@
     "ordinary iOS keyboard and Android visual Chinese closed loops not yet passed",
     "visible keyboard freshness is a locally approved limited equivalence model, not an atomic full-frame guarantee",
     "same-color narrow glyphs cannot be identified as OS caret from pixels alone",
-    "new focused test counts are not a current full-regression or remote-CI result"
+    "new focused test counts are not a current full-regression or remote-CI result",
+    "nativeText is POSIX opt-in for native workflow OCR; ordinary iOS keyboard filtered view is not integrated"
   ],
-  "asOf": "2026-10-31",
+  "asOf": "2026-11-01",
   "currentFullRegression": {
+    "status": "passed",
+    "previousCompleteBaseline": "previousCompiler12FullRegression",
+    "python": {
+      "total": 426,
+      "passed": 425,
+      "failed": 0,
+      "skipped": 1,
+      "skipReason": "HBC_FIXTURE unavailable",
+      "realSignedApkFixtureProvided": true,
+      "scope": "compiler13 frozen runtime after readonly pair and nativeText fixes"
+    },
+    "software": {
+      "compilerVersion": "software-to-mcp-13",
+      "total": 265,
+      "passed": 265,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "full software suite after all frozen compiler13 runtime changes"
+    },
+    "compilerVersion": "software-to-mcp-13"
+  },
+  "continuousIntegration": {
+    "remoteRunStatus": "not_enabled",
+    "workflowTemplate": "ci.workflow.example.yml",
+    "scope": "Pinned Linux/macOS CI template; current publishing credential lacks workflow scope, so Actions is not activated"
+  },
+  "release": {
+    "finalGate": "draft_review_scope; experimental device coverage remains pending",
+    "scope": "draft framework review; experimental device gaps remain",
+    "publicationEvidence": "GitHub commit and draft pull request record publication; Actions template remains inactive"
+  },
+  "reproduce": {
+    "software": "npm run test:software",
+    "python": "npm run test:python",
+    "visionRegions": "node --test test/visual-observation.test.mjs test/visual-observation-regions.test.mjs test/visual-vision.test.mjs test/visual-vision-regions.test.mjs",
+    "iosVisualText": "npm run test:ios-visual-text-workflow",
+    "iosOrdinaryKeyboard": "npm run test:ios-visual-keyboard-workflow",
+    "androidVisualChinese": "npm run test:android-visual-chinese-workflow"
+  },
+  "publicEvidence": {
+    "roiFusionTests": "../test/visual-observation-regions.test.mjs",
+    "actualVisionCoordinateTest": "../test/visual-vision-regions.test.mjs",
+    "integerRegionTests": "../apk_tools/tests/test_mobile_visual_regions.py",
+    "iosKeyboardTests": "../apk_tools/tests/test_mobile_visual_ios_keyboard.py",
+    "iosKeyboardFixture": "../apk_tools/examples/ios-visual-keyboard/main.m",
+    "iosKeyboardDeviceScript": "../test/ios-native-visual-keyboard-device-e2e.mjs",
+    "androidChineseDeviceScript": "../test/native-visual-chinese-device-e2e.mjs",
+    "iosNoSoftKeyboardScript": "../test/ios-native-visual-text-device-e2e.mjs",
+    "webChineseVisionTest": "../test/software-visual-chinese.test.mjs",
+    "androidSemanticUnicodeScript": "../test/android-unicode-e2e.mjs",
+    "caretTests": "../test/visual-caret.test.mjs",
+    "caretTransportTests": "../apk_tools/tests/test_mobile_visual_ios_caret.py",
+    "ciTemplate": "ci.workflow.example.yml",
+    "openApiDocuments": "../test/openapi-reference-documents.test.mjs",
+    "openApiMcp": "../test/software-openapi-e2e.test.mjs",
+    "ariaSubmitBaseline": "../test/software-aria-result-baseline.test.mjs",
+    "nativeTextNode": "../test/visual-native-text.test.mjs",
+    "nativeTextPython": "../apk_tools/tests/test_mobile_visual_native_text.py",
+    "nativeTextProjection": "../test/native-visual-projection.test.mjs"
+  },
+  "failureHistory": [
+    {
+      "kind": "ROI lexical conflict",
+      "status": "regression tests reject prefix cropping and token splitting; low-confidence full-image dissent preserved"
+    },
+    {
+      "kind": "iOS ordinary keyboard hardware shortcut",
+      "status": "keyboard disappeared after shortcut; new opt-in branch uses one planned bounded backspace request; default branch preserved"
+    },
+    {
+      "kind": "iOS ordinary caret freshness",
+      "status": "Real caret fade was rejected; explicit local color/shape policy passed focused tests; full new device acceptance pending"
+    },
+    {
+      "kind": "Android Chinese visual workflow",
+      "status": "Actual second result updated, but numeric bbox flooring prevented strict OCR acceptance; offline fix does not complete device validation"
+    },
+    {
+      "kind": "historical WebDriver fixtures and UI no-op",
+      "status": "later successful runs do not erase earlier failures or prove their causes"
+    }
+  ],
+  "recordedAt": "2026-11-01T10:56:42.295680+00:00",
+  "currentPackageCheck": {
+    "status": "passed",
+    "files": 334,
+    "productionOnlyInstall": true,
+    "officialSdkTools": 28,
+    "stderrBytes": 0,
+    "sourceMismatches": 0,
+    "referenceDocumentsSchemaVerified": true,
+    "runtimeBytesVerifiedBeforeFinalDocumentationProjection": true
+  },
+  "previousCompiler12FullRegression": {
     "status": "full_baseline_and_affected_followup_passed",
     "legacy": {
       "total": 229,
@@ -149,63 +264,7 @@
       }
     }
   },
-  "continuousIntegration": {
-    "remoteRunStatus": "not_enabled",
-    "workflowTemplate": "ci.workflow.example.yml",
-    "scope": "Pinned Linux/macOS CI template; current publishing credential lacks workflow scope, so Actions is not activated"
-  },
-  "release": {
-    "finalGate": "draft_review_scope; experimental device coverage remains pending",
-    "scope": "draft framework review; experimental device gaps remain",
-    "publicationEvidence": "GitHub commit, pull request and Actions supply publication evidence"
-  },
-  "reproduce": {
-    "software": "npm run test:software",
-    "python": "npm run test:python",
-    "visionRegions": "node --test test/visual-observation.test.mjs test/visual-observation-regions.test.mjs test/visual-vision.test.mjs test/visual-vision-regions.test.mjs",
-    "iosVisualText": "npm run test:ios-visual-text-workflow",
-    "iosOrdinaryKeyboard": "npm run test:ios-visual-keyboard-workflow",
-    "androidVisualChinese": "npm run test:android-visual-chinese-workflow"
-  },
-  "publicEvidence": {
-    "roiFusionTests": "../test/visual-observation-regions.test.mjs",
-    "actualVisionCoordinateTest": "../test/visual-vision-regions.test.mjs",
-    "integerRegionTests": "../apk_tools/tests/test_mobile_visual_regions.py",
-    "iosKeyboardTests": "../apk_tools/tests/test_mobile_visual_ios_keyboard.py",
-    "iosKeyboardFixture": "../apk_tools/examples/ios-visual-keyboard/main.m",
-    "iosKeyboardDeviceScript": "../test/ios-native-visual-keyboard-device-e2e.mjs",
-    "androidChineseDeviceScript": "../test/native-visual-chinese-device-e2e.mjs",
-    "iosNoSoftKeyboardScript": "../test/ios-native-visual-text-device-e2e.mjs",
-    "webChineseVisionTest": "../test/software-visual-chinese.test.mjs",
-    "androidSemanticUnicodeScript": "../test/android-unicode-e2e.mjs",
-    "caretTests": "../test/visual-caret.test.mjs",
-    "caretTransportTests": "../apk_tools/tests/test_mobile_visual_ios_caret.py",
-    "ciTemplate": "ci.workflow.example.yml"
-  },
-  "failureHistory": [
-    {
-      "kind": "ROI lexical conflict",
-      "status": "regression tests reject prefix cropping and token splitting; low-confidence full-image dissent preserved"
-    },
-    {
-      "kind": "iOS ordinary keyboard hardware shortcut",
-      "status": "keyboard disappeared after shortcut; new opt-in branch uses one planned bounded backspace request; default branch preserved"
-    },
-    {
-      "kind": "iOS ordinary caret freshness",
-      "status": "Real caret fade was rejected; explicit local color/shape policy passed focused tests; full new device acceptance pending"
-    },
-    {
-      "kind": "Android Chinese visual workflow",
-      "status": "Actual second result updated, but numeric bbox flooring prevented strict OCR acceptance; offline fix does not complete device validation"
-    },
-    {
-      "kind": "historical WebDriver fixtures and UI no-op",
-      "status": "later successful runs do not erase earlier failures or prove their causes"
-    }
-  ],
-  "recordedAt": "2026-10-30T19:05:04.679375+00:00",
-  "currentPackageCheck": {
+  "previousCompiler12PackageCheck": {
     "status": "passed",
     "files": 333,
     "productionOnlyInstall": true,

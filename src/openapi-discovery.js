@@ -24,7 +24,7 @@ const scrub = value => redactText(String(value ?? '')).slice(0,1000);
 const safeName = value => typeof value === 'string' && value.length > 0 && value.length <= 256 && !FORBIDDEN.has(value) && !/[\x00-\x1f]/.test(value);
 const credentialConstant = value => Array.isArray(value)?value.some(credentialConstant):plain(value)?Object.entries(value).some(([key,item])=>/password|passwd|secret|token|api[-_]?key|authorization|cookie|session.?id/i.test(key)||credentialConstant(item)):false;
 
-function parseInput(input) {
+function parseInput(input,{allowBooleanRoot=false}={}) {
   let document = input;
   if (typeof input === 'string') {
     if (Buffer.byteLength(input) > 8 * 1024 * 1024) fail('DOCUMENT_LIMIT','规范文本超过8MiB');
@@ -44,39 +44,66 @@ function parseInput(input) {
     for(const descriptor of Object.values(Object.getOwnPropertyDescriptors(value))){if(descriptor.get||descriptor.set)fail('DOCUMENT_INVALID','规范不能包含访问器');if(descriptor.enumerable)check(descriptor.value,depth+1);}
     active.delete(value);
   }; check(document);
-  if(!plain(document))fail('DOCUMENT_INVALID','规范根节点必须为对象');
+  if(!plain(document)&&!(allowBooleanRoot&&typeof document==='boolean'))fail('DOCUMENT_INVALID','规范根节点必须为对象或引用的布尔schema');
   if(Buffer.byteLength(JSON.stringify(document))>8*1024*1024)fail('DOCUMENT_LIMIT','规范超过8MiB');
   return clone(document);
 }
 
-/** Import a supplied document only; no URL is fetched, including external $ref. */
-export function importOpenApi({document:input,documentUrl,sourceId,allowedOrigins=[],maxOperations=1000}={}) {
+/** Resolve only supplied documents; reference URLs are identities, never fetched. */
+export function importOpenApi({document:input,documentUrl,referenceDocuments=[],sourceId,allowedOrigins=[],maxOperations=1000}={}) {
   if(typeof sourceId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(sourceId))fail('INVALID_SOURCE','sourceId无效');
   if(!Number.isSafeInteger(maxOperations)||maxOperations<1||maxOperations>10000)fail('INVALID_LIMIT','maxOperations必须为1–10000');
   if(!Array.isArray(allowedOrigins))fail('INVALID_ORIGINS','allowedOrigins必须为精确origin数组');
   const allowed=new Set(allowedOrigins.map(value=>{let url;try{url=new URL(value)}catch{fail('INVALID_ORIGINS','origin无效')}if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.origin!==value)fail('INVALID_ORIGINS','只接受无凭据的精确HTTP(S) origin');return value;}));
   let base;
-  if(documentUrl!=null){try{base=new URL(documentUrl);if(!['http:','https:'].includes(base.protocol)||base.username||base.password)throw new Error()}catch{fail('INVALID_DOCUMENT_URL','documentUrl必须为无凭据HTTP(S)地址');}}
+  if(documentUrl!=null){try{base=new URL(documentUrl);if(!['http:','https:'].includes(base.protocol)||base.username||base.password||base.href.includes('#'))throw new Error()}catch{fail('INVALID_DOCUMENT_URL','documentUrl必须为无凭据、无fragment的HTTP(S)地址');}}
   const doc=parseInput(input),swagger=doc.swagger==='2.0',v31=/^3\.1\.\d+(?:[-+].*)?$/.test(doc.openapi||'');
   if(!swagger&&!v31&&!/^3\.0\.\d+(?:[-+].*)?$/.test(doc.openapi||''))fail('VERSION_UNSUPPORTED','仅支持OpenAPI3.0/3.1或Swagger2.0');
+  if(!Array.isArray(referenceDocuments)||referenceDocuments.length>32)fail('REFERENCE_DOCUMENT_LIMIT','最多显式提供32份引用文档');
+  const resources=new Map(),owners=new WeakMap(),unsupportedScopes=new WeakSet();let documentBytes=0;
+  const register=(url,document)=>{
+    const key=url?.href||'supplied-document';
+    if(resources.has(key))fail('DUPLICATE_DOCUMENT_URL','引用文档URL重复或与主文档冲突');
+    documentBytes+=Buffer.byteLength(JSON.stringify(document));
+    if(documentBytes>16*1024*1024)fail('DOCUMENT_LIMIT','主文档及引用文档合计超过16MiB');
+    const resource={key,url,document};resources.set(key,resource);
+    const mark=(value,inheritedScope=false)=>{if(value&&typeof value==='object'){owners.set(value,resource);const scoped=inheritedScope||Object.hasOwn(value,'$id');if(scoped)unsupportedScopes.add(value);for(const child of Object.values(value))mark(child,scoped);}};mark(document);
+    return resource;
+  };
+  const rootResource=register(base,doc);
+  for(const entry of referenceDocuments){
+    if(!plain(entry)||typeof entry.documentUrl!=='string'||!Object.hasOwn(entry,'document'))fail('INVALID_REFERENCE_DOCUMENT','引用文档需要documentUrl和document');
+    let url;try{url=new URL(entry.documentUrl);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.href.includes('#')||/[\x00-\x20\\]/.test(entry.documentUrl))throw new Error()}catch{fail('INVALID_REFERENCE_DOCUMENT_URL','引用文档URL必须为无凭据、无fragment的绝对HTTP(S)地址');}
+    register(url,parseInput(entry.document,{allowBooleanRoot:true}));
+  }
   const manifest=[],schemaOverrides=Object.create(null),origins=new Set(),gaps=[],warnings=[],seen=new Map(); let expanded=0,operations=0;
   const gap=(ctx,reason,extra={})=>{const item={reason,...ctx.location,...extra};gaps.push(item);ctx.problems.add(reason);};
   const warn=(reason)=>{if(!warnings.includes(reason))warnings.push(reason);};
   const rootCtx={location:{},problems:new Set()};
-  const pointer=(ref,ctx)=>{
-    if(typeof ref!=='string'||!ref.startsWith('#')){gap(ctx,'external_ref_not_loaded',{reference:scrub(ref)});return null;}
-    let decoded;try{decoded=decodeURIComponent(ref.slice(1))}catch{gap(ctx,'invalid_local_ref');return null;}
-    if(decoded!==''&&!decoded.startsWith('/')){gap(ctx,'unsupported_local_anchor',{reference:scrub(ref)});return null;}
-    let node=doc;
-    for(const part of decoded===''?[]:decoded.slice(1).split('/').map(value=>value.replace(/~1/g,'/').replace(/~0/g,'~'))){if(FORBIDDEN.has(part)||!node||typeof node!=='object'||!Object.hasOwn(node,part)){gap(ctx,'local_ref_missing',{reference:scrub(ref)});return null;}node=node[part];}
-    return node;
+  const pointer=(raw,ctx)=>{
+    const ref=raw.$ref,owner=owners.get(raw)||rootResource;let resource=owner,fragment;
+    if(unsupportedScopes.has(raw)){gap(ctx,'unsupported_schema_resource_or_dynamic_ref');return null;}
+    if(typeof ref!=='string'||/[\x00-\x20\\]/.test(ref)){gap(ctx,'invalid_local_ref');return null;}
+    if(ref.startsWith('#'))fragment=ref.slice(1);
+    else{
+      let url;try{url=new URL(ref,owner.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw new Error()}catch{gap(ctx,'external_ref_not_loaded',{referenceDigest:digest(ref)});return null;}
+      fragment=url.hash.slice(1);url.hash='';resource=resources.get(url.href);
+      if(!resource){gap(ctx,'external_ref_not_loaded',{referenceDigest:digest(ref)});return null;}
+    }
+    let decoded;try{decoded=decodeURIComponent(fragment)}catch{gap(ctx,'invalid_local_ref');return null;}
+    if(decoded!==''&&!decoded.startsWith('/')){gap(ctx,'unsupported_local_anchor',{referenceDigest:digest(ref)});return null;}
+    if(/~(?:[^01]|$)/.test(decoded)){gap(ctx,'invalid_local_ref');return null;}
+    let node=resource.document;
+    for(const part of decoded===''?[]:decoded.slice(1).split('/').map(value=>value.replace(/~1/g,'/').replace(/~0/g,'~'))){if(unsupportedScopes.has(node)){gap(ctx,'unsupported_schema_resource_or_dynamic_ref');return null;}if(FORBIDDEN.has(part)||!node||typeof node!=='object'||!Object.hasOwn(node,part)){gap(ctx,'local_ref_missing',{referenceDigest:digest(ref)});return null;}node=node[part];}
+    if(unsupportedScopes.has(node)){gap(ctx,'unsupported_schema_resource_or_dynamic_ref');return null;}
+    return {node,key:JSON.stringify([resource.key,decoded])};
   };
   const deref=(value,ctx,stack=[])=>{
     if(!plain(value))return value;
     if(!Object.hasOwn(value,'$ref'))return value;
-    if(stack.length>=32||stack.includes(value.$ref)){gap(ctx,'cyclic_or_deep_ref');return null;}
-    const target=pointer(value.$ref,ctx);if(target===null)return null;
-    const result=deref(target,ctx,[...stack,value.$ref]);
+    const target=pointer(value,ctx);if(target===null)return null;
+    if(stack.length>=32||stack.includes(target.key)){gap(ctx,'cyclic_or_deep_ref');return null;}
+    const result=deref(target.node,ctx,[...stack,target.key]);
     if(Object.keys(value).some(key=>key!=='$ref'&&!['summary','description'].includes(key)))warn('reference_object_siblings_ignored');
     return result;
   };
@@ -85,9 +112,9 @@ export function importOpenApi({document:input,documentUrl,sourceId,allowedOrigin
     if(typeof raw==='boolean'){if(!v31){gap(ctx,'boolean_schema_requires_openapi31');return false;}return raw;}
     if(!plain(raw)){gap(ctx,'invalid_schema');return false;}
     if(Object.hasOwn(raw,'$ref')){
-      if(stack.length>=32||stack.includes(raw.$ref)){gap(ctx,'cyclic_or_deep_ref');return false;}
-      const target=pointer(raw.$ref,ctx);if(target===null)return false;
-      const resolved=schema(target,ctx,[...stack,raw.$ref],depth+1);
+      const target=pointer(raw,ctx);if(target===null)return false;
+      if(stack.length>=32||stack.includes(target.key)){gap(ctx,'cyclic_or_deep_ref');return false;}
+      const resolved=schema(target.node,ctx,[...stack,target.key],depth+1);
       const siblings=Object.fromEntries(Object.entries(raw).filter(([key])=>key!=='$ref'));
       if(v31&&Object.keys(siblings).length){const refined=schema(siblings,ctx,stack,depth+1);return plain(refined)&&!Object.keys(refined).length?resolved:{allOf:[resolved,refined]};}
       return resolved;
@@ -247,7 +274,7 @@ export function importOpenApi({document:input,documentUrl,sourceId,allowedOrigin
     if(!plain(raw)||typeof raw.url!=='string'){gap(ctx,'invalid_server');return null;}
     let value=raw.url;
     for(const name of new Set(Array.from(value.matchAll(/\{([^{}]+)\}/g),match=>match[1]))){const variable=raw.variables?.[name];if(/password|secret|token|api[-_]?key|authorization|cookie/i.test(name)){gap(ctx,'credential_server_variable_unbound');return null;}if(!plain(variable)||typeof variable.default!=='string'){gap(ctx,'unresolved_server_variable');return null;}value=value.split('{'+name+'}').join(variable.default);warn('server_variable_defaults_selected');}
-    let url;try{url=new URL(value,base)}catch{gap(ctx,'missing_or_invalid_server_base');return null;}
+    let url;try{url=new URL(value,(owners.get(raw)||rootResource).url)}catch{gap(ctx,'missing_or_invalid_server_base');return null;}
     if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash||/[{}\\]/.test(url.host)||/[{}]|%7[bBdD]/.test(url.pathname)){gap(ctx,'invalid_server');return null;}
     return url;
   };

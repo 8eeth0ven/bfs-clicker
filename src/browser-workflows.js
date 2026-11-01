@@ -290,9 +290,11 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
   const compare=(actual,expected)=>{if(expected&&hash(actual)!==hash(expected))fail('CONTROL_CHANGED','控件结构、目标或静态契约发生变化');};
   const dispatch=async(page,step,found,index,kind,value,auth,suffix='')=>{
     budget.check();abortCheck(signal);budget.action();
-    // A result already changed by typing must not certify a no-op trigger.
+    // An explicitly changedFromBefore result already changed by input or ARIA
+    // selection must not certify a no-op final trigger. Text-only assertions
+    // retain their existing matching contract without an implicit change rule.
     // This is temporal evidence, not proof of arbitrary backend causality.
-    if(index===spec.steps.length-1&&!suffix&&['click','visualClick'].includes(kind)&&spec.steps.some(item=>item.kind==='visualClick')){
+    if(index===spec.steps.length-1&&!suffix&&['click','visualClick'].includes(kind)){
       const fresh=await changedBaselines(page,spec,config);for(let n=0;n<fresh.length;n++)if(fresh[n])triggerBaselines[n]=fresh[n];
     }
     const action={...found.metadata,...step,id:'workflow:'+spec.id+':'+index+suffix,type:kind==='fill'?'text':kind==='select'?'select':kind==='check'?'checkbox':'click',kind:'click',label:step.visual?.anchor||found.metadata.text||found.metadata.aria||kind};

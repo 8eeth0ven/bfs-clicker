@@ -1,7 +1,7 @@
 // Local screenshot evidence only. OCR never asserts a control's role or effect.
 import path from 'node:path';
 import {constants,existsSync} from 'node:fs';
-import {lstat,mkdir,open,writeFile,realpath} from 'node:fs/promises';
+import {lstat,mkdir,mkdtemp,open,writeFile,realpath,readdir} from 'node:fs/promises';
 import {createHash,randomUUID} from 'node:crypto';
 import {spawn} from 'node:child_process';
 const fail=(code,message)=>{throw Object.assign(new Error(message),{code});};
@@ -17,11 +17,11 @@ function dimensions(data) {
  if(data.length>=4&&data[0]===255&&data[1]===216){let offset=2;while(offset<data.length){if(data[offset++]!==255)break;while(data[offset]===255)offset++;const marker=data[offset++];if(marker===217||marker===218)break;if(marker===1||marker>=208&&marker<=215)continue;if(offset+2>data.length)break;const length=data.readUInt16BE(offset);if(length<2||offset+length>data.length)break;if([192,193,194,195,197,198,199,201,202,203,205,206,207].includes(marker)&&length>=8)return {format:'jpeg',height:data.readUInt16BE(offset+3),width:data.readUInt16BE(offset+5)};offset+=length;}}
  fail('OCR_IMAGE_INVALID','Only bounded PNG/JPEG screenshots are supported');
 }
-async function snapshot(input,maxBytes) {
- const file=await checkedPath(input),handle=await open(file,constants.O_RDONLY|constants.O_NOFOLLOW);
+async function snapshot(input,maxBytes,{nonblocking=false}={}) {
+ const file=await checkedPath(input),handle=await open(file,constants.O_RDONLY|constants.O_NOFOLLOW|(nonblocking?constants.O_NONBLOCK:0));
  try{const stat=await handle.stat();if(!stat.isFile()||stat.size>maxBytes)fail('OCR_IMAGE_LIMIT','Screenshot exceeds byte budget');const buffer=Buffer.alloc(Math.min(stat.size+1,maxBytes+1));let size=0;while(size<buffer.length){const {bytesRead}=await handle.read(buffer,size,buffer.length-size,null);if(!bytesRead)break;size+=bytesRead;}if(size>maxBytes||size!==stat.size)fail('OCR_IMAGE_CHANGED','Screenshot changed while reading');return buffer.subarray(0,size);}finally{await handle.close();}
 }
-function execute(executable,args,{remaining,signal,maxBytes}) {
+function execute(executable,args,{remaining,signal,maxBytes,strictUtf8=false}) {
  return new Promise((resolve,reject)=>{
   if(signal?.aborted){reject(Object.assign(new Error('OCR cancelled'),{code:'OCR_CANCELLED'}));return;}
   let time;try{time=remaining();}catch(error){reject(error);return;}
@@ -33,7 +33,7 @@ function execute(executable,args,{remaining,signal,maxBytes}) {
   child.stdout.on('data',chunk=>{size+=chunk.length;if(size>maxBytes)stop('OCR_OUTPUT_LIMIT');else stdout.push(chunk);});
   child.stderr.on('data',chunk=>{errorBytes+=chunk.length;if(errorBytes>65536)stop('OCR_OUTPUT_LIMIT');else stderr.push(chunk);});
   child.on('error',()=>finish(Object.assign(new Error('Local OCR engine unavailable'),{code:'OCR_ENGINE_UNAVAILABLE'})));
-  child.on('close',code=>{if(reason)return finish(Object.assign(new Error(reason),{code:reason}));if(code!==0)return finish(Object.assign(new Error('Local OCR engine failed'),{code:'OCR_ENGINE_FAILED'}));finish(null,Buffer.concat(stdout).toString('utf8'));});
+  child.on('close',code=>{if(reason)return finish(Object.assign(new Error(reason),{code:reason}));if(code!==0)return finish(Object.assign(new Error('Local OCR engine failed'),{code:'OCR_ENGINE_FAILED'}));let output;try{output=strictUtf8?new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(stdout)):Buffer.concat(stdout).toString('utf8')}catch{return finish(Object.assign(new Error('Invalid OCR UTF-8'),{code:'OCR_OUTPUT_INVALID'}));}finish(null,output);});
  });
 }
 function visionTokens(value,image,region) {
@@ -72,11 +72,53 @@ function combineVisionRegions(full,regional,minConfidence) {
  return result;
 }
 
+const TSV_HEADER='level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext';
+const nativeSpace=char=>/\p{White_Space}/u.test(char);
+// Fixed shell program only; executable/paths/options are positional arguments.
+// ulimit -f uses 512 or 1024 byte blocks on supported POSIX shells, so the
+// inherited hard file limit is at most 2MiB per renderer. No core is produced.
+const NATIVE_FILE_WRAPPER='umask 077\nulimit -c 0 || exit 125\nulimit -f 2048 || exit 125\nexec "$@"';
+const NATIVE_FILE_LIMIT=2*1024*1024;
+function nativeOutput(raw,text){
+ const rows=raw.split(/\r?\n/);if(rows.shift()!==TSV_HEADER||raw.split(TSV_HEADER).length!==2||!raw.endsWith('\n'))fail('OCR_NATIVE_TEXT_INVALID','Expected a complete independent TSV file');
+ if(rows.at(-1)==='')rows.pop();if(!rows.length||rows.some(row=>!row||row.split('\t').length!==12))fail('OCR_NATIVE_TEXT_INVALID','Incomplete TSV rows');
+ if(/[\x00-\x08\x0e-\x1f\x7f]/.test(text))fail('OCR_NATIVE_TEXT_INVALID','Unsupported native text controls');
+ return {rows,text};
+}
+function nativeUtf8(data){try{return new TextDecoder('utf-8',{fatal:true}).decode(data)}catch{fail('OCR_NATIVE_TEXT_INVALID','Invalid native renderer UTF-8')}}
+async function nativeFiles(executable,image,engineArgs,root,{remaining,signal}){
+ const dir=await mkdtemp(path.join(root,'native-')),base=path.join(dir,'result');await checkedPath(dir,{directory:true});remaining();
+ const flags=['txt','tsv'].map(name=>['-c','tessedit_create_'+name+'=1']).flat();
+ for(const name of ['hocr','alto','page_xml','lstmbox','wordstrbox','pdf','boxfile'])flags.push('-c','tessedit_create_'+name+'=0');
+ await execute('/bin/sh',['-c',NATIVE_FILE_WRAPPER,'bfs-native-ocr',executable,image,base,...engineArgs,...flags],{remaining,signal,maxBytes:4*1024*1024,strictUtf8:true});remaining();
+ const names=await readdir(dir);if(names.length!==2||!names.includes('result.txt')||!names.includes('result.tsv'))fail('OCR_NATIVE_TEXT_INVALID','Expected only the two independent renderer files');
+ const tsv=nativeUtf8(await snapshot(base+'.tsv',NATIVE_FILE_LIMIT,{nonblocking:true}));remaining();
+ const text=nativeUtf8(await snapshot(base+'.txt',NATIVE_FILE_LIMIT,{nonblocking:true}));remaining();
+ return nativeOutput(tsv,text);
+}
+function nativeEvidence(text,words,minConfidence){
+ const chars=Array.from(text),runs=[];let cursor=0,previousOrder;
+ for(const [index,word]of words.entries()){
+  const order=word.order,changed=previousOrder?order.findIndex((n,i)=>n!==previousOrder[i]):-1;
+  if(order.some(n=>!Number.isSafeInteger(n)||n<1)||previousOrder&&(changed<0||order[changed]<previousOrder[changed]))fail('OCR_NATIVE_TEXT_INVALID','TSV word order is not strict');
+  const before=cursor;while(cursor<chars.length&&nativeSpace(chars[cursor]))cursor++;
+  const value=Array.from(word.text),start=cursor;if(!value.length||value.some(nativeSpace)||value.some((char,i)=>char!==chars[cursor+i]))fail('OCR_NATIVE_TEXT_INVALID','Native text and original words disagree');
+  cursor+=value.length;word.start=start;word.end=cursor;
+  if(index&&before===start){const last=runs.at(-1);if(order.slice(0,3).some((n,i)=>n!==previousOrder[i]))fail('OCR_NATIVE_TEXT_INVALID','Missing native line separator');last.lastWord=index;last.end=cursor;last.confidence=Math.min(last.confidence,word.confidence);const b=last.bounds,w=word.bounds,r=Math.max(b.x+b.width,w.x+w.width),bottom=Math.max(b.y+b.height,w.y+w.height);b.x=Math.min(b.x,w.x);b.y=Math.min(b.y,w.y);b.width=r-b.x;b.height=bottom-b.y;}
+  else runs.push({text:word.text,confidence:word.confidence,bounds:{...word.bounds},start,end:cursor,firstWord:index,lastWord:index});
+  previousOrder=order;
+ }
+ if(chars.slice(cursor).some(char=>!nativeSpace(char)))fail('OCR_NATIVE_TEXT_INVALID','Uncovered native text');
+ return {evidence:{schemaVersion:1,format:'tesseract_txt_tsv',offsetUnit:'unicode_codepoints',text,minimumConfidence:minConfidence,words},tokens:runs.filter(run=>run.confidence>=minConfidence).map(({start,end,firstWord,lastWord,...token})=>({...token,text:chars.slice(start,end).join(''),nativeTextSpan:{start,end,firstWord,lastWord}})),filtered:runs.filter(run=>run.confidence<minConfidence).length};
+}
+
 /** Call only from a trusted capture/import boundary. Artifacts contain raw OCR. */
 export async function observeImage({imagePath,outputDir,engine,language='eng',signal,timeoutMs=15000,maxImageBytes=16*1024*1024,maxPixels=16000000,maxTokens=2000,maxOutputBytes=1024*1024,minConfidence=0}={}) {
  integer(timeoutMs,1,120000,'timeoutMs');integer(maxImageBytes,1,32*1024*1024,'maxImageBytes');integer(maxPixels,1,32000000,'maxPixels');integer(maxTokens,1,5000,'maxTokens');integer(maxOutputBytes,128,4*1024*1024,'maxOutputBytes');
  if(typeof minConfidence!=='number'||!Number.isFinite(minConfidence)||minConfidence<0||minConfidence>1||typeof language!=='string'||!/^\w+(?:\+\w+)*$/.test(language)||language.length>128)fail('OCR_CONFIG_INVALID','Invalid OCR language/confidence');
- if(engine!==undefined&&(!engine||typeof engine!=='object'||Array.isArray(engine)||!['tesseract','vision'].includes(engine.type)||Object.keys(engine).some(key=>!(engine.type==='vision'?['type','executable','regions']:['type','executable','tessdataDir']).includes(key))||engine.type==='vision'&&process.platform!=='darwin'))fail('OCR_CONFIG_INVALID','Unsupported OCR engine');
+ if(engine!==undefined&&(!engine||typeof engine!=='object'||Array.isArray(engine)||!['tesseract','vision'].includes(engine.type)||Object.keys(engine).some(key=>!(engine.type==='vision'?['type','executable','regions']:['type','executable','tessdataDir','nativeText']).includes(key))||engine.type==='vision'&&process.platform!=='darwin'))fail('OCR_CONFIG_INVALID','Unsupported OCR engine');
+ if(engine?.nativeText!==undefined&&typeof engine.nativeText!=='boolean')fail('OCR_CONFIG_INVALID','nativeText must be a trusted boolean');
+ if(engine?.nativeText===true&&process.platform==='win32')fail('OCR_NATIVE_TEXT_UNSUPPORTED','Native renderer files require POSIX resource limits');
  let executable=engine?.executable||(engine?.type==='vision'?null:existsSync('/opt/homebrew/bin/tesseract')?'/opt/homebrew/bin/tesseract':existsSync('/usr/bin/tesseract')?'/usr/bin/tesseract':null);
  if(!executable)fail('OCR_ENGINE_UNAVAILABLE','Configure a local tesseract executable');if(typeof executable!=='string'||!path.isAbsolute(executable))fail('OCR_CONFIG_INVALID','OCR executable must be an absolute path');try{executable=await realpath(executable);}catch{fail('OCR_ENGINE_UNAVAILABLE','Local OCR executable unavailable');}await checkedPath(executable); // Executable must be a real file, not a shell expression.
  if(engine?.executable!==undefined&&(typeof engine.executable!=='string'||!engine.executable))fail('OCR_CONFIG_INVALID','Invalid executable path');
@@ -88,17 +130,24 @@ export async function observeImage({imagePath,outputDir,engine,language='eng',si
  const available=await execute(executable,[...engineArgs,'--list-langs'],{remaining,signal,maxBytes:65536});const languages=new Set(available.split(/\r?\n/).map(line=>line.trim()).filter(line=>/^\w+$/.test(line)));
  if(language.split('+').some(item=>!languages.has(item)))fail('OCR_LANGUAGE_UNAVAILABLE','Requested OCR language is not installed');
  const id=randomUUID(),privateImage=path.join(root,id+'.'+image.format),artifactPath=path.join(root,id+'.json');await writeFile(privateImage,data,{flag:'wx',mode:0o600});
- const raw=await execute(executable,engine?.type==='vision'?[privateImage,language]:[privateImage,'stdout',...engineArgs,'-l',language,'--psm','11','tsv'],{remaining,signal,maxBytes:4*1024*1024});remaining();
+ const nativeMode=engine?.type==='tesseract'&&engine.nativeText===true;
+ const native=nativeMode?await nativeFiles(executable,privateImage,[...engineArgs,'-l',language,'--psm','11'],root,{remaining,signal}):null;
+ const raw=native?null:await execute(executable,engine?.type==='vision'?[privateImage,language]:[privateImage,'stdout',...engineArgs,'-l',language,'--psm','11','tsv'],{remaining,signal,maxBytes:4*1024*1024});remaining();
+ const nativeWords=[];
  let vision=null;if(engine?.type==='vision'){try{vision=JSON.parse(raw);}catch{fail('OCR_OUTPUT_INVALID','Invalid Vision JSON');}if(!vision||vision.width!==image.width||vision.height!==image.height||!Array.isArray(vision.tokens))fail('OCR_OUTPUT_INVALID','Vision dimensions disagree with screenshot');}
- const rows=vision?[]:raw.split(/\r?\n/);if(!vision&&rows.shift()!=='level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext')fail('OCR_OUTPUT_INVALID','Invalid OCR TSV header');
+ const rows=vision?[]:native?native.rows:raw.split(/\r?\n/);if(!vision&&!native&&rows.shift()!=='level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext')fail('OCR_OUTPUT_INVALID','Invalid OCR TSV header');
  const tokens=[];let pageVerified=!!vision,filtered=0;
  if(vision)for(const item of vision.tokens){const box=item?.bounds;if(!item||typeof item.text!=='string'||!item.text.trim()||item.text.length>4096||typeof item.confidence!=='number'||!Number.isFinite(item.confidence)||item.confidence<0||item.confidence>1||!box||!['x','y','width','height'].every(key=>Number.isSafeInteger(box[key]))||box.x<0||box.y<0||box.width<=0||box.height<=0||box.x+box.width>image.width||box.y+box.height>image.height)fail('OCR_OUTPUT_INVALID','Invalid Vision text or coordinates');if(item.confidence<minConfidence){filtered++;continue;}if(tokens.length>=maxTokens)fail('OCR_TOKEN_LIMIT','OCR token budget exhausted');tokens.push({text:item.text,confidence:item.confidence,bounds:{x:box.x,y:box.y,width:box.width,height:box.height}});}
 
  for(const row of rows){if(!row)continue;const columns=row.split('\t');if(columns.length!==12)fail('OCR_OUTPUT_INVALID','Invalid OCR TSV row');const [level,page,block,paragraph,line,word,x,y,width,height,confidence]=columns.slice(0,11).map(Number),text=columns[11];if(![level,page,block,paragraph,line,word,x,y,width,height].every(Number.isSafeInteger)||![1,2,3,4,5].includes(level)||page!==1||[x,y,width,height].some(value=>value<0)||x+width>image.width||y+height>image.height||!Number.isFinite(confidence))fail('OCR_OUTPUT_INVALID','OCR coordinates disagree with screenshot');
   if(level===1){if(pageVerified||x||y||width!==image.width||height!==image.height)fail('OCR_OUTPUT_INVALID','OCR page dimensions disagree with screenshot');pageVerified=true;}
-  if(level!==5||!text.trim())continue;if(confidence<0||confidence>100)fail('OCR_OUTPUT_INVALID','Invalid word confidence');if(confidence/100<minConfidence){filtered++;continue;}if(tokens.length>=maxTokens)fail('OCR_TOKEN_LIMIT','OCR token budget exhausted');tokens.push({text,confidence:confidence/100,bounds:{x,y,width,height}});
+  if(native&&level!==5&&text!=='')fail('OCR_NATIVE_TEXT_INVALID','Hierarchy rows cannot contain text');
+  if(level!==5||!text.trim())continue;if(confidence<0||confidence>100)fail('OCR_OUTPUT_INVALID','Invalid word confidence');
+  if(native){if(!pageVerified||!width||!height||text.length>4096||nativeWords.length>=maxTokens)fail(nativeWords.length>=maxTokens?'OCR_TOKEN_LIMIT':'OCR_NATIVE_TEXT_INVALID','Invalid or excessive native words');nativeWords.push({text,confidence:confidence/100,bounds:{x,y,width,height},order:[block,paragraph,line,word]});continue;}
+  if(confidence/100<minConfidence){filtered++;continue;}if(tokens.length>=maxTokens)fail('OCR_TOKEN_LIMIT','OCR token budget exhausted');tokens.push({text,confidence:confidence/100,bounds:{x,y,width,height}});
  }
  if(!pageVerified)fail('OCR_OUTPUT_INVALID','OCR did not verify screenshot dimensions');
+ let nativeTextEvidence;if(native){const combined=nativeEvidence(native.text,nativeWords,minConfidence);nativeTextEvidence=combined.evidence;filtered=combined.filtered;tokens.push(...combined.tokens);}
  let regionalEvidence;
  if(regions.length){
   const full=visionTokens(vision,image),passes=[];let total=full.length;
@@ -111,6 +160,9 @@ export async function observeImage({imagePath,outputDir,engine,language='eng',si
   tokens.splice(0,tokens.length,...combined);
  }
  const result={schemaVersion:1,provenance:'local_ocr',untrusted:true,coordinateSpace:'image_pixels',engine:engine?.type||'tesseract',imageSha256:createHash('sha256').update(data).digest('hex'),width:image.width,height:image.height,language,tokens,gaps:['ocr_text_is_not_a_control_role','ocr_does_not_verify_business_outcomes',...(filtered?['low_confidence_tokens_omitted']:[]),...(!tokens.length?['no_text_recognized']:[])],artifactPath,imagePath:privateImage};
+ // Raw native text is private OCR evidence, passed only through the internal
+ // local workflow bridge; public native observation projects named fields.
+ if(nativeTextEvidence){result.nativeTextEvidence=nativeTextEvidence;result.gaps.push('native_text_is_ocr_rendering_not_source_string');}
  if(regionalEvidence)result.regionalOcr={regions:regions.map(r=>r.normalized),fullImageTokenCount:regionalEvidence.fullImageTokens.length,regionalTokenCount:regionalEvidence.regions.reduce((n,r)=>n+r.tokens.length,0),boundaryTokensRetained:true,conflictsRejected:true};
  const serialized=JSON.stringify(regionalEvidence?{...result,regionalEvidence}:result,null,2)+'\n';if(Buffer.byteLength(serialized)>maxOutputBytes)fail('OCR_OUTPUT_LIMIT','OCR evidence exceeds output budget');remaining();await writeFile(artifactPath,serialized,{flag:'wx',mode:0o600});remaining();return result;
 }

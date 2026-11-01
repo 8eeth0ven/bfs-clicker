@@ -37,7 +37,11 @@ node src/software-mcp.js --output-root ./output-software --artifact-root ./examp
 
 `software_import_openapi({sourceId:"api",documentPath:"/绝对路径/openapi.yaml",documentUrl:"https://example.test/openapi.yaml"})` 支持 OpenAPI 3.0/3.1 和 Swagger 2 的 JSON/YAML 文档。先在启动配置中为该 sourceId 声明 `bindings.api.allowed_origins`；documentUrl 只用于解析相对 URL，不触发下载。
 
-规范提供的 path/query/JSON body 参数、required、枚举、范围和本地引用进入实际调用校验，查询编码同时进入固定调用契约。默认数组使用重复键；正式声明也可选择 CSV、空格、竖线分隔，以及浅对象编码。外部引用、循环引用、未支持的 wire 编码和文件上传保留候选及具体缺口，不能通过宽松 schema 调用。规范声明记为 static_candidate；真实调用另存验证记录，二者不会混作观测证据。写方法仍由启动配置的精确端点白名单控制。
+规范提供的 path/query/JSON body 参数、required、枚举、范围和本地引用进入实际调用校验，查询编码同时进入固定调用契约。默认数组使用重复键；正式声明也可选择 CSV、空格、竖线分隔，以及浅对象编码。未显式提供的外部引用、循环引用、未支持的 wire 编码和文件上传保留候选及具体缺口，不能通过宽松 schema 调用。规范声明记为 static_candidate；真实调用另存验证记录，二者不会混作观测证据。写方法仍由启动配置的精确端点白名单控制。
+
+多文件规范可通过 `referenceDocuments:[{documentUrl:"https://example.test/models/input.yaml",documentPath:"/配置允许目录/input.yaml"}]` 提供明确的 URI 与本地文件映射。每个文件都必须位于 `artifactRoots`；URL 是文档身份，不会触发下载。支持跨文档 path item、parameter、requestBody、schema，以及被引用文档内继续出现的相对和局部 JSON Pointer。相对引用和 server URL 按所在文档解析，规则见 [OpenAPI 相对引用](https://spec.openapis.org/oas/v3.1.1.html#relative-references-in-api-description-uris)。
+
+最多 32 份引用文档，单份 8 MiB、主文档加引用合计 16 MiB；重复身份、凭据 URL、fragment 身份、循环或无法解析的引用不能成为可调用契约。`$id` 资源作用域、命名 anchor 和动态引用暂不展开；指针跳入这些未支持的作用域也会保留缺口。重新导入后的实际参数契约变化会更新 revision，使旧生成入口失效。只提供规范不能扩大可信 `allowed_origins`。引用诊断仅保留摘要，不回传原始引用字符串。
 
 这里导入的是本地文档；需先把取得的规范保存进 artifactRoots。默认生成独立来源；传 `merge:true` 和已有来源的 `expectedRevision`，可补充到 Web/APK/iOS 来源，保留原始观测、App 身份、浏览器/移动能力和凭据绑定。补充规范不扩大原调用 origin 范围；同一路径/方法的多份正式契约冲突会保留候选及缺口，不按最后写入者放宽。再次导入同一文档位置会替换该份补充证据，refresh 保留补充内容。
 
@@ -128,7 +132,7 @@ Android/iOS 后端执行替换输入、点击/滑动、断言和类型化提取�
 
 验证完成会更新来源 revision；重新读取能力后，用 `software_call` 或生成入口传入新参数。定义、样本和执行 recipe 留在私有目录。浏览器验证证书按能力与 revision 不可变保存，后续学习的 CAS 冲突不会覆盖已发布版本的证书。配置断言与类型正确不自动证明后台结果新鲜度或任意业务语义。
 
-异步结果应提供可观察的关联条件。浏览器断言支持 `timeoutMs`（默认 3000、最多 10000）与 `changedFromBefore:true`，会在动作前捕获基线，在等待中核对预算、认证、范围与唯一目标；提取前后结果发生变化时拒绝旧数据。移动断言支持 `equalsInput` / `containsInput` 引用本轮参数，或 `changed:true` 要求目标相较本轮动作前的基线发生变化。两端都不会为等待结果重复点击。
+异步结果应提供可观察的关联条件。浏览器断言支持 `timeoutMs`（默认 3000、最多 10000）与 `changedFromBefore:true`，会在入口和最后一个提交点击前分别捕获基线，在等待中核对预算、认证、范围与唯一目标；提取前后结果发生变化时拒绝旧数据。移动断言支持 `equalsInput` / `containsInput` 引用本轮参数，或 `changed:true` 要求目标相较本轮动作前的基线发生变化。两端都不会为等待结果重复点击。
 
 仅匹配结果格式不会被标记为新鲜；移动执行结果的 `resultFreshness` 会分别记录输入关联及变化证据。同值重复查询没有可见变化时，显式 changed 会超时，需选择实际请求标记或结果版本作为断言目标。UI 变化和参数关联仍不自动证明服务器完成了本次业务。
 
@@ -140,9 +144,9 @@ Android/iOS 后端执行替换输入、点击/滑动、断言和类型化提取�
 
 视觉合同 `schemaVersion:2` 对解码后的整张 Canvas 像素建立指纹；只遮罩同 selector、同 frame 中此前已填写并回读的输入区，结果区不作为动态遮罩。同一区域多次输入以最后一次为准；当前输入区及动作锚点不得与其他遮罩按像素重叠，点击点也不得落入遮罩。`visualClick` 必须落在当前 OCR 锚点文字框内。每个后续视觉动作前使用同一张 OCR 截图重读此前关联的输入值；检查后仍会核对画面，发生变化则拒绝动作。不同 selector 的别名不自动视为同一宿主，动态时间、动画或光标等未遮罩变化可能导致保守拒绝；画面一致也不能证明隐藏处理器语义未变。
 
-PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-12`。
+PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-13`。
 
-视觉流程在最后触发动作前另取结果基线，防止输入时已更新的结果令无操作触发通过；提取后还会复核结果。该变化仍是时间上的证据：异步结果更新可能独立于触发动作，不能据此证明因果或后台业务完成。同一结果验证阶段中，同一 Canvas 的多个结果区域共享一次截图与 OCR；缓存仅限当前阶段，不跨动作或断言轮次复用。复用时固定 ElementHandle 并检查当前节点仍是同一宿主，替换则拒绝；触发前基线、触发后断言和提取后复核各自保留。
+声明 `changedFromBefore:true` 的 DOM、ARIA 与视觉流程在最后触发动作前另取结果基线，防止输入时已更新的结果令无操作触发通过；提取后还会复核结果。该变化仍是时间上的证据：异步结果更新可能独立于触发动作，不能据此证明因果或后台业务完成。同一结果验证阶段中，同一 Canvas 的多个结果区域共享一次截图与 OCR；缓存仅限当前阶段，不跨动作或断言轮次复用。复用时固定 ElementHandle 并检查当前节点仍是同一宿主，替换则拒绝；触发前基线、触发后断言和提取后复核各自保留。
 
 执行结果的 `observation.visual` 返回 `captures`、`ocrCalls` 与 `ocrMs`；前两项统计用于 OCR 的截图和识别调用，`captures` 不包含所有新帧/像素复核截图。双字段、双结果区域夹具中，每个样本和执行的识别次数由 15 次降至 10 次，HTTP 参数与提取结果一致。可在已安装 Chromium 和英文 Tesseract 的环境运行 `node scripts/benchmark-visual-ocr.mjs`；对照副本仅绕过两处结果缓存调用，不代表历史版本。一次固定顺序测试的耗时随本机负载和模型变化，详见 [视觉识别开销](software-to-mcp-verification.md#视觉识别开销)。
 
@@ -218,6 +222,14 @@ mkdir -p ./output-tools
 
 公开复现见 [融合反例测试](../test/visual-observation-regions.test.mjs)、[实际已知像素坐标测试](../test/visual-vision-regions.test.mjs) 和[中文设备模板](../examples/software/android-visual-chinese-device.example.json)。前者含伪引擎边界测试，后者在 macOS 实际编译、调用 Vision；两者的证明范围不同。
 
+#### 保留原生分隔信息的 Tesseract
+
+Android/iOS 的可信 `nativeVisualWorkflow.ocr` 可显式配置 `{"engine":{"type":"tesseract","executable":"/absolute/path/tesseract","tessdataDir":"/absolute/path/tessdata","nativeText":true},"language":"chi_sim+eng"}`。此选项不从 MCP 调用参数接收；默认 TSV、Vision、Web 配置及移动只读观察配置保留各自支持范围。本地须已安装对应语言数据。
+
+同一次识别分别输出 TXT 与 TSV，保留引擎自己的文字、分隔信息、原词置信度和坐标。只有原文中零分隔的相邻词会合成连续片段；真实空格和换行在结果区域内保留。完整原文与原词、位置或顺序对不上时拒绝，低置信或跨界片段不会被删掉后补成期望结果。原生文本仍是 OCR 推断，不证明应用源字符串或业务正确。
+
+此模式依赖 POSIX 文件资源限制，并使用私有目录中的独立输出文件；不支持相应限制的平台会明确拒绝。默认识别路径不依赖此选项。协议、范围及保护反例见 [Node 测试](../test/visual-native-text.test.mjs) 与 [Python 测试](../apk_tools/tests/test_mobile_visual_native_text.py)。离线图片重放不能替代完整设备调用验收。普通 iOS 软键盘的词过滤视图暂未接入此原生文本合同。
+
 ### Android 原生视觉动作
 
 Android 16 / API 36 的 ADB 后端可用固定文字锚点执行枚举选择或受限文本替换，并从独立结果区域读取本地 OCR。自绘界面没有可访问标签时也可通过同一 `software_bind_workflow`、`software_call` 和生成入口调用；它不是任意业务自动规划。
@@ -264,7 +276,9 @@ python apk_tools/visual_helper/build.py --sdk /absolute/android-sdk --out /absol
 
 #### iOS 普通系统软键盘
 
-compiler12 新增本地显式启用的 `nativeVisualWorkflow.keyboard`，参照[设备模板](../examples/software/ios-visual-keyboard-device.example.json)、[可信定义](../examples/software/ios-visual-keyboard-workflow.example.json)与[自然 UITextField 夹具](../apk_tools/examples/ios-visual-keyboard/main.m)。该夹具保留系统键盘和普通 caret。此路径当前相关 Python 模拟/本地 PNG 测试 81/81、Node 光标专项 9/9 通过，**完整真实模拟器验收尚未通过，尚无普通键盘两样本和统一/生成双入口通过结论**；不能以无键盘 UIKeyInput 的历史成功替代。
+compiler13 在 clear/type 的第一次准备观察中增加只读稳定采样：最多 3 个完整的界面树→新截图/OCR→界面树观察对，累计最多 12 次 source、3 张新图。只在严格验证后的合法键盘相位前后不一致时整组重采，不把旧图改标为新相位；特定 visible-but-offscreen 矛盾仍须等待新的合法证据。首个明确不稳定证据启动共享且不重置的 2 秒追加窗口；它限制新采样的启动，单次在途传输与 OCR 仍受原超时及总预算约束。它不重复 focus、clear、type、Dismiss 或提交，后续新鲜度与完整截图核对仍保留。
+
+compiler12 新增本地显式启用的 `nativeVisualWorkflow.keyboard`，参照[设备模板](../examples/software/ios-visual-keyboard-device.example.json)、[可信定义](../examples/software/ios-visual-keyboard-workflow.example.json)与[自然 UITextField 夹具](../apk_tools/examples/ios-visual-keyboard/main.m)。该夹具保留系统键盘和普通 caret。此路径当前相关 Python 模拟/本地 PNG 测试 109/109、Node 光标专项 9/9 通过，**完整真实模拟器验收尚未通过，尚无普通键盘两样本和统一/生成双入口通过结论**；不能以无键盘 UIKeyInput 的历史成功替代。
 
 `sourceRegion` 必须匹配本次来源树中唯一可见 Keyboard 的实际像素框；`region` 是本地管理者另行批准的视觉 envelope，包含它的有限背景和阴影。省略 `sourceRegion` 时与 `region` 相同，不自动补齐边缘。二者均须全宽且近底部；顶部额外范围同时不超过视口 2.5% 和 12pt，底部同时不超过 5% 和 24pt。输入区、focus/submit/dismiss 锚点不得与 envelope 相交。学习合同和设备身份绑定完整配置，像素失败后不会自动扩大范围。AX 框只能证明所观察的树与几何，不能证明这些额外像素属于系统窗口。
 

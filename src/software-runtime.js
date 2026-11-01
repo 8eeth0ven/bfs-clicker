@@ -115,7 +115,7 @@ export function createSoftwareRuntime(options={}){
    const proofMatches=source=>kind==='apk'&&source.appArtifactVerified===true&&source.artifactVerification?.status==='verified'&&/^[a-f0-9]{64}$/.test(appHash||'')&&source.artifactVerification.expectedSha256===appHash&&source.artifactVerification.actualSha256===appHash;
    if(mobileProofs.some(source=>source.artifactVerification?.status==='verified'&&!proofMatches(source)))throw new Error('APP_ARTIFACT_IDENTITY_MISMATCH');
    const appArtifactVerified=mobileProofs.length>0&&mobileProofs.every(proofMatches),artifactVerification=(appArtifactVerified?mobileProofs[0]:mobileProofs.find(source=>!proofMatches(source)))?.artifactVerification||null;
-   const revision=digest({compilerVersion:'software-to-mcp-12',sourceId,http:snapshot.revision,browser:browser?.manifest.source.revision||null,mobile:mobile?.manifest.source.revision||null,deviceName:deviceName||null,deviceConfigPath:deviceConfigPath||null,workflows:workflows.map(item=>[item.id,item.manifest.source.revision,item.adapter]),workflowPermissions:config.workflowPermissions[sourceId]||null,nativeVisual:config.nativeVisual?.[sourceId]||null,supplements:httpSupplements,scope,binding:config.bindings?.[sourceId]||null,sourceGaps,sourceWarnings});
+   const revision=digest({compilerVersion:'software-to-mcp-13',sourceId,http:snapshot.revision,browser:browser?.manifest.source.revision||null,mobile:mobile?.manifest.source.revision||null,deviceName:deviceName||null,deviceConfigPath:deviceConfigPath||null,workflows:workflows.map(item=>[item.id,item.manifest.source.revision,item.adapter]),workflowPermissions:config.workflowPermissions[sourceId]||null,nativeVisual:config.nativeVisual?.[sourceId]||null,supplements:httpSupplements,scope,binding:config.bindings?.[sourceId]||null,sourceGaps,sourceWarnings});
    const capabilities=[],recipes={},gaps=[...sourceGaps,...supplementGaps,...supplements.flatMap(item=>item.gaps||[]),...(adapted?.gaps||[]),...(browser?.manifest.source.gaps||[]),...mobileProofs.flatMap(source=>source.gaps||[]).filter(gap=>!appArtifactVerified||(typeof gap==='string'?gap:gap.reason)!=='app_artifact_not_verified'),...(mobileProofs.length?[...(!appArtifactVerified?[{reason:'app_artifact_not_verified'}]:[]),{reason:'mobile_network_scope_not_enforced'}]:[])];
    for(const endpoint of snapshot.endpoints){
     for(const method of endpoint.methods){
@@ -227,7 +227,23 @@ export function createSoftwareRuntime(options={}){
   }
   return compile({sourceId:descriptor.source_id,inventoryPath:inventory,kind,mobileDir,deviceName,deviceConfigPath});
  }
- async function importSpecification({sourceId,documentPath,documentUrl,expectedRevision,merge=false}){const original=merge?readGeneration(sourceId):null;if(merge&&(!expectedRevision||original.ref.revision!==expectedRevision))throw new Error('SOURCE_CHANGED：合并需要当前来源revision');const file=checkedArtifact(documentPath,config.artifactRoots);if(statSync(file).size>8*1024*1024)throw new Error('DOCUMENT_LIMIT');const {importOpenApi}=await import('./openapi-discovery.js');const imported=importOpenApi({document:readFileSync(file,'utf8'),documentUrl,sourceId,allowedOrigins:config.bindings?.[sourceId]?.allowed_origins||original?.manifest.source.allowedOrigins?.map(value=>new URL(value).origin)||[]});const documentFile=path.join(root,'private/spec-'+randomUUID()+'.json');atomicJson(documentFile,imported.manifest);if(merge){const id=digest(documentUrl||file),item={id,inventoryPath:documentFile,schemaOverrides:imported.schemaOverrides,gaps:imported.gaps,warnings:imported.warnings};return compileCurrent({sourceId,expectedRevision,httpSupplements:[...(original.ref.httpSupplements||[]).filter(previous=>previous.id!==id),item]});}return compile({sourceId,kind:'web',inventoryPath:documentFile,expectedRevision,schemaOverrides:imported.schemaOverrides,sourceGaps:imported.gaps,sourceWarnings:imported.warnings});}
+ async function importSpecification({sourceId,documentPath,documentUrl,referenceDocuments=[],expectedRevision,merge=false}){
+  const original=merge?readGeneration(sourceId):null;
+  if(merge&&(!expectedRevision||original.ref.revision!==expectedRevision))throw new Error('SOURCE_CHANGED：合并需要当前来源revision');
+  if(!Array.isArray(referenceDocuments)||referenceDocuments.length>32)throw new Error('REFERENCE_DOCUMENT_LIMIT');
+  let documentBytes=0;
+  const readDocument=input=>{
+   const file=checkedArtifact(input,config.artifactRoots),stat=statSync(file);
+   if(!stat.isFile()||stat.size>8*1024*1024||(documentBytes+=stat.size)>16*1024*1024)throw new Error('DOCUMENT_LIMIT');
+   return {file,document:readFileSync(file,'utf8')};
+  };
+  const {file,document}=readDocument(documentPath),references=referenceDocuments.map(entry=>{
+   if(!entry||typeof entry.documentPath!=='string'||typeof entry.documentUrl!=='string')throw new Error('INVALID_REFERENCE_DOCUMENT');
+   return {documentUrl:entry.documentUrl,document:readDocument(entry.documentPath).document};
+  });
+  const {importOpenApi}=await import('./openapi-discovery.js');
+  const imported=importOpenApi({document,documentUrl,referenceDocuments:references,sourceId,allowedOrigins:config.bindings?.[sourceId]?.allowed_origins||original?.manifest.source.allowedOrigins?.map(value=>new URL(value).origin)||[]});
+  const documentFile=path.join(root,'private/spec-'+randomUUID()+'.json');atomicJson(documentFile,imported.manifest);if(merge){const id=digest(documentUrl||file),item={id,inventoryPath:documentFile,schemaOverrides:imported.schemaOverrides,gaps:imported.gaps,warnings:imported.warnings};return compileCurrent({sourceId,expectedRevision,httpSupplements:[...(original.ref.httpSupplements||[]).filter(previous=>previous.id!==id),item]});}return compile({sourceId,kind:'web',inventoryPath:documentFile,expectedRevision,schemaOverrides:imported.schemaOverrides,sourceGaps:imported.gaps,sourceWarnings:imported.warnings});}
  async function compileCurrent({sourceId,expectedRevision,...patch}){const ref=current(sourceId);return compile({sourceId,expectedRevision,inventoryPath:ref.inventoryPath,kind:ref.kind,runDir:ref.runDir,mobileDir:ref.mobileDir,deviceName:ref.deviceName,deviceConfigPath:ref.deviceConfigPath,workflowEntries:ref.workflowEntries,httpSupplements:ref.httpSupplements,schemaOverrides:ref.schemaOverrides,sourceGaps:ref.sourceGaps,sourceWarnings:ref.sourceWarnings,...patch});}
  async function observeMobile({sourceId,expectedRevision},outputDir,signal){
   validId(sourceId);const g=readGeneration(sourceId);if(g.ref.revision!==expectedRevision)throw new Error('SOURCE_CHANGED');if(!['apk','ios'].includes(g.ref.kind))throw new Error('MOBILE_SOURCE_REQUIRED');

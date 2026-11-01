@@ -70,3 +70,37 @@ test('unsupported OpenAPI wire contracts never publish impossible ready tools',{
  const generated=await finish(client,await call(client,'software_generate',{sourceId:'documented',expectedRevision:catalog.source.revision}));
  const independent=await connect(t,[generated.result.entry]);assert(!(await independent.client.listTools()).tools.some(tool=>tool.name.startsWith('cap_')));
 });
+
+test('official MCP resolves a multi-document bundle for unified and generated entries',{timeout:60000},async t=>{
+ const dir=temp(t),outside=temp(t),out=path.join(dir,'out'),config=path.join(dir,'config.json');
+ const document=path.join(dir,'api.json'),route=path.join(dir,'route.yaml'),parameters=path.join(dir,'parameters.json'),types=path.join(dir,'types.json');
+ const site=await fixture(t,({url})=>({type:'application/json',body:JSON.stringify({path:url.pathname,tags:url.searchParams.getAll('tag')})}));
+ const documentUrl=site.origin+'/spec/root.json';
+ writeFileSync(config,JSON.stringify({artifactRoots:[dir],bindings:{bundle:{allowed_origins:[site.origin]}}}));
+ writeFileSync(document,JSON.stringify({openapi:'3.1.1',paths:{'/items/{id}':{$ref:'routes/items.yaml'}}}));
+ writeFileSync(route,"servers: [{url: '../api'}]\nget:\n  parameters:\n    - {$ref: '../parameters.json#/Id'}\n    - {$ref: '../parameters.json#/Tags'}\n");
+ writeFileSync(parameters,JSON.stringify({Id:{in:'path',name:'id',required:true,schema:{$ref:'types.json#/Id'}},Tags:{in:'query',name:'tag',required:true,schema:{$ref:'#/TagSchema'}},TagSchema:{type:'array',minItems:1,items:{$ref:'types.json#/Tag'}}}));
+ writeFileSync(types,JSON.stringify({Id:{type:'integer',minimum:1,maximum:9},Tag:{type:'string',enum:['a','b']}}));
+ const refs=[{documentUrl:site.origin+'/spec/routes/items.yaml',documentPath:route},{documentUrl:site.origin+'/spec/parameters.json',documentPath:parameters},{documentUrl:site.origin+'/spec/types.json',documentPath:types}];
+ const {client}=await connect(t,[path.join(root,'src/software-mcp.js'),'--config',config,'--output-root',out]);
+ await finish(client,await call(client,'software_import_openapi',{sourceId:'bundle',documentPath:document,documentUrl,referenceDocuments:refs}));
+ const catalog=await call(client,'software_capabilities',{sourceId:'bundle'}),cap=catalog.items[0];
+ assert.equal(cap.readiness,'ready',JSON.stringify(catalog));assert.equal(site.requests.length,0);
+ const invalid=await finish(client,await call(client,'software_call',{sourceId:'bundle',capabilityId:cap.id,expectedRevision:cap.revision,params:{path:{id:0},query:{tag:['bad']}}}),{failed:true});
+ assert.equal(invalid.errorCode,'INPUT_INVALID');assert.equal(site.requests.length,0);
+ const unified=await finish(client,await call(client,'software_call',{sourceId:'bundle',capabilityId:cap.id,expectedRevision:cap.revision,params:{path:{id:2},query:{tag:['a','b']}}}));
+ assert.equal(unified.result.result.ok,true);assert.equal(unified.result.result.data.response.body.value.path,'/spec/api/items/2');
+ const generated=await finish(client,await call(client,'software_generate',{sourceId:'bundle',expectedRevision:catalog.source.revision}));
+ const independent=await connect(t,[generated.result.entry]);
+ const invocation=await call(independent.client,'cap_'+cap.id.slice(4,24),{path:{id:3},query:{tag:['b','a']}});
+ const done=await until(async()=>{const state=await call(independent.client,'operation_status',{operationId:invocation.operationId});if(state.status==='failed')throw Error(JSON.stringify(state));return state.status==='completed'&&state;},20000);
+ assert.equal(done.result.result.ok,true);assert.equal(done.result.result.data.response.body.value.path,'/spec/api/items/3');assert.deepEqual(done.result.result.data.response.body.value.tags,['b','a']);assert.equal(site.requests.length,2);
+ const external=path.join(outside,'types.json');writeFileSync(external,'{}');
+ const denied=await finish(client,await call(client,'software_import_openapi',{sourceId:'bundle',documentPath:document,documentUrl,referenceDocuments:[{documentUrl:refs[2].documentUrl,documentPath:external}],expectedRevision:catalog.source.revision}),{failed:true});
+ assert.equal(denied.status,'failed');assert.match(denied.error,/artifactRoots/);
+ assert.equal((await call(client,'software_capabilities',{sourceId:'bundle'})).source.revision,catalog.source.revision);
+ writeFileSync(types,JSON.stringify({Id:{type:'integer',minimum:1,maximum:2},Tag:{type:'string',enum:['a','b']}}));
+ await finish(client,await call(client,'software_import_openapi',{sourceId:'bundle',documentPath:document,documentUrl,referenceDocuments:refs,expectedRevision:catalog.source.revision}));
+ assert.notEqual((await call(client,'software_capabilities',{sourceId:'bundle'})).source.revision,catalog.source.revision);
+ const stale=await independent.client.callTool({name:'cap_'+cap.id.slice(4,24),arguments:{path:{id:3},query:{tag:['a']}}});assert.equal(stale.isError,true);assert.match(stale.content[0].text,/SOURCE_CHANGED/);assert.equal(site.requests.length,2);
+});
