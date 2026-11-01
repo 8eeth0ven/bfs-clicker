@@ -15,6 +15,7 @@ test('actual closed root discovers and plans, learns two requests, unified and g
  const home=temp(t),site=await closedSite(t),outputRoot=path.join(home,'software'),configFile=path.join(home,'config.json');writeFileSync(configFile,JSON.stringify({outputRoot,artifactRoots:[home],webConfig:closedWebConfig(site)}));
  const unified=await connect(t,[path.join(root,'src/software-mcp.js'),'--config',configFile]),client=unified.client;
  await finish(client,await call(client,'software_discover',{sourceId:'closed',kind:'web',input:site.origin,webOptions:{maxStates:2,maxDepth:1,maxActions:4,maxDurationMs:20000}}));
+ assert.deepEqual(site.queries,[{host:'alpha',q:'seed'}],'exploration must preserve the trusted text preparation until Search');
  const before=site.requests.length,planned=await call(client,'software_workflows',{sourceId:'closed'}),item=candidate(planned);assert.equal(site.requests.length,before);assert(!JSON.stringify(item).includes('closedShadow'));const output=item.outputTargets.find(row=>row.label==='Search result');assert(output,JSON.stringify(item));
  const runDir=path.join(outputRoot,'runs/closed'),checkpoint=json(path.join(runDir,'private/checkpoint.json'));assert(checkpoint.states[0].interactives.some(row=>row.closedShadow?.policyId==='alpha'&&row.selector==='closed::alpha::#query'));
  const n=site.queries.length;await finish(client,await call(client,'software_bind_workflow',{sourceId:'closed',expectedRevision:planned.source.revision,candidateId:item.id,samples:[{query:'alpha'},{query:'beta'}],resultAssertions:[{outputTargetId:output.id,param:'query',changedFromBefore:true}]}));assert.deepEqual(site.queries.slice(n).map(row=>[row.host,row.q]),[['alpha','alpha'],['alpha','beta']]);
@@ -25,7 +26,7 @@ test('actual closed root discovers and plans, learns two requests, unified and g
  assert.deepEqual(site.queries.slice(n).map(row=>[row.host,row.q]),['alpha','beta','gamma','delta'].map(q=>['alpha',q]));assert.equal(unified.stderr(),'');assert.equal(independent.stderr(),'');
  const config=json(path.join(runDir,'private/config.json'));config.closedShadowRoots[0].hosts=['#changedHost'];writeFileSync(path.join(runDir,'private/config.json'),JSON.stringify(config));const count=site.queries.length;
  const requestCount=site.requests.length,stale=await finish(independent.client,await call(independent.client,'cap_'+cap.id.slice(4,24),{query:'omega'}),{name:'operation_status',failed:true});assert.equal(stale.errorCode,'SOURCE_IDENTITY_MISMATCH');assert.equal(site.queries.length,count);assert.equal(site.requests.length,requestCount,'stale source must fail before opening the page');
- save('sdk',{status:'passed',scope:'actual_local_chromium_and_official_sdk',businessRequests:site.queries.slice(n),capability:cap,unified:third.result.result.data,generated:fourth.result.result.data,staleRejected:true,stderrBytes:[0,0]});
+ save('sdk',{status:'passed',scope:'actual_local_chromium_and_official_sdk',discoveryBusinessRequests:site.queries.slice(0,n),businessRequests:site.queries.slice(n),capability:cap,unified:third.result.result.data,generated:fourth.result.result.data,staleRejected:true,stderrBytes:[0,0]});
 });
 
 async function learned(t,site){

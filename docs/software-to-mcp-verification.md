@@ -2,17 +2,44 @@
 
 统一服务提供 28 个工具：12 个 Web 探索/图工具，以及 16 个来源发现、规划、绑定、执行、观察、验证、生成和任务管理工具。生成入口包含具名工具、分页能力目录、通用调用与任务查询。`ready` 表示某个来源通过受支持契约和样本验证，不表示任意网站或 App 的全部业务已经覆盖。
 
-本记录采用 `software-to-mcp-15` 的[草稿 PR 检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)分发范围，主分支未合并、npm 未发布；[compiler14 检查点 00f4e84](https://github.com/8eeth0ven/bfs-clicker/commit/00f4e8496f7f5863b813b484df3ed6fb940c9502)仅作历史参考。本轮完整回归和独立生产包 SDK 基线已通过，原生设备验收与最终 index/tar 内容审核分别记录；实际远端 commit 及最终审核结论由 PR 和交付记录核验。
+本记录采用 `software-to-mcp-16` 的[草稿 PR 检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)分发范围，主分支未合并、npm 未发布；[compiler15 检查点 6f5ce05](https://github.com/8eeth0ven/bfs-clicker/commit/6f5ce059b25298de69b60c0bcd23456dadee5dff)作为历史参考。当前完整回归和独立生产包 SDK 基线已通过；最终 index/tar 文档投影和内容隐私在每次提交前单独复核，实际新提交由 PR 与交付记录核验。
 
 机器可读状态见[公开验证摘要](software-to-mcp-validation.json)，使用与配置见[统一入口指南](software-to-mcp.md)。不同来源、版本、重复回归和交叠专项不相加。原始截图、设备标识、会话、模型与个人路径留在私有证据中，公开复现以仓库测试、配置和明确适用范围为入口。
 
-## compiler15 当前专项与待验范围
+## compiler16 当前证据与待验范围
+
+| 项目 | 已取得证据 | 适用范围与限制 |
+| --- | --- | --- |
+| Python完整回归 | 525项：524通过、1跳过；125.518秒；70份相关源前后哈希一致 | 缺已编译Hermes样本。与最终Web/JS全量、设备和生产包各有范围，不相加 |
+| 普通iOS聚焦后观察 | 相关182/182，已包含新增23与既有159 | 最多3候选/6次helper source/3次新完整OCR；首个严格H或V/H分类时开启一次2秒额外候选启动窗，已准入完整pair仍受原总预算。hidden不授权，不重复focus或输入，offscreen/非法source拒绝。不是设备通过 |
+| 原生语义输入精确性 | 12项真实本地HTTP/W3C协议夹具通过；官方SDK loopback两样本与统一/生成通路核对逐码点输入 | 协议提供者回报的语义值，不是实际Android/iOS App或OCR验收。replace最多一次clear/一次value，append核前缀/后缀；空格不trim/fold、Unicode不归一化，漂移或不确定结果不重发 |
+| 显式同来源HTTP通路 | 另行导入、批准的HTTP能力保留前后空格、连续空格及CJK/Latin，额外原生UI动作0 | 原生能力仍保留，不是自动UI fallback，也不证明API与界面业务语义自动等价；不能据此称中文视觉空格已解决 |
+| 浏览器实时输入前缀 | 最终5份生产源码先37/37；随后新增未尝试输入恢复和正式SDK正链2/2。当前专项文件38个case | 两组分列，不称一次全套38/39。输入和owner/submitter身份、语义及值摘要仅在活页面许可中；失效后依赖动作gap/partial，未知文本不重发；旧缺新submission证据的断点明确拒绝 |
+| 浏览器正式SDK夹具 | 探索请求为host=alpha、q=seed；两样本alpha/beta，统一gamma、生成delta。探索1次+后续4次，共5次实际业务请求；两SDK stderr均0 | 初始探索不是学习样本。compiler15历史探索q为空，不能混写为本轮seed。此为源码运行时有限Chromium夹具，不是compiler16独立生产包验收 |
+| 当前组合源码完整回归 | `npm test`239/239；`npm run test:software`373/373，均0失败/跳过 | 同一117份runtime、422份代码/测试/配置在两套结束时逐哈希相同；Python70源及设备487快照另列，不混作同范围 |
+| 独立生产安装与SDK基线 | 360文件/32dist；锁定仅生产依赖安装，8个直接依赖来自独立安装目录，SDK28工具、stderr0、client/server已关闭 | 基线360份与源逐字节相同。最终仅两份验证文档变化时，另核其余358文件、路径、模式及最终index/tar内容；不把基线包哈希冒充最终包 |
+
+新输入receipt的marker和事件不持久化原值或值摘要；值/摘要及DOM handles仅在闭包中。这个结论不扩展成整个私有checkpoint、配置和API账本全无输入原文。跨frame/root/form或搜索组的许可不通用转移，重载、切换范围、非文本动作、owner/submitter或回显漂移会使许可失效；相同DOM指纹不能证明任意隐藏JavaScript状态相同。
+
+## 普通iOS第15轮：仍未完成两样本与双入口
+
+实际以`VISUAL_FRAME_CHANGED`终态失败，非transport/global timeout。执行38个键盘按键与4个外部指针动作，共42动作；外部顺序为Focus→Dismiss→submit→Focus。首个alpha样本包含16次固定delete、alpha5键、一次Dismiss与一次业务submit，OCR结果为`RESULT alpha 1`，已进入第二样本，证明首个单样本函数完整返回。第二样本执行16次delete与b1键后，在e派发前被新鲜度守卫拒绝；没有第二次Dismiss/submit、ready或recipe，统一gamma及生成Ab7z均未到达。
+
+两次focus均走首个正常V/V完整观察，未观察到H/mismatch，也没有开启额外候选窗。因此不能把本轮进度归因为新增等待分支的真实恢复成功。输入区不mask、caret/颜色/全图与结果守卫未放宽，也不能凭条状像素认定系统光标身份。
+
+六项清理、四个本次服务端口无监听、owned进程/模拟器退出与既有设备标识保持已复核。该设备验收使用487份冻结原生cohort：已发布compiler15浏览器基线叠加本轮原生变更，不含工作树新browser-prefix，不是最终117/422组合源码、生产包或物理真机/任意App证明。历史14轮和12轮失败均保留，不以本次首样本进度覆盖。
+
+公开复现见[聚焦等待](../apk_tools/tests/test_mobile_visual_ios_focus_wait.py)、[原生精确输入](../apk_tools/tests/test_mobile_webdriver_input_fidelity.py)、[浏览器输入前缀](../test/browser-input-prefix.test.mjs)及[闭根 SDK 流程](../test/software-closed-shadow.test.mjs)。本机525项Python仅跳过Hermes编译样本；在缺少本地历史原件的其他环境，归档XML/时序回放还可跳过，这些跳过不算通过。
+
+下列 compiler15 表格与原件说明保留为历史，不能作为 compiler16 的通过项。
+
+## compiler15 历史专项与待验范围
 
 | 项目 | 已取得的证据 | 当前边界 |
 | --- | --- | --- |
 | 原生像素任务进程 | iOS 相关 Python 159/159，Node 本地 PNG/IPC 16/16；非阻塞读写/退出等待、错误回复和取消回收均有反例 | 纯文件比较作用域，不跨 UI 动作缓存；原像素、caret、输入、Dismiss 与结果闸保留。不是设备验收 |
 | 原生时间预算对齐 | 预算/快照/子进程/假 CLI/操作管理组合 37/37；独立模块重复 15/15、纯探针4项通过 | 三组交叠不相加；没有实际运行480秒或设备验收。业务预算原值不变，外层仅启动、终止及传输余量 |
-| 有限 closed Shadow DOM 流程 | producer15/15，独立真实Chromium7/7及既有Web五文件51/51分列；候选→两样本学习→统一gamma/生成delta完成有限本地闭环 | 探索seed先1次POST，学习与双入口新增4次，整个SDK夹具共5次。仅主frame显式author-closed原生文本/按钮/DOM-text子集，不覆盖closed select/check/ARIA/visual/table |
+| 有限 closed Shadow DOM 流程 | producer15/15，独立真实Chromium7/7及既有Web五文件51/51分列；候选→两样本学习→统一gamma/生成delta完成有限本地闭环 | 探索阶段先1次POST（不计学习样本；旧安装探针q为空），学习与双入口新增4次，整个SDK夹具共5次。仅主frame显式author-closed原生文本/按钮/DOM-text子集，不覆盖closed select/check/ARIA/visual/table |
 | Python 完整回归 | 490项：489通过、1跳过；130.533秒，实际签名 APK fixture | 缺 HBC_FIXTURE 编译 Hermes 样本；相关 Python producer 与链接的 Node/Swift helper 前后源一致，不代表独立 Web/JS 预算源码全程冻结 |
 | 原生快照 Node 专项 | 4文件13/13；约12500.705ms；483份复制源/32份 dist 原生队列末核一致，生产 import通过 | 实际 MCP/HTTP 或假 CLI/观察专项；483是本轮原生验收范围，不是最终 Web/全项目源码或生产包安装证明 |
 | 普通 UIKit 第13轮 | 配置预检终态，选定设备类型与运行时不兼容 | create前停止；0设备、0UI动作、0服务端口；不是运行了工作流后的失败或设备通过 |

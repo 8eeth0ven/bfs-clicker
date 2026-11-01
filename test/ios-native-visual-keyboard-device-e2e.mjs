@@ -9,7 +9,7 @@ import {nativeWorkflowBudget,nativeMcpRequestOptions,waitNativeOperation} from '
 import {runPython} from '../src/software-python.js';
 import {spawn,execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {existsSync,openSync,closeSync} from 'node:fs';
+import {existsSync,openSync,closeSync,constants as fsConstants} from 'node:fs';
 import {mkdir,readFile,writeFile,appendFile,cp} from 'node:fs/promises';
 import {createServer as createHttpServer,request as httpRequest} from 'node:http';
 import {createServer as createNetServer} from 'node:net';
@@ -162,9 +162,15 @@ async function main(){
    const app=path.join(source,'Build/Products/Debug-iphonesimulator/WebDriverAgentRunner-Runner.app');
    const executable=(await run('/usr/bin/plutil',['-extract','CFBundleExecutable','raw',path.join(app,'Info.plist')])).stdout.trim();assert.match(executable,/^[A-Za-z0-9_.-]+$/);
    await run('/usr/bin/codesign',['--verify','--deep','--strict',app]);const binarySha256=hash(await readFile(path.join(app,executable)));
-   await cp(path.join(source,'Build/Products'),path.join(output,'wda-derived-data/Build/Products'),{recursive:true,errorOnExist:true});
+   const productSource=path.join(source,'Build/Products'),productCopy=path.join(output,'wda-derived-data/Build/Products');
+   await mkdir(path.dirname(productCopy),{recursive:true});
+   await mkdir(productCopy,{mode:0o700}); // Claim a fresh cache directory; never overwrite earlier run output.
+   const cloneCopy=await run('/bin/cp',['-cRp',productSource+path.sep+'.',productCopy],{allowFailure:true});
+   // Node's clone flag is not implemented by every macOS build. Native cp can
+   // clone on APFS; a failed clone may only overwrite this newly claimed cache.
+   if(cloneCopy.code!==0)await cp(productSource,productCopy,{recursive:true,force:true,verbatimSymlinks:true,mode:fsConstants.COPYFILE_FICLONE});
    const copied=path.join(output,'wda-derived-data/Build/Products/Debug-iphonesimulator/WebDriverAgentRunner-Runner.app',executable);
-   assert.equal(hash(await readFile(copied)),binarySha256);record.prebuiltWda={source,producerStatus:prior.status,binarySha256,identicalSoftwareVersions:true,copyVerified:true};
+   assert.equal(hash(await readFile(copied)),binarySha256);record.prebuiltWda={source,producerStatus:prior.status,binarySha256,identicalSoftwareVersions:true,copyVerified:true,copyStrategy:cloneCopy.code===0?'native_clone_requested_with_possible_copy_fallback':'node_copy_after_native_cp_failure',physicalBlockSharingVerified:false,existingDestinationOverwritten:false};
   }
   const runtimes=JSON.parse((await simctl('list','runtimes','-j')).stdout).runtimes.filter(r=>r.isAvailable&&r.identifier.includes('.iOS-'));
   record.availableRuntimes=runtimes.map(({identifier,name,version,buildversion})=>({identifier,name,version,buildversion}));

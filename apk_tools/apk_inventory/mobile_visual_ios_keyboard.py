@@ -345,6 +345,11 @@ def keyboard_state(session, config, observation, geometry, visible, stabilize=Fa
         # None requests observation of the preparation phase, never permission
         # to mask a missing keyboard or to repeat an input action.
         return None
+    return _keyboard_region(config, observation, geometry, proposal)
+
+
+def _keyboard_region(config, observation, geometry, proposal):
+    """Validate a source proposal against the unchanged local visual envelope."""
     actual = proposal["region"]
     v = _visual()
     # Exact outward-rounded pixel bounds: no owner-approved extra area beyond
@@ -377,6 +382,82 @@ def _observe(session, lease, config, geometry=None, visible=False, reference=Non
     if not visible:
         v.unchanged_locked(session, lease, session.output / "visual-private", observation)
     return observation, actual_geometry
+
+
+def _focus_state(session, config, observation, geometry, sampling, instability):
+    """One strict source read; classify hidden before its post-app guard.
+
+    The candidate was already admitted by _focus_observe. All of its reads
+    retain the original transport/overall budgets, including this final app
+    guard; a hidden result itself never grants a mask or an input action.
+    """
+    session.budget.check()
+    if sampling["sourceReads"] >= 6:
+        fail("VISUAL_KEYBOARD_NOT_VISIBLE")
+    session.backend.foreground()
+    session.budget.check()
+    sampling["sourceReads"] += 1
+    raw = session.backend.request("GET", "/source")
+    session.budget.check()
+    proposal = _inspect_source(raw, geometry, session.backend.app_id, unique=True)
+    if proposal is None:
+        # Start at the actual classification, not after a potentially slow
+        # foreground request. A subsequent hidden observation cannot renew it.
+        _sampling_unstable(sampling, instability)
+    session.backend.foreground()
+    session.budget.check()
+    if proposal is None:
+        return None
+    return _keyboard_region(config, observation, geometry, proposal)
+
+
+def _focus_observe(session, lease, config, geometry, reference):
+    """After one focus, admit at most three read-only visible candidates.
+
+    The first strict hidden source (or V/H mismatch) opens a single two-second
+    window for starting additional candidates. An admitted complete pair may
+    finish beyond that window under the original transport/overall budgets:
+    it still requires a new full OCR frame, geometry, source and app checks.
+    No offscreen-visible/invalid-source error is retried or phase-normalized.
+    """
+    if getattr(session, "_focus_observing", False):
+        fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+    v, sampling, status = _visual(), _preparation_sampling(), "rejected"
+    started = time.monotonic()
+    session._focus_observing = True
+    try:
+        for attempt in range(3):
+            _sampling_check(session.budget, sampling, "VISUAL_KEYBOARD_NOT_VISIBLE")
+            sampling["pairs"] += 1
+            if _focus_state(session, config["keyboard"], reference, geometry, sampling,
+                            "focus_hidden_source") is None:
+                continue
+            session.budget.check()
+            sampling["observations"] += 1
+            observation = v._observe(session, lease, config)
+            sampling["completedObservations"] += 1
+            session.budget.check()
+            actual_geometry = v._geometry(session, observation, geometry)
+            if _focus_state(session, config["keyboard"], observation, actual_geometry,
+                            sampling, "focus_phase_mismatch") is not None:
+                status = "observed_visible"
+                return observation, actual_geometry
+            sampling["mismatches"] += 1
+            # This complete frame is discarded. The next admitted candidate
+            # must start from a new source and a newly captured/full-OCR frame.
+        fail("VISUAL_KEYBOARD_NOT_VISIBLE")
+    finally:
+        del session._focus_observing
+        if sampling["firstInstability"] is not None:
+            atomic_json(session.output / "visual-private" / ("keyboard-focus-observation-" + uuid.uuid4().hex + ".json"), {
+                "attempts": sampling["pairs"], "sourceReads": sampling["sourceReads"],
+                "newObservations": sampling["observations"], "completedObservations": sampling["completedObservations"],
+                "phaseMismatches": sampling["mismatches"], "firstInstability": sampling["firstInstability"],
+                "status": status, "elapsedMs": round((time.monotonic() - started) * 1000),
+                "maximumAttempts": 3, "maximumSourceReads": 6, "maximumNewObservations": 3,
+                "additionalAttemptStartWindowMs": 2000, "windowLimitsAttemptStartOnly": True,
+                "uiActionRetried": False, "discardedFrameReused": False,
+            })
 
 
 class _PreparationObservationBudget:
@@ -688,7 +769,7 @@ def run(session, lease, config, definition, inputs, contracts):
             fail("VISUAL_ANCHOR_AMBIGUOUS")
         _tap(session, lease, config, definition, before, geometry, False, anchors["focus"])
         v._settle(session)
-        focused, _ = _observe(session, lease, config, geometry, True, before)
+        focused, _ = _focus_observe(session, lease, config, geometry, before)
         _visible_layout(session, config, definition, focused, bound)
         if "keyInput" in keyboard:
             from .mobile_visual_ios_keys import replace_text

@@ -2,6 +2,7 @@
 import copy
 from contextlib import contextmanager
 import http.server
+import html
 import json
 import os
 from pathlib import Path
@@ -45,7 +46,8 @@ def ios_tree(state="root"):
 @contextmanager
 def webdriver_fixture(platform="android", duplicate=False, input_field=False, scroll=False):
     state = {"page": "root", "app": APP, "calls": [], "typed": None, "duplicate": duplicate,
-             "delayClick": 0, "foregroundSupported": True, "elementsDuplicate": False}
+             "delayClick": 0, "foregroundSupported": True, "elementsDuplicate": False,
+             "inputValue": "DO_NOT_RECORD_EDIT_VALUE"}
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -71,7 +73,7 @@ def webdriver_fixture(platform="android", duplicate=False, input_field=False, sc
                 return self.reply({"error": "invalid session id"}, 404)
             route = self.path[len(prefix):]
             if self.command == "GET" and route == "/source":
-                return self.reply(android_tree(state["page"], state["duplicate"], input_field, scroll) if platform == "android" else ios_tree(state["page"]))
+                return self.reply(android_tree(state["page"], state["duplicate"], input_field, scroll).replace("DO_NOT_RECORD_EDIT_VALUE", html.escape(state["inputValue"], quote=True)) if platform == "android" else ios_tree(state["page"]))
             if route == "/appium/device/current_package":
                 return self.reply(state["app"]) if state["foregroundSupported"] else self.reply({}, 404)
             if route == "/execute/sync":
@@ -92,6 +94,10 @@ def webdriver_fixture(platform="android", duplicate=False, input_field=False, sc
                 if body.get("value") != list(body.get("text", "")):
                     return self.reply({}, 400)
                 state["typed"] = body["text"]
+                state["inputValue"] += body["text"]
+                return self.reply(None)
+            if route == "/element/input/clear":
+                state["inputValue"] = ""
                 return self.reply(None)
             if route == "/actions":
                 state["swipe"] = body

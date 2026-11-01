@@ -301,16 +301,16 @@ p.write_text(json.dumps(s));print(result)
 
 
 class ObservationCoalescingTests(unittest.TestCase):
-    def test_protocol_observation_count_drops_without_skipping_live_action_or_result_guards(self):
+    def test_exact_type_readbacks_preserve_live_action_and_result_phases(self):
         with calculator() as fixture,tempfile.TemporaryDirectory() as directory:
             config,definition=setup(fixture);session=MobileSession(config,Path(directory,'learn'))
             learn_workflow(session,definition,[{'quantity':2},{'quantity':7}]);recipe=next(iter(session.progress['recipes'].values()))
-            # WebDriver probe reads source once; each sample reads four distinct
-            # phases: before type, before click, assertion, extraction. Baseline
-            # did two additional post-action reads which were discarded.
-            self.assertEqual(fixture['sourceReads'],9)
+            # Probe reads once; each sample retains the four workflow phases
+            # and adds fresh pre-type, post-clear and post-value semantic reads.
+            # These three are fidelity costs, not discarded observations.
+            self.assertEqual(fixture['sourceReads'],15)
             before=fixture['sourceReads'];executor=MobileSession(config,Path(directory,'execute'));result=executor.execute(recipe,recipe['revision'],{'quantity':11})
-            self.assertEqual(fixture['sourceReads']-before,5);self.assertEqual(result['outputs'],{'total':121});self.assertEqual(fixture['apiInputs'],[2,7,11])
+            self.assertEqual(fixture['sourceReads']-before,8);self.assertEqual(result['outputs'],{'total':121});self.assertEqual(fixture['apiInputs'],[2,7,11])
             events=[json.loads(line) for line in Path(directory,'execute/events.jsonl').read_text().splitlines()]
             finished=[row for row in events if row['kind']=='workflow_action_finished'];self.assertEqual(len(finished),2);self.assertTrue(all(row['status']=='command_completed' for row in finished))
 
@@ -319,7 +319,9 @@ class ObservationCoalescingTests(unittest.TestCase):
             config,definition=setup(fixture);definition['steps'][2]['expect']['changed']=True
             session=MobileSession(config,Path(directory,'learn'));learn_workflow(session,definition,[{'quantity':2},{'quantity':7}]);recipe=next(iter(session.progress['recipes'].values()))
             before=fixture['sourceReads'];result=MobileSession(config,Path(directory,'execute')).execute(recipe,recipe['revision'],{'quantity':11})
-            self.assertEqual(fixture['sourceReads']-before,7);self.assertEqual(result['outputs'],{'total':121})
+            # Guarded extraction/recheck phases remain distinct, plus the same
+            # three required semantic input reads (previously seven, now ten).
+            self.assertEqual(fixture['sourceReads']-before,10);self.assertEqual(result['outputs'],{'total':121})
             events=[json.loads(line) for line in Path(directory,'execute/events.jsonl').read_text().splitlines()]
             self.assertTrue(any(row['kind']=='workflow_outputs_reverified' for row in events))
 

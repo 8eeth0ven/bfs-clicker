@@ -181,6 +181,9 @@ def parse_tree(xml, platform, app_id, input_suffix=None):
             # a public observation nor part of a parameter-dependent fingerprint.
             nodes[-1]["_inputLength"] = len(attrs.get("text", "") if platform == "android" else attrs.get("value", ""))
             input_value = attrs.get("text", "") if platform == "android" else attrs.get("value", "")
+            nodes[-1]["_inputValuePresent"] = ("text" if platform == "android" else "value") in attrs
+            nodes[-1]["_inputPlaceholderOnly"] = platform == "ios" and bool(attrs.get("placeholderValue")) and input_value == attrs.get("placeholderValue")
+            nodes[-1]["_inputPlaceholderSha256"] = hashlib.sha256(attrs["placeholderValue"].encode("utf-8")).hexdigest() if platform == "ios" and attrs.get("placeholderValue") else None
             nodes[-1]["_inputUtf16Length"] = len(input_value.encode("utf-16-le")) // 2
             if input_suffix is not None:
                 nodes[-1]["_inputSuffixMatched"] = input_value.endswith(input_suffix)
@@ -691,9 +694,71 @@ class WebDriverBackend:
         if actual != self.app_id:
             raise MobileError("APP_OUT_OF_SCOPE" if actual else "FOREGROUND_APP_UNVERIFIED", "blocked")
 
-    def observe(self):
+    def observe(self, input_suffix=None):
         self.foreground()
-        return parse_tree(self.request("GET", "/source"), self.platform, self.app_id)
+        return parse_tree(self.request("GET", "/source"), self.platform, self.app_id, input_suffix=input_suffix)
+
+    @staticmethod
+    def _input_contract(node):
+        return {key: node.get(key) for key in ("resourceId", "accessibilityId", "className", "editable", "secure", "readOnly", "inputType")}
+
+    def _input_target(self, wanted, original, element=None, *, suffix=None, allow_placeholder=False):
+        # This is semantic source evidence, not OCR and not a public input echo.
+        node = locate(self.observe(input_suffix=suffix), wanted)
+        check_target("type", node)
+        if self._input_contract(node) != self._input_contract(original):
+            raise MobileError("WEBDRIVER_INPUT_TARGET_CHANGED", "blocked")
+        if (node.get("secure") or re.search(r"password|secure", node.get("inputType", ""), re.I)
+                or node.get("_inputValuePresent") is not True
+                or node.get("_inputPlaceholderOnly") and not allow_placeholder):
+            raise MobileError("WEBDRIVER_INPUT_EVIDENCE_UNAVAILABLE", "unsupported")
+        if element is not None and self.element(wanted) != element:
+            raise MobileError("WEBDRIVER_INPUT_TARGET_CHANGED", "blocked")
+        self.budget.check()
+        return node
+
+    def _type_verified(self, action, original, inputs):
+        value = inputs.get(action.get("input", "text"))
+        if (not isinstance(value, str) or len(value) > 2048
+                or any(ord(char) < 32 or ord(char) == 127 or 0xe000 <= ord(char) <= 0xe05d for char in value)):
+            raise MobileError("WEBDRIVER_LITERAL_INPUT_UNSUPPORTED", "unsupported")
+        try:
+            expected = hashlib.sha256(value.encode("utf-8")).hexdigest()
+        except UnicodeError:
+            raise MobileError("WEBDRIVER_LITERAL_INPUT_UNSUPPORTED", "unsupported") from None
+        replace = action.get("replace") is True
+        if original.get("_inputValuePresent") is not True or not replace and original.get("_inputPlaceholderOnly"):
+            raise MobileError("WEBDRIVER_INPUT_EVIDENCE_UNAVAILABLE", "unsupported")
+        if replace and original.get("_inputPlaceholderSha256") == expected:
+            raise MobileError("WEBDRIVER_INPUT_PLACEHOLDER_AMBIGUOUS", "unsupported")
+        before = self._input_target(action["selector"], original, allow_placeholder=replace)
+        if replace and before.get("_inputPlaceholderSha256") == expected:
+            raise MobileError("WEBDRIVER_INPUT_PLACEHOLDER_AMBIGUOUS", "unsupported")
+        if not replace and before.get("_inputSha256") != original.get("_inputSha256"):
+            raise MobileError("WEBDRIVER_INPUT_PREFIX_CHANGED", "blocked")
+        element = self.element(action["selector"])
+        if replace:
+            self.foreground()
+            self.request("POST", "/element/" + element + "/clear", {})
+            cleared = self._input_target(action["selector"], before, element, allow_placeholder=True)
+            # A placeholder is not an empty-buffer proof. It may only be an
+            # intermediate replace state; the one authorized value send still
+            # requires a complete, non-placeholder final semantic readback.
+            if not cleared.get("_inputPlaceholderOnly") and cleared.get("_inputSha256") != hashlib.sha256(b"").hexdigest():
+                raise MobileError("WEBDRIVER_INPUT_CLEAR_UNVERIFIED", "blocked")
+        # No retry, refocus or OCR fallback. Foreground and identity are fresh
+        # before the single send and the exact semantic readback afterwards.
+        self.foreground()
+        self.request("POST", "/element/" + element + "/value", {"text": value, "value": list(value)})
+        after = self._input_target(action["selector"], before, element, suffix=None if replace else value)
+        if replace:
+            verified = after.get("_inputSha256") == expected
+        else:
+            verified = after.get("_inputSuffixMatched") is True and after.get("_inputPrefixSha256") == before.get("_inputSha256")
+        if not verified:
+            raise MobileError("WEBDRIVER_INPUT_NOT_VERIFIED", "blocked")
+        self.foreground()
+        self.budget.check()
 
     def element(self, wanted):
         fields = {"resourceId": ("resource-id", "resourceId"), "accessibilityId": ("content-desc", "name"), "text": ("text", "label"), "className": ("class", "type")}
@@ -726,16 +791,11 @@ class WebDriverBackend:
                 return self.request("POST", "/element/" + self.element(option["selector"]) + "/click", {})
             return perform_select(self, action, tree, inputs, tap)
         if kind in {"click", "type"}:
-            element = self.element(action["selector"])
             if kind == "click":
+                element = self.element(action["selector"])
                 self.request("POST", "/element/" + element + "/click", {})
             else:
-                value = inputs.get(action.get("input", "text"))
-                if not isinstance(value, str) or len(value) > 2048:
-                    raise MobileError("INPUT_REQUIRED", "blocked")
-                if action.get("replace"):
-                    self.request("POST", "/element/" + element + "/clear", {})
-                self.request("POST", "/element/" + element + "/value", {"text": value, "value": list(value)})
+                self._type_verified(action, node, inputs)
         elif kind == "swipe":
             x1, y1, x2, y2 = swipe_points(node["bounds"], action.get("direction", "up"))
             self.request("POST", "/actions", {"actions": [{"type": "pointer", "id": "finger", "parameters": {"pointerType": "touch"}, "actions": [{"type": "pointerMove", "duration": 0, "x": x1, "y": y1, "origin": "viewport"}, {"type": "pointerDown", "button": 0}, {"type": "pointerMove", "duration": 300, "x": x2, "y": y2, "origin": "viewport"}, {"type": "pointerUp", "button": 0}]}]})

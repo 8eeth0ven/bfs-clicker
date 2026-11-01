@@ -69,7 +69,9 @@ export async function collectInteractives(page,config={}) {
               else{const mapped=[];for(const option of options){const value=option.getAttribute('data-value')??option.getAttribute('value');if(value==null||value.length>512||values.has(value)||option.disabled||option.getAttribute('aria-disabled')==='true'||excluded(option)){ariaChoiceGap='aria_options_wire_contract_incomplete';break;}values.add(value);mapped.push({value,label:clean(option.textContent),selector:css(option)});}if(!ariaChoiceGap)ariaChoices={complete:true,domainEvidence:declared?'aria_setsize':'mounted_options',listbox:{selector:css(list)},options:mapped};}
             }
           }
-          out.push({selector:css(el),fallbackSelector:css(el),structUnique:true,tag,htmlType:(el.type||'').toLowerCase(),
+          let submission={action:el.getAttribute('formaction'),method:el.getAttribute('formmethod'),enctype:el.getAttribute('formenctype'),target:el.getAttribute('formtarget'),noValidate:el.hasAttribute('formnovalidate')};
+          if(Object.values(submission).some(value=>typeof value==='string'&&value.length>1024))submission=null;
+          out.push({selector:css(el),fallbackSelector:css(el),structUnique:true,tag,htmlType:(el.type||'').toLowerCase(),submission,
             text:clean(el.innerText||el.textContent||(tag==='input'&&!['password','checkbox','radio'].includes(el.type)?el.value:'')),aria,title:el.getAttribute('title')||'',href,
             placeholder:el.getAttribute('placeholder')||'',role,contentEditable:el.isContentEditable,
             workflowOutputs,...(role==='combobox'?{ariaChoices,ariaChoiceGap,ariaControlsId:el.getAttribute('aria-controls')||'',ariaSelectionAttribute:el.hasAttribute('data-value')?'data-value':el.hasAttribute('value')?'value':null}:{}),name:el.getAttribute('name')||'',associatedLabel:clean(Array.from(el.labels||[]).map(label=>label.textContent).join(' ')),

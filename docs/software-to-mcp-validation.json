@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "compilerVersion": "software-to-mcp-15",
-  "status": "full_regression_and_sdk_baseline_passed_draft_pull_request_checkpoint",
+  "compilerVersion": "software-to-mcp-16",
+  "status": "full_regressions_and_production_sdk_baseline_passed_draft_pull_request_checkpoint",
   "scope": "Generic Web/APK/iOS MCP framework; finite fixture evidence, not universal business coverage",
   "stableBaseline": {
     "compilerVersion": "software-to-mcp-11",
@@ -64,126 +64,74 @@
       }
     },
     "iosOrdinarySoftKeyboard": {
-      "status": "terminal_failed_keyboard_not_visible",
-      "compilerVersion": "software-to-mcp-15",
-      "environment": "Owned iOS27.1 simulator acceptance cohort; compatible device type selected from runtime metadata",
-      "latestAttempt": 14,
-      "latestCompletedAttempt": 14,
-      "latestCompletedOutcome": "Actual learning performed one Focus;after-Focus AX still contained no Keyboard, then VISUAL_KEYBOARD_NOT_VISIBLE rejected before the first sample key. No post-Focus screenshot was captured, so pixel keyboard visibility is not inferred.",
+      "status": "terminal_failed_freshness_guard",
+      "compilerVersion": "software-to-mcp-16",
+      "environment": "owned iOS simulator with ordinary system keyboard",
+      "physicalDevice": false,
+      "latestAttempt": 15,
+      "latestCompletedAttempt": 15,
       "currentAttempt": null,
-      "currentAttemptStatus": "terminal_failed_no_mcp_acceptance",
+      "actualError": "VISUAL_FRAME_CHANGED",
+      "timeoutError": false,
       "readyPublished": false,
+      "readyCapabilities": 0,
+      "recipes": 0,
       "twoSampleLearningCompleted": false,
       "unifiedAndGeneratedClosedLoopPassed": false,
+      "mcpAcceptance": false,
+      "pointerActions": 42,
+      "keyboardActions": 38,
+      "outsideActions": 4,
+      "outsideSequence": [
+        "focus",
+        "dismiss",
+        "submit",
+        "focus"
+      ],
+      "firstLearningSample": {
+        "input": "alpha",
+        "fixedDeletes": 16,
+        "businessSubmits": 1,
+        "ocrResult": "RESULT alpha 1",
+        "fullSingleSampleFunctionReturned": true
+      },
+      "secondLearningSample": {
+        "fixedDeletes": 16,
+        "literalPrefixDispatched": "b",
+        "nextLiteralNotDispatched": "e",
+        "dismissReached": false,
+        "submitReached": false,
+        "completed": false
+      },
+      "unifiedGammaReached": false,
+      "generatedAb7zReached": false,
+      "focusObservation": {
+        "firstNormalVisiblePairEachFocus": true,
+        "hiddenOrPhaseMismatchObserved": false,
+        "additionalCandidateWindowTriggered": false,
+        "hiddenRecoverySuccessProven": false,
+        "scope": "Normal focus helper path was exercised; progress relative to earlier attempts does not prove benefit of hidden/mismatch recovery."
+      },
       "currentAttemptCleanupVerified": true,
-      "preflightAttempt13": {
-        "status": "terminal_pre_device_configuration_failure",
-        "ownedDevicesCreated": 0,
-        "uiActions": 0,
-        "servicePortsAllocated": 0,
-        "preexistingDeviceIdentitiesPreserved": true,
-        "nativeCopiedSourceFilesUnchanged": true,
-        "mcpAcceptance": false
-      },
-      "currentAttemptDeviceSelection": "iPhoneDuo supported by iOS27.1; same compatible type as historical attempt12",
-      "sourceCohort": {
-        "kind": "native_acceptance_only",
-        "copiedFiles": 483,
-        "gatewayDistFiles": 32,
-        "productionImportChecked": true,
-        "scope": "Frozen native acceptance cohort,all483 copied bytes unchanged at terminal;not final Web/all-source compiler15 acceptance."
-      },
-      "previousAttempt12": {
-        "status": "terminal_failed_freshness_guard",
-        "environment": "owned simulator; real UITextField caret retained",
-        "latestAttempt": 12,
-        "latestOutcome": "First learning sample alpha completed with exactly one business submit and OCR RESULT alpha 1. Second sample executed16 fixed deletes and b, then VISUAL_FRAME_CHANGED blocked before e; no second Dismiss/submit, two-sample ready, unified gamma or generated Ab7z.",
-        "readyPublished": false,
-        "unifiedAndGeneratedClosedLoopPassed": false,
-        "latestCompletedAttempt": 12,
-        "currentAttempt": null,
-        "cleanupVerified": true,
-        "previousStrictAttempt11": {
-          "status": "failed",
-          "inputFirstAVisibleInPng": true,
-          "inputOcrCandidates": 0,
-          "dismissReached": false,
-          "submitReached": false,
-          "readyPublished": false,
-          "cleanupVerified": true
-        },
-        "currentAttemptStatus": "terminal_failed_freshness_guard",
-        "twoSampleLearningCompleted": false,
-        "cleanupScope": {
-          "allSixOwnedResourceFlags": true,
-          "fourOwnedPortsHaveNoListeners": true,
-          "preexistingDeviceIdentitiesPreserved": true,
-          "independentHostVerification": true,
-          "ownedPidPgidSimulatorAndMcpProcessesAbsent": true,
-          "all472CopiedSourceFilesUnchanged": true
-        },
-        "diagnosisStatus": "complete_no_policy_change",
-        "durationSeconds": 297.359,
-        "timeoutError": false,
-        "firstLearningSample": {
-          "input": "alpha",
-          "businessSubmits": 1,
-          "ocrResult": "RESULT alpha 1",
-          "completed": true
-        },
-        "secondLearningSample": {
-          "fixedDeletes": 16,
-          "literalPrefixDispatched": "b",
-          "nextLiteralNotDispatched": "e",
-          "dismissReached": false,
-          "submitReached": false,
-          "completed": false
-        },
-        "freshnessDiagnosis": {
-          "actualPostBFrameComparedToFreshFrames": 2,
-          "changedPixelsEach": 683,
-          "allChangedPixelsInsideInput": true,
-          "keyboardChangedPixels": 0,
-          "resultChangedPixels": 0,
-          "otherUpperAreaChangedPixels": 0,
-          "pixelsOutsideExistingCaretColorContractEach": 16,
-          "backgroundUniformNearWhite": false,
-          "osCaretIdentityProved": false,
-          "sourcePolicyOrBudgetRelaxed": false
-        },
-        "sourceCopyVerification": {
-          "files": 472,
-          "allCopiedBytesMatchedAtDiagnosisEnd": true,
-          "sharedDependenciesRemainOutsideImmutableCopy": true
-        }
-      },
-      "actualError": "WORKFLOW_NOT_VALIDATED:VISUAL_KEYBOARD_NOT_VISIBLE",
-      "timeoutError": false,
-      "learningRpcCounts": {
-        "total": 34,
-        "activeAppInfo": 19,
-        "source": 5,
-        "screenshot": 3,
-        "orientation": 3,
-        "windowRect": 3,
-        "pointerFocus": 1,
-        "keyboardPhysicalKeys": 0,
-        "businessSubmissions": 0
-      },
-      "workflowEventsFileExists": false,
-      "postFocusEvidence": {
-        "axKeyboardPresent": false,
-        "newScreenshotExists": false,
-        "pixelKeyboardVisibilityInferred": false
-      },
       "cleanupScope": {
         "allSixOwnedResourceFlags": true,
-        "freshNoOwnedProcesses": true,
-        "freshNoPortListeners": true,
+        "allFourOwnedPortsHaveNoListeners": true,
+        "freshOwnedProcessesAbsent": true,
+        "ownedSimulatorAbsent": true,
         "preexistingDeviceIdentitiesPreserved": true,
-        "all483CopiedSourceFilesUnchanged": true
+        "all487CopiedSourceFilesUnchanged": true
       },
-      "sourceCopyVerifiedAtTerminal": true
+      "sourceCohort": {
+        "kind": "native_acceptance_only",
+        "copiedFiles": 487,
+        "browserSource": "published compiler15 baseline",
+        "nativeOverlays": "compiler16 frozen native changes",
+        "currentWorkingBrowserPrefixChangesIncluded": false,
+        "notFinalCombinedCompiler16": true,
+        "scope": "Not the final117 runtime/422 public-code combined cohort, not production-package or full-project acceptance."
+      },
+      "diagnosisStatus": "completed_no_policy_change",
+      "scope": "First sample progress does not establish two-sample ready, either MCP entrypoint, physical-device coverage or arbitrary-App support. Failure is a freshness refusal before next e, not transport/global timeout."
     },
     "webChineseVision": {
       "status": "passed",
@@ -224,10 +172,13 @@
     "complete_text certifies only final visible echo; fixed_max_length does not certify hidden-buffer emptiness or each intermediate prefix",
     "OCR may omit real source spaces even when full and regional outputs agree; field-partition research is not a production capability",
     "descriptor snapshot checks preserve byte budgets and existing artifact-root checks; arbitrary hostile filesystem atomicity is not claimed",
-    "Compiler15 package/SDK publication evidence and full software suite are not inherited from compiler14.",
-    "Native frozen483-file cohort does not establish final Web/all-source validation.",
     "Pixel chunk8-to3 process result retains10decodes and old failing-frame refusals; not a general end-to-end speedup.",
-    "POSIX own-group termination does not guarantee recovery of arbitrary escaped setsid descendants; Node directly waits its own child."
+    "POSIX own-group termination does not guarantee recovery of arbitrary escaped setsid descendants; Node directly waits its own child.",
+    "Compiler16 current JS full-suite and production package/SDK status remain pending until actual reports; compiler15 results are historical and not inherited.",
+    "Native487-file device cohort uses published compiler15 browser source plus native overlays and is not final combined compiler16 source.",
+    "Exact semantic provider codepoints and explicit HTTP alternative do not establish OCR Chinese-space correctness, arbitrary App buffer truth or automatic semantic equivalence.",
+    "New receipt privacy is limited to receipt markers/events; existing private checkpoint/API evidence may include input data.",
+    "Focus candidate waiting expands read-only admission opportunities, not UI budget or input permission; attempt15 did not trigger its hidden/mismatch recovery branch."
   ],
   "asOf": "2026-11-02",
   "continuousIntegration": {
@@ -236,20 +187,20 @@
     "scope": "Pinned Linux/macOS CI template; current publishing credential lacks workflow scope, so Actions is not activated"
   },
   "release": {
-    "compilerVersion": "software-to-mcp-15",
+    "compilerVersion": "software-to-mcp-16",
     "status": "draft_pull_request_checkpoint",
     "distributionType": "draft_pull_request_checkpoint",
     "mainMerged": false,
     "npmPublished": false,
     "basePublishedCheckpoint": {
-      "compilerVersion": "software-to-mcp-14",
-      "commit": "00f4e8496f7f5863b813b484df3ed6fb940c9502",
-      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/00f4e8496f7f5863b813b484df3ed6fb940c9502",
+      "compilerVersion": "software-to-mcp-15",
+      "commit": "6f5ce059b25298de69b60c0bcd23456dadee5dff",
+      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/6f5ce059b25298de69b60c0bcd23456dadee5dff",
       "draftPr": "https://github.com/8eeth0ven/bfs-clicker/pull/1",
-      "scope": "Historical compiler14 reference; not a statement that this is the latest remote head."
+      "scope": "Historical published compiler15 reference; not a claim about the latest remote head."
     },
-    "finalGate": "Actual staged index and exact final tar projection plus full content privacy must be verified before each submission.",
-    "scope": "Draft pull request distribution checkpoint, not main merge or npm publication. Actual remote commit and final index/archive/privacy evidence belong to PR and delivery records; no self-embedded final archive hash."
+    "finalGate": "Actual final index, exact archive/document delta and full contents privacy must be verified before submission.",
+    "scope": "Draft PR distribution checkpoint, not main merge or npm publication. Actual new remote commit and final archive/audit proof belong to PR and delivery records; no self-embedded final archive hash."
   },
   "reproduce": {
     "software": "npm run test:software",
@@ -270,7 +221,10 @@
     "nativeFrozenNode": "node --test --test-concurrency=1 test/software-native-visual-identity.test.mjs test/software-native-visual-workflow-secret.test.mjs test/software-native-visual-workflow.test.mjs test/software-native-visual.test.mjs",
     "pixelTaskLocal": "node --test --test-concurrency=1 --test-name-pattern='^(?!actual browser screenshots)' test/visual-pixel-task.test.mjs test/visual-caret.test.mjs test/visual-pixels.test.mjs",
     "closedShadowPrimitive": "node --test --test-concurrency=1 test/closed-shadow.test.mjs",
-    "closedShadow": "node --test --test-concurrency=1 test/closed-shadow.test.mjs test/software-closed-shadow.test.mjs"
+    "closedShadow": "node --test --test-concurrency=1 test/closed-shadow.test.mjs test/software-closed-shadow.test.mjs",
+    "iosFocusWaiting": "PYTHONPATH=apk_tools:apk_tools/tests .venv/bin/python -m unittest test_mobile_visual_ios_focus_wait -v",
+    "nativeInputFidelity": "PYTHONPATH=apk_tools:apk_tools/tests .venv/bin/python -m unittest test_mobile_webdriver_input_fidelity -v",
+    "browserInputPrefix": "node --test --test-concurrency=1 test/browser-input-prefix.test.mjs"
   },
   "publicEvidence": {
     "roiFusionTests": "../test/visual-observation-regions.test.mjs",
@@ -315,7 +269,11 @@
     "closedShadowPrimitiveTests": "../test/closed-shadow.test.mjs",
     "closedShadowWorkflowTests": "../test/software-closed-shadow.test.mjs",
     "closedShadowConfig": "../examples/software/config.closed-shadow.example.json",
-    "closedShadowWorkflowSpec": "../examples/software/browser-closed-shadow-workflow.example.json"
+    "closedShadowWorkflowSpec": "../examples/software/browser-closed-shadow-workflow.example.json",
+    "iosFocusWaitingTests": "../apk_tools/tests/test_mobile_visual_ios_focus_wait.py",
+    "nativeSemanticInputFidelityTests": "../apk_tools/tests/test_mobile_webdriver_input_fidelity.py",
+    "browserInputPrefixTests": "../test/browser-input-prefix.test.mjs",
+    "browserPrefixSdkFixture": "../test/software-closed-shadow.test.mjs"
   },
   "failureHistory": [
     {
@@ -373,9 +331,13 @@
     {
       "kind": "closed-root early contract gaps",
       "status": "Final frozen cases reject post-focus type/name/constraint drift,host/target replacement,prototype-to-BODY redirection,focus/ancestor exclusion changes,late action responses and detach failures. Attempted unconfirmed closed discovery blocks whole-run resume. Earlier probes are not relabeled as final-safe evidence."
+    },
+    {
+      "kind": "compiler16 ordinary iOS attempt15",
+      "status": "First alpha sample completed once; second16deletes+b was stopped before e by VISUAL_FRAME_CHANGED.38keys+4outside=42, ready/recipes0, both MCP entries not reached. Native487 cohort retained separately; no policy relaxed."
     }
   ],
-  "recordedAt": "2026-11-01T16:56:33.225833+00:00",
+  "recordedAt": "2026-11-01T18:36:30.816682+00:00",
   "previousCompiler12FullRegression": {
     "status": "full_baseline_and_affected_followup_passed",
     "legacy": {
@@ -487,159 +449,160 @@
     },
     "scope": "Historical focused results only; some subgroups explicitly belong to compiler12. Not compiler14 full regression."
   },
-  "countingRule": "Focused groups overlap each other and full suites; do not sum groups, runs or independent-review repeats. Historical compiler14/13 counts never become compiler15 passes.",
+  "countingRule": "Focused/independent repeats overlap full suites and each other; do not add them. Compiler15 historical counts are not compiler16 passes.",
   "currentFocused": {
-    "nativePixelTask": {
-      "python": {
-        "total": 159,
-        "passed": 159,
-        "failed": 0,
-        "skipped": 0
-      },
-      "nodeLocalPngIpc": {
-        "total": 16,
-        "passed": 16,
-        "failed": 0
-      },
-      "scope": "Scoped pure-file worker and nonblocking budget-aware IPC; mock/parser/localPNG evidence. Same file SHA/pixels/caret/source/echo/Dismiss/result gates; not device acceptance.",
-      "productionChunkBenchmark": {
-        "trialsPerRoute": 3,
-        "oldChildrenPerTwoFreshBlock": 8,
-        "newChildrenPerTwoFreshBlock": 3,
-        "pngDecodesBothRoutes": 10,
-        "oldMedianMs": 1333.2447920111008,
-        "newMedianMs": 1058.4769589913776,
-        "sameBooleanAndShaResults": true,
-        "oldActualAttempt12FramesStillRejected": true,
-        "scope": "One actual production Python pixel-comparison chunk of two archived failing fresh frames against compiler14 frozen helpers; not whole source/capture/HTTP/OCR/device latency or a generic speedup."
-      },
-      "deviceAcceptance": "attempt14_failed_before_first_sample_key;no success inferred"
+    "iosFocusWaiting": {
+      "status": "passed_offline_not_device_acceptance",
+      "total": 182,
+      "passed": 182,
+      "failed": 0,
+      "skipped": 0,
+      "includedNewFocusedTests": 23,
+      "includedExistingAffectedTests": 159,
+      "groupsNotSummed": true,
+      "maximumCandidates": 3,
+      "maximumHelperSourceReads": 6,
+      "maximumNewFullOcrObservations": 3,
+      "additionalCandidateStartWindowMs": 2000,
+      "windowLimitsAttemptStartOnly": true,
+      "configuredUiBudgetUnchanged": true,
+      "requiresNewVisibleSourceAndFullOcrAndVisiblePostSource": true,
+      "hiddenDoesNotGrantInput": true,
+      "uiRetryAdded": false,
+      "focusKeyboardUniquenessTightened": true,
+      "scope": "Two-second window begins at first strict hidden or visible/hidden classification before its post-app check, never resets, and only limits new candidate admission. Admitted complete observation retains original overall/transport budgets and all later freshness/echo/Dismiss/result gates. Not a two-second total completion guarantee."
     },
-    "nativeBudgetAlignment": {
-      "targetedCombination": {
+    "nativeSemanticInputFidelity": {
+      "status": "finite_protocol_and_official_sdk_loopback_verified_not_device_or_ocr_acceptance",
+      "realHttpProtocolTests": {
+        "total": 12,
+        "passed": 12,
+        "failed": 0,
+        "scope": "Actual local W3C HTTP/XML fixture with mutable server buffer, not an Android/iOS device or OCR."
+      },
+      "inputDomain": {
+        "maximumCodepoints": 2048,
+        "normalizationTrimOrSpaceFolding": false,
+        "literalControlAndReservedWebdriverKeys": "rejected"
+      },
+      "replace": {
+        "maximumClearCommands": 1,
+        "maximumValueSends": 1,
+        "verification": "Unique enabled visible nonsecure editable target with exact provider-reported semantic final value; same transient element and editing contract. Placeholder-only or missing evidence cannot certify a final value."
+      },
+      "append": {
+        "clearCommands": 0,
+        "maximumValueSends": 1,
+        "verification": "Fresh prefix and final suffix/codepoints checked exactly; prefix digest unchanged. No retry or alternate input route."
+      },
+      "officialSdkLoopback": {
+        "status": "passed",
+        "protocolFixture": true,
+        "actualDevice": false,
+        "ocr": false,
+        "learningInputs": [
+          "上海",
+          "上 海"
+        ],
+        "unifiedInput": " 上  海 ",
+        "generatedInput": "A 海, B",
+        "afterDiscoveryNativeRequests": [
+          "上海",
+          "上 海",
+          " 上  海 ",
+          "A 海, B"
+        ],
+        "nativeExploratoryRequests": 1,
+        "twoClientStderrBytes": [
+          0,
+          0
+        ],
+        "scope": "Official SDK using real local semantic WebDriver/HTTP protocol, not App/device acceptance or OCR-space correctness."
+      },
+      "explicitSameSourceHttpAlternative": {
+        "status": "passed_finite_protocol_fixture",
+        "separateImportedAndApprovedCapability": true,
+        "nativeCapabilitiesRetained": true,
+        "sameSourceKind": "ios",
+        "sameDeclaredAppIdentity": true,
+        "inputs": [
+          " 上  海 ",
+          "A 海, B"
+        ],
+        "addedNativeUiCalls": 0,
+        "automaticUiFallback": false,
+        "automaticSemanticEquivalenceClaimed": false
+      },
+      "groupsNotSummed": true,
+      "scope": "Verifies provider-reported semantic codepoints, not arbitrary hidden App buffers or business truth. Public catalog does not yet expose typed modality/exactness flags; visual Chinese source-space fidelity remains unproven."
+    },
+    "browserInputPrefix": {
+      "status": "finite_live_prefix_and_sdk_fixture_verified_current_full_js_pending",
+      "liveReceiptOnly": true,
+      "maximumReceipts": 32,
+      "maximumScopeMarkers": 64,
+      "maximumInputUtf8Bytes": 4096,
+      "producerFocused": {
         "total": 37,
         "passed": 37,
         "failed": 0,
         "skipped": 0,
-        "durationMs": 6901.175875
+        "scope": "Final five production files; full focused file before one final resume case was appended."
       },
-      "independentModuleRepeat": {
-        "total": 15,
-        "passed": 15,
-        "failed": 0,
-        "skipped": 0
-      },
-      "independentPureProbes": {
-        "passed": 4,
-        "failed": 0
-      },
-      "groupsOverlap": true,
-      "trustedDurationRangeMs": [
-        1,
-        3600000
-      ],
-      "defaultUiDurationMs": 60000,
-      "configuredUiBudgetUnchanged": true,
-      "exampleUiBudgetMs": 480000,
-      "exampleBridgeMs": 490000,
-      "sigkillRequestGraceMs": 12000,
-      "postExitStdioDrainMs": 1000,
-      "exampleSingleOperationClientDeadlineMs": 512000,
-      "sameCheckedConfigSnapshot": true,
-      "mcpCallerCanOverridePolicy": false,
-      "scope": "Mock clocks, short actual local child processes and fakeCLI/operation lifecycle; not a480s device run.12s schedules SIGKILL, then direct-child exit/reap is awaited; not a hard OS cleanup completion bound.512s is one operation poll phase, not whole harness. Existing uncertain writes remain unknown/noRetry.",
-      "oldAttempt12TimeoutCauseClaimed": false
-    },
-    "closedShadow": {
-      "status": "finite_subset_full_software_and_sdk_baseline_verified",
-      "historicalInitialPrimitivePassed": 4,
-      "producer": {
-        "total": 15,
-        "passed": 15,
+      "laterTargetedResumeAndSdk": {
+        "total": 2,
+        "passed": 2,
         "failed": 0,
         "skipped": 0,
-        "durationMs": 67861.847083,
-        "kind": "Actual local Chromium/official MCP SDK plus bounded protocol-fault mocks"
+        "scope": "Appended unattempted-text resume case plus formal closed SDK positive; separate targeted run, not another complete suite."
       },
-      "independent": {
-        "total": 7,
-        "passed": 7,
-        "failed": 0,
-        "businessRequests": 0,
-        "kind": "Independent actual Chromium focus/semantic/exclusion/prototype cases;not separate MCP acceptance"
-      },
+      "currentFocusedTestFileCases": 38,
       "groupsNotSummed": true,
-      "trustedPolicy": {
-        "location": "webConfig.closedShadowRoots",
-        "default": [],
-        "maximumHostChainLength": 4,
-        "maximumNodesPerPolicy": 256,
-        "defaultMaxNodes": 128,
-        "mcpCallerCanEnable": false,
-        "rootModeChangedToOpen": false,
-        "maximumRootPolicies": 4
+      "independentPureReview": {
+        "checks": 5,
+        "journalRoundTripGroups": 1,
+        "browserOrUiActions": 0,
+        "status": "passed"
       },
-      "supported": [
-        "Chromium top-level main-frame author-closed roots with explicit host chains",
-        "Native INPUT text/search and TEXTAREA",
-        "Native BUTTON/INPUT button/submit physical actions",
-        "Independent DOM-text result and changed-result assertions",
-        "Explicitly approved nested author-closed host chains within mainframe",
-        "Discover/candidate/two-sample learning/unified and generated MCP finite fixture"
+      "guards": [
+        "Same frame/root/form or search-group owner identity and bounded editing/submission semantics",
+        "Private in-memory value digest plus exact current echo before dependent action",
+        "Navigation, scope/state change, nontext action or conflicting evidence invalidates live receipt",
+        "Missing live lease yields coverage gap/partial before dependent same-scope dispatch",
+        "Attempted unknown text is not retyped on resume; successful legacy text without live lease also blocks dependent submit",
+        "Text steps remain unsafe for replay, including legacy safeReplay true text paths",
+        "Missing selector cannot fallback to same-label nontext primitive under receipt request",
+        "Input/form-owner/submitter drift and unsupported virtual-choice receipt intersection refuse",
+        "Canonical bounded submission metadata persists in new raw checkpoint/journal; old missing evidence rejects before input"
       ],
-      "unsupported": [
-        "Nonempty framePath,cross-frame and foreign iframe closed contents",
-        "Unapproved nested roots,user-agent roots",
-        "Closed select/check/ARIA/visual/table combinations",
-        "Offscreen/clipped/transformed unsupported geometry,ambiguous/occluded targets"
-      ],
-      "actualBusinessRequests": {
-        "initialDiscoverySeed": 1,
-        "twoLearningSamples": 2,
-        "unifiedGamma": 1,
-        "generatedDelta": 1,
-        "verificationCallsAfterDiscovery": 4,
-        "wholeSdkFixture": 5
+      "privacy": "New receipt markers/events do not persist input raw values or value digests. Existing private checkpoints/config/API ledgers may contain input data; this is not a global no-plaintext guarantee.",
+      "sdk": {
+        "status": "passed_runtime_fixture_not_production_package",
+        "initialDiscoveryRequest": {
+          "q": "seed",
+          "host": "alpha"
+        },
+        "initialRequestIsNotLearningSample": true,
+        "learningQueries": [
+          "alpha",
+          "beta"
+        ],
+        "unifiedQuery": "gamma",
+        "generatedQuery": "delta",
+        "businessRequestsAfterDiscovery": 4,
+        "wholeFixtureBusinessRequests": 5,
+        "twoClientStderrBytes": [
+          0,
+          0
+        ]
       },
-      "guards": {
-        "isolatedWorldPrototypeAndRootIsolationCasesPassed": true,
-        "everyPhysicalEditChecksSameLeasedIdentitySemanticsAndExclusions": true,
-        "sameExecutionRootOrTargetReconstructionRejects": true,
-        "attemptedUnconfirmedClosedExplorationBlocksWholeRunResume": true,
-        "noUiRetryOrLocatorFallback": true,
-        "writeLearningAndExecutionGrantsRemainSeparate": true,
-        "postDispatchUnknownOutcomeRetained": true
-      },
-      "budgets": {
-        "maximumCdpCallsPerBackend": 4096,
-        "maximumReplyBytes": 262144,
-        "maximumFillUtf8Bytes": 4096,
-        "cleanupWaitMs": 250,
-        "perActionSingleAbsoluteDeadline": true,
-        "scope": "Nominal application timers and bounded page-close cleanup;not an OS hard realtime completion guarantee."
-      },
-      "privacy": "Bounded digests do not persist input.value or unapproved nested text;existing result/redaction contracts retained,not arbitrary secret-dataflow proof.",
-      "sourceScope": "Producer15 files individually byte/hash verified by independent reviewer,plus root-owned runtime metadata projection;not a final all-source/package/release audit.",
-      "legacyBrowserRegression": {
-        "status": "passed",
-        "total": 51,
-        "passed": 51,
-        "failed": 0,
-        "testFiles": 5,
-        "kind": "Existing planner/browser capabilities/browser workflows/WebE2E/ARIA real Chromium subset",
-        "scope": "Separate producer regression;overlap with full software suite,no disjoint total added."
-      },
-      "scope": "Finite controlled-localhost text/button/DOM-text path only. Native device evidence and final software/package/privacy/remote checks remain separate.",
-      "officialSdkStderrBytes": [
-        0,
-        0
-      ],
-      "packedSdkAcceptanceClaimed": false
+      "scope": "Finite real local Chromium DOM/open-shadow and approved author-closed text/button fixture. Does not prove arbitrary hidden cross-form JS dependencies, atomic dispatch, side-effect freedom or universal website-to-MCP coverage."
     }
   },
   "currentFullRegression": {
-    "compilerVersion": "software-to-mcp-15",
-    "status": "full_legacy_and_software_passed",
+    "compilerVersion": "software-to-mcp-16",
+    "status": "passed",
+    "previousCompleteBaseline": "previousCompiler15FullRegression",
     "currentRuntimeCoveredBySingleFullSoftwareRun": true,
     "legacy": {
       "status": "passed",
@@ -648,92 +611,76 @@
       "passed": 239,
       "failed": 0,
       "skipped": 0,
-      "runtimeSourceMatchedAtEnd": true,
-      "publicCodeMatchedAtEnd": true,
-      "runtimeFiles": 116,
-      "publicCodeFiles": 418,
-      "scope": "Compiler15 frozen runtime and public code matched at run end; not final documentation/archive/package, independent Python cohort or device acceptance."
+      "durationMs": 88174.10487499999,
+      "all117RuntimeFilesMatchedAtEnd": true,
+      "all422PublicCodeFilesMatchedAtEnd": true
     },
     "software": {
       "status": "passed",
       "command": "npm run test:software",
-      "total": 335,
-      "passed": 335,
+      "total": 373,
+      "passed": 373,
       "failed": 0,
       "skipped": 0,
-      "runtimeSourceMatchedAtEnd": true,
-      "publicCodeMatchedAtEnd": true,
-      "runtimeFiles": 116,
-      "publicCodeFiles": 418,
-      "durationMs": 738060.698458,
-      "scope": "Compiler15 frozen runtime and public code matched at run end; not final documentation/archive/package, independent Python cohort or device acceptance."
+      "durationMs": 611216.78775,
+      "all117RuntimeFilesMatchedAtEnd": true,
+      "all422PublicCodeFilesMatchedAtEnd": true
     },
     "python": {
       "status": "passed",
-      "total": 490,
-      "passed": 489,
+      "total": 525,
+      "passed": 524,
       "failed": 0,
       "skipped": 1,
-      "durationSeconds": 130.533,
-      "skipReason": "HBC_FIXTURE unavailable: compiled Hermes sample missing",
+      "durationSeconds": 125.518,
+      "skipReason": "Compiled Hermes fixture unavailable",
       "realSignedApkFixtureProvided": true,
-      "producerSourcesMatchedAtRunEnd": true,
+      "sourceFiles": 70,
+      "allSourceHashesMatchedAtRunEnd": true,
       "command": "npm run test:python",
-      "scope": "Python producers/tests and linked visual Node/Swift helpers. Independent Web/JS budget sources were not asserted fully frozen by this run; not device acceptance."
+      "scope": "Python/native producers and linked helpers; not device acceptance or the final combined Web/JS suite.",
+      "optionalArchivedCases": "Saved-evidence XML/timing replay cases may additionally skip when private historical inputs are absent; these skips are not passes."
     },
-    "frozenNativeNode": {
-      "status": "passed",
-      "testFiles": 4,
-      "total": 13,
-      "passed": 13,
-      "failed": 0,
-      "skipped": 0,
-      "durationMs": 12500.7045,
-      "nativeSourceCopyFiles": 483,
-      "gatewayDistFiles": 32,
-      "allNativeCopiedBytesMatchedAtRunEnd": true,
-      "productionImportChecked": true,
-      "deviceAcceptance": false,
-      "scope": "Actual MCP/HTTP or fakeCLI/native observation checks from the native acceptance cohort; not final Web source or simulator acceptance."
-    },
-    "previousCompleteBaseline": "previousCompiler14FullRegression",
-    "closedShadowLegacyBrowser": {
-      "status": "passed",
-      "total": 51,
-      "passed": 51,
-      "failed": 0,
-      "testFiles": 5,
-      "kind": "Existing planner/browser capabilities/browser workflows/WebE2E/ARIA real Chromium subset",
-      "scope": "Separate producer regression;overlap with full software suite,no disjoint total added."
-    },
-    "fullRegressionSourceCohort": {
-      "runtimeFiles": 116,
-      "publicCodeFiles": 418,
-      "allRuntimeAndPublicCodeHashesMatchedAtBothSuiteEnds": true,
-      "scope": "Same compiler15 runtime/public-code freeze for npm test and npm run test:software. Markdown validation updates and final package/install/privacy/remote evidence are separate; prior native483-file and Python producer runs retain their own scopes."
+    "combinedSourceCohort": {
+      "runtimeFiles": 117,
+      "publicCodeFiles": 422,
+      "status": "same_frozen_bytes_verified_at_end_of_both_full_js_suites",
+      "scope": "117 runtime and422 public code/tests/examples/config; documentation finalization is independent. Native487 device cohort remains different."
     }
   },
   "currentPackageCheck": {
-    "compilerVersion": "software-to-mcp-15",
-    "status": "sdk_baseline_passed_final_projection_required",
-    "files": 357,
+    "compilerVersion": "software-to-mcp-16",
+    "status": "production_install_and_sdk_baseline_passed_final_projection_gate_required",
+    "files": 360,
     "gatewayDistFiles": 32,
     "officialSdkTools": 28,
     "stderrBytes": 0,
     "clientClosed": true,
+    "serverProcessClosed": true,
     "productionModulesImported": true,
+    "allEightDirectDependenciesResolvedFromIndependentProductionInstall": true,
+    "developmentClientInstalledInPackage": false,
     "usesSourceWorkspaceConfig": false,
     "productionInstallCommand": "npm ci --omit=dev --ignore-scripts --no-audit --no-fund --prefer-offline",
     "installedLockSha256": "2ee0c626b34c7adf92852baffb970537da6557fd338235cd2e3cdd2bd5249334",
     "allPackedSourceBytesMatchedAtSdkCheck": true,
-    "sourceMismatches": 0,
-    "requiredClosedShadowPixelBudgetPythonModulesAndExamplesPresent": true,
-    "researchExperimentsAndOldProductionFieldModuleExcluded": true,
+    "sourceMismatches": [],
+    "all117RuntimeAnd422CodeFilesMatchedBeforeAndAfter": true,
+    "researchExperimentsAndPrivateEvidenceExcluded": true,
     "approvedPublicCredentialTemplates": 5,
-    "approvedTemplateHashesPreserved": true,
-    "finalDocumentationArchiveProjection": "Actual staged index and exact final tar must be compared before submission; runtime and non-document packed bytes must match SDK baseline.",
-    "fullContentPrivacyAudit": "Full contents of actual staged index and exact final tar must be reviewed before submission.",
-    "scope": "Actual independent production-only installation, production imports and official SDK handshake passed on the357-file SDK baseline, with every packed file matching source at pack time. Final validation-document projection is a separate two-document delta; no final archive/privacy result is asserted here."
+    "approvedOldImagesWithIdenticalHashes": 6,
+    "finalDocumentationArchiveProjection": {
+      "onlyPermittedDeltaPaths": [
+        "docs/software-to-mcp-validation.json",
+        "docs/software-to-mcp-verification.md"
+      ],
+      "requiredCheck": "Before submission, verify exact final archive360 paths and modes, current source/index bytes and the358 unchanged packed files against the SDK-installed baseline."
+    },
+    "fullContentPrivacyAudit": {
+      "rule": "Must independently review the actual final index and exact final archive before each submission.",
+      "scope": "Current snapshot only; not full Git history purge."
+    },
+    "scope": "Independent production install and official SDK handshake passed; final document projection/index/archive/privacy are separate mandatory submission gates. Native/HTTP protocol business checks and device acceptance have distinct scopes."
   },
   "researchOnly": {
     "visualFieldPartitions": {
@@ -1111,5 +1058,459 @@
       "reserveMet": true,
       "scope": "761 pinned files plus9 additional attempt14 raw files and preservation checks; not exhaustive hashes of every model, dependency or retained tree. Point-in-time local preflight only, no global monitor, deletion or concurrent space reservation."
     }
-  }
+  },
+  "previousCompiler15FullRegression": {
+    "compilerVersion": "software-to-mcp-15",
+    "status": "full_legacy_and_software_passed",
+    "currentRuntimeCoveredBySingleFullSoftwareRun": true,
+    "legacy": {
+      "status": "passed",
+      "command": "npm test",
+      "total": 239,
+      "passed": 239,
+      "failed": 0,
+      "skipped": 0,
+      "runtimeSourceMatchedAtEnd": true,
+      "publicCodeMatchedAtEnd": true,
+      "runtimeFiles": 116,
+      "publicCodeFiles": 418,
+      "scope": "Compiler15 frozen runtime and public code matched at run end; not final documentation/archive/package, independent Python cohort or device acceptance."
+    },
+    "software": {
+      "status": "passed",
+      "command": "npm run test:software",
+      "total": 335,
+      "passed": 335,
+      "failed": 0,
+      "skipped": 0,
+      "runtimeSourceMatchedAtEnd": true,
+      "publicCodeMatchedAtEnd": true,
+      "runtimeFiles": 116,
+      "publicCodeFiles": 418,
+      "durationMs": 738060.698458,
+      "scope": "Compiler15 frozen runtime and public code matched at run end; not final documentation/archive/package, independent Python cohort or device acceptance."
+    },
+    "python": {
+      "status": "passed",
+      "total": 490,
+      "passed": 489,
+      "failed": 0,
+      "skipped": 1,
+      "durationSeconds": 130.533,
+      "skipReason": "HBC_FIXTURE unavailable: compiled Hermes sample missing",
+      "realSignedApkFixtureProvided": true,
+      "producerSourcesMatchedAtRunEnd": true,
+      "command": "npm run test:python",
+      "scope": "Python producers/tests and linked visual Node/Swift helpers. Independent Web/JS budget sources were not asserted fully frozen by this run; not device acceptance."
+    },
+    "frozenNativeNode": {
+      "status": "passed",
+      "testFiles": 4,
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 12500.7045,
+      "nativeSourceCopyFiles": 483,
+      "gatewayDistFiles": 32,
+      "allNativeCopiedBytesMatchedAtRunEnd": true,
+      "productionImportChecked": true,
+      "deviceAcceptance": false,
+      "scope": "Actual MCP/HTTP or fakeCLI/native observation checks from the native acceptance cohort; not final Web source or simulator acceptance."
+    },
+    "previousCompleteBaseline": "previousCompiler14FullRegression",
+    "closedShadowLegacyBrowser": {
+      "status": "passed",
+      "total": 51,
+      "passed": 51,
+      "failed": 0,
+      "testFiles": 5,
+      "kind": "Existing planner/browser capabilities/browser workflows/WebE2E/ARIA real Chromium subset",
+      "scope": "Separate producer regression;overlap with full software suite,no disjoint total added."
+    },
+    "fullRegressionSourceCohort": {
+      "runtimeFiles": 116,
+      "publicCodeFiles": 418,
+      "allRuntimeAndPublicCodeHashesMatchedAtBothSuiteEnds": true,
+      "scope": "Same compiler15 runtime/public-code freeze for npm test and npm run test:software. Markdown validation updates and final package/install/privacy/remote evidence are separate; prior native483-file and Python producer runs retain their own scopes."
+    }
+  },
+  "previousCompiler15PackageCheck": {
+    "compilerVersion": "software-to-mcp-15",
+    "status": "sdk_baseline_passed_final_projection_required",
+    "files": 357,
+    "gatewayDistFiles": 32,
+    "officialSdkTools": 28,
+    "stderrBytes": 0,
+    "clientClosed": true,
+    "productionModulesImported": true,
+    "usesSourceWorkspaceConfig": false,
+    "productionInstallCommand": "npm ci --omit=dev --ignore-scripts --no-audit --no-fund --prefer-offline",
+    "installedLockSha256": "2ee0c626b34c7adf92852baffb970537da6557fd338235cd2e3cdd2bd5249334",
+    "allPackedSourceBytesMatchedAtSdkCheck": true,
+    "sourceMismatches": 0,
+    "requiredClosedShadowPixelBudgetPythonModulesAndExamplesPresent": true,
+    "researchExperimentsAndOldProductionFieldModuleExcluded": true,
+    "approvedPublicCredentialTemplates": 5,
+    "approvedTemplateHashesPreserved": true,
+    "finalDocumentationArchiveProjection": "Actual staged index and exact final tar must be compared before submission; runtime and non-document packed bytes must match SDK baseline.",
+    "fullContentPrivacyAudit": "Full contents of actual staged index and exact final tar must be reviewed before submission.",
+    "scope": "Actual independent production-only installation, production imports and official SDK handshake passed on the357-file SDK baseline, with every packed file matching source at pack time. Final validation-document projection is a separate two-document delta; no final archive/privacy result is asserted here."
+  },
+  "previousCompiler15Focused": {
+    "nativePixelTask": {
+      "python": {
+        "total": 159,
+        "passed": 159,
+        "failed": 0,
+        "skipped": 0
+      },
+      "nodeLocalPngIpc": {
+        "total": 16,
+        "passed": 16,
+        "failed": 0
+      },
+      "scope": "Scoped pure-file worker and nonblocking budget-aware IPC; mock/parser/localPNG evidence. Same file SHA/pixels/caret/source/echo/Dismiss/result gates; not device acceptance.",
+      "productionChunkBenchmark": {
+        "trialsPerRoute": 3,
+        "oldChildrenPerTwoFreshBlock": 8,
+        "newChildrenPerTwoFreshBlock": 3,
+        "pngDecodesBothRoutes": 10,
+        "oldMedianMs": 1333.2447920111008,
+        "newMedianMs": 1058.4769589913776,
+        "sameBooleanAndShaResults": true,
+        "oldActualAttempt12FramesStillRejected": true,
+        "scope": "One actual production Python pixel-comparison chunk of two archived failing fresh frames against compiler14 frozen helpers; not whole source/capture/HTTP/OCR/device latency or a generic speedup."
+      },
+      "deviceAcceptance": "attempt14_failed_before_first_sample_key;no success inferred"
+    },
+    "nativeBudgetAlignment": {
+      "targetedCombination": {
+        "total": 37,
+        "passed": 37,
+        "failed": 0,
+        "skipped": 0,
+        "durationMs": 6901.175875
+      },
+      "independentModuleRepeat": {
+        "total": 15,
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0
+      },
+      "independentPureProbes": {
+        "passed": 4,
+        "failed": 0
+      },
+      "groupsOverlap": true,
+      "trustedDurationRangeMs": [
+        1,
+        3600000
+      ],
+      "defaultUiDurationMs": 60000,
+      "configuredUiBudgetUnchanged": true,
+      "exampleUiBudgetMs": 480000,
+      "exampleBridgeMs": 490000,
+      "sigkillRequestGraceMs": 12000,
+      "postExitStdioDrainMs": 1000,
+      "exampleSingleOperationClientDeadlineMs": 512000,
+      "sameCheckedConfigSnapshot": true,
+      "mcpCallerCanOverridePolicy": false,
+      "scope": "Mock clocks, short actual local child processes and fakeCLI/operation lifecycle; not a480s device run.12s schedules SIGKILL, then direct-child exit/reap is awaited; not a hard OS cleanup completion bound.512s is one operation poll phase, not whole harness. Existing uncertain writes remain unknown/noRetry.",
+      "oldAttempt12TimeoutCauseClaimed": false
+    },
+    "closedShadow": {
+      "status": "finite_subset_full_software_and_sdk_baseline_verified",
+      "historicalInitialPrimitivePassed": 4,
+      "producer": {
+        "total": 15,
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0,
+        "durationMs": 67861.847083,
+        "kind": "Actual local Chromium/official MCP SDK plus bounded protocol-fault mocks"
+      },
+      "independent": {
+        "total": 7,
+        "passed": 7,
+        "failed": 0,
+        "businessRequests": 0,
+        "kind": "Independent actual Chromium focus/semantic/exclusion/prototype cases;not separate MCP acceptance"
+      },
+      "groupsNotSummed": true,
+      "trustedPolicy": {
+        "location": "webConfig.closedShadowRoots",
+        "default": [],
+        "maximumHostChainLength": 4,
+        "maximumNodesPerPolicy": 256,
+        "defaultMaxNodes": 128,
+        "mcpCallerCanEnable": false,
+        "rootModeChangedToOpen": false,
+        "maximumRootPolicies": 4
+      },
+      "supported": [
+        "Chromium top-level main-frame author-closed roots with explicit host chains",
+        "Native INPUT text/search and TEXTAREA",
+        "Native BUTTON/INPUT button/submit physical actions",
+        "Independent DOM-text result and changed-result assertions",
+        "Explicitly approved nested author-closed host chains within mainframe",
+        "Discover/candidate/two-sample learning/unified and generated MCP finite fixture"
+      ],
+      "unsupported": [
+        "Nonempty framePath,cross-frame and foreign iframe closed contents",
+        "Unapproved nested roots,user-agent roots",
+        "Closed select/check/ARIA/visual/table combinations",
+        "Offscreen/clipped/transformed unsupported geometry,ambiguous/occluded targets"
+      ],
+      "actualBusinessRequests": {
+        "initialDiscoverySeed": 1,
+        "twoLearningSamples": 2,
+        "unifiedGamma": 1,
+        "generatedDelta": 1,
+        "verificationCallsAfterDiscovery": 4,
+        "wholeSdkFixture": 5
+      },
+      "guards": {
+        "isolatedWorldPrototypeAndRootIsolationCasesPassed": true,
+        "everyPhysicalEditChecksSameLeasedIdentitySemanticsAndExclusions": true,
+        "sameExecutionRootOrTargetReconstructionRejects": true,
+        "attemptedUnconfirmedClosedExplorationBlocksWholeRunResume": true,
+        "noUiRetryOrLocatorFallback": true,
+        "writeLearningAndExecutionGrantsRemainSeparate": true,
+        "postDispatchUnknownOutcomeRetained": true
+      },
+      "budgets": {
+        "maximumCdpCallsPerBackend": 4096,
+        "maximumReplyBytes": 262144,
+        "maximumFillUtf8Bytes": 4096,
+        "cleanupWaitMs": 250,
+        "perActionSingleAbsoluteDeadline": true,
+        "scope": "Nominal application timers and bounded page-close cleanup;not an OS hard realtime completion guarantee."
+      },
+      "privacy": "Bounded digests do not persist input.value or unapproved nested text;existing result/redaction contracts retained,not arbitrary secret-dataflow proof.",
+      "sourceScope": "Producer15 files individually byte/hash verified by independent reviewer,plus root-owned runtime metadata projection;not a final all-source/package/release audit.",
+      "legacyBrowserRegression": {
+        "status": "passed",
+        "total": 51,
+        "passed": 51,
+        "failed": 0,
+        "testFiles": 5,
+        "kind": "Existing planner/browser capabilities/browser workflows/WebE2E/ARIA real Chromium subset",
+        "scope": "Separate producer regression;overlap with full software suite,no disjoint total added."
+      },
+      "scope": "Finite controlled-localhost text/button/DOM-text path only. Native device evidence and final software/package/privacy/remote checks remain separate.",
+      "officialSdkStderrBytes": [
+        0,
+        0
+      ],
+      "packedSdkAcceptanceClaimed": false
+    }
+  },
+  "previousCompiler15DeviceEvidence": {
+    "androidVisualTextLatin": {
+      "status": "passed",
+      "environment": "owned Android16 API36 emulator",
+      "physicalDevice": false
+    },
+    "iosVisualTextNoSoftKeyboard": {
+      "status": "passed",
+      "environment": "owned iOS27.1 simulator, custom UIKeyInput",
+      "unifiedResult": "RESULT gamma 3",
+      "generatedResult": "RESULT delta 4",
+      "physicalDevice": false,
+      "installedBytesVerifiedByRuntime": false
+    },
+    "androidVisualChinese": {
+      "status": "not_passed_for_unified_and_generated_entries",
+      "environment": "owned emulator; mixed text layout retained",
+      "readyPublished": true,
+      "unifiedAndGeneratedClosedLoopPassed": false,
+      "latestCompletedAttempt": 10,
+      "latestCompletedOutcome": "Native Tesseract Beijing sample completed; later Beijing was read as itm and Shanghai contained an extra quote at confidence 0.37; rejected before Shanghai submit, no new ready",
+      "currentAttempt": null,
+      "currentAttemptStatus": "Fixed fast/best model comparisons found no one configuration passing all three stored images; not a new device acceptance",
+      "learnedSamples": [
+        "北京",
+        "上海"
+      ],
+      "readyPublishedScope": "Historical Vision attempt9 only; nativeText attempt10 did not publish ready",
+      "historicalReady": {
+        "attempt": 9,
+        "engine": "Vision",
+        "learnedSamples": [
+          "北京",
+          "上海"
+        ],
+        "unifiedAndGeneratedClosedLoopPassed": false
+      }
+    },
+    "iosOrdinarySoftKeyboard": {
+      "status": "terminal_failed_keyboard_not_visible",
+      "compilerVersion": "software-to-mcp-15",
+      "environment": "Owned iOS27.1 simulator acceptance cohort; compatible device type selected from runtime metadata",
+      "latestAttempt": 14,
+      "latestCompletedAttempt": 14,
+      "latestCompletedOutcome": "Actual learning performed one Focus;after-Focus AX still contained no Keyboard, then VISUAL_KEYBOARD_NOT_VISIBLE rejected before the first sample key. No post-Focus screenshot was captured, so pixel keyboard visibility is not inferred.",
+      "currentAttempt": null,
+      "currentAttemptStatus": "terminal_failed_no_mcp_acceptance",
+      "readyPublished": false,
+      "twoSampleLearningCompleted": false,
+      "unifiedAndGeneratedClosedLoopPassed": false,
+      "currentAttemptCleanupVerified": true,
+      "preflightAttempt13": {
+        "status": "terminal_pre_device_configuration_failure",
+        "ownedDevicesCreated": 0,
+        "uiActions": 0,
+        "servicePortsAllocated": 0,
+        "preexistingDeviceIdentitiesPreserved": true,
+        "nativeCopiedSourceFilesUnchanged": true,
+        "mcpAcceptance": false
+      },
+      "currentAttemptDeviceSelection": "iPhoneDuo supported by iOS27.1; same compatible type as historical attempt12",
+      "sourceCohort": {
+        "kind": "native_acceptance_only",
+        "copiedFiles": 483,
+        "gatewayDistFiles": 32,
+        "productionImportChecked": true,
+        "scope": "Frozen native acceptance cohort,all483 copied bytes unchanged at terminal;not final Web/all-source compiler15 acceptance."
+      },
+      "previousAttempt12": {
+        "status": "terminal_failed_freshness_guard",
+        "environment": "owned simulator; real UITextField caret retained",
+        "latestAttempt": 12,
+        "latestOutcome": "First learning sample alpha completed with exactly one business submit and OCR RESULT alpha 1. Second sample executed16 fixed deletes and b, then VISUAL_FRAME_CHANGED blocked before e; no second Dismiss/submit, two-sample ready, unified gamma or generated Ab7z.",
+        "readyPublished": false,
+        "unifiedAndGeneratedClosedLoopPassed": false,
+        "latestCompletedAttempt": 12,
+        "currentAttempt": null,
+        "cleanupVerified": true,
+        "previousStrictAttempt11": {
+          "status": "failed",
+          "inputFirstAVisibleInPng": true,
+          "inputOcrCandidates": 0,
+          "dismissReached": false,
+          "submitReached": false,
+          "readyPublished": false,
+          "cleanupVerified": true
+        },
+        "currentAttemptStatus": "terminal_failed_freshness_guard",
+        "twoSampleLearningCompleted": false,
+        "cleanupScope": {
+          "allSixOwnedResourceFlags": true,
+          "fourOwnedPortsHaveNoListeners": true,
+          "preexistingDeviceIdentitiesPreserved": true,
+          "independentHostVerification": true,
+          "ownedPidPgidSimulatorAndMcpProcessesAbsent": true,
+          "all472CopiedSourceFilesUnchanged": true
+        },
+        "diagnosisStatus": "complete_no_policy_change",
+        "durationSeconds": 297.359,
+        "timeoutError": false,
+        "firstLearningSample": {
+          "input": "alpha",
+          "businessSubmits": 1,
+          "ocrResult": "RESULT alpha 1",
+          "completed": true
+        },
+        "secondLearningSample": {
+          "fixedDeletes": 16,
+          "literalPrefixDispatched": "b",
+          "nextLiteralNotDispatched": "e",
+          "dismissReached": false,
+          "submitReached": false,
+          "completed": false
+        },
+        "freshnessDiagnosis": {
+          "actualPostBFrameComparedToFreshFrames": 2,
+          "changedPixelsEach": 683,
+          "allChangedPixelsInsideInput": true,
+          "keyboardChangedPixels": 0,
+          "resultChangedPixels": 0,
+          "otherUpperAreaChangedPixels": 0,
+          "pixelsOutsideExistingCaretColorContractEach": 16,
+          "backgroundUniformNearWhite": false,
+          "osCaretIdentityProved": false,
+          "sourcePolicyOrBudgetRelaxed": false
+        },
+        "sourceCopyVerification": {
+          "files": 472,
+          "allCopiedBytesMatchedAtDiagnosisEnd": true,
+          "sharedDependenciesRemainOutsideImmutableCopy": true
+        }
+      },
+      "actualError": "WORKFLOW_NOT_VALIDATED:VISUAL_KEYBOARD_NOT_VISIBLE",
+      "timeoutError": false,
+      "learningRpcCounts": {
+        "total": 34,
+        "activeAppInfo": 19,
+        "source": 5,
+        "screenshot": 3,
+        "orientation": 3,
+        "windowRect": 3,
+        "pointerFocus": 1,
+        "keyboardPhysicalKeys": 0,
+        "businessSubmissions": 0
+      },
+      "workflowEventsFileExists": false,
+      "postFocusEvidence": {
+        "axKeyboardPresent": false,
+        "newScreenshotExists": false,
+        "pixelKeyboardVisibilityInferred": false
+      },
+      "cleanupScope": {
+        "allSixOwnedResourceFlags": true,
+        "freshNoOwnedProcesses": true,
+        "freshNoPortListeners": true,
+        "preexistingDeviceIdentitiesPreserved": true,
+        "all483CopiedSourceFilesUnchanged": true
+      },
+      "sourceCopyVerifiedAtTerminal": true
+    },
+    "webChineseVision": {
+      "status": "passed",
+      "environment": "local Chromium Canvas + macOS Vision + local HTTP fixture",
+      "language": "Simplified Chinese + English",
+      "traditionalChineseQualityVerified": false,
+      "resultMinConfidence": 0.3,
+      "actionMinConfidence": 0.8,
+      "scope": "finite fixture; does not prove Android Chinese visual workflow"
+    },
+    "androidSemanticUnicode": {
+      "status": "passed",
+      "environment": "owned API36 emulator + repo Unicode IME + semantic input field",
+      "mcpReplaceQueries": 4,
+      "backendOnlyAppendChecks": 4,
+      "appendPublishedAsMcpWorkflow": false,
+      "scope": "not evidence of Android visual Chinese OCR workflow"
+    }
+  },
+  "previousCompiler15ReleaseRecord": {
+    "compilerVersion": "software-to-mcp-15",
+    "status": "draft_pull_request_checkpoint",
+    "distributionType": "draft_pull_request_checkpoint",
+    "mainMerged": false,
+    "npmPublished": false,
+    "basePublishedCheckpoint": {
+      "compilerVersion": "software-to-mcp-14",
+      "commit": "00f4e8496f7f5863b813b484df3ed6fb940c9502",
+      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/00f4e8496f7f5863b813b484df3ed6fb940c9502",
+      "draftPr": "https://github.com/8eeth0ven/bfs-clicker/pull/1",
+      "scope": "Historical compiler14 reference; not a statement that this is the latest remote head."
+    },
+    "finalGate": "Actual staged index and exact final tar projection plus full content privacy must be verified before each submission.",
+    "scope": "Draft pull request distribution checkpoint, not main merge or npm publication. Actual remote commit and final index/archive/privacy evidence belong to PR and delivery records; no self-embedded final archive hash."
+  },
+  "historicalInputEvidenceClarification": {
+    "compiler15ClosedRootInitialDiscovery": {
+      "q": "",
+      "initialRequestIsNotLearningSample": true,
+      "scope": "Historical compiler15 exploratory request used empty q. Its initial request plus four later business requests remain historical evidence, not the compiler16 configured seed fixture."
+    },
+    "compiler16ClosedRootConfiguredDiscovery": {
+      "q": "seed",
+      "host": "alpha",
+      "initialRequestIsNotLearningSample": true
+    }
+  },
+  "deviceEvidenceScope": "Ordinary iOS attempt15 is the only new compiler16 device record here. Other unchanged device rows retain their historical finite scopes and are not reruns of final combined compiler16 source."
 }
