@@ -4,6 +4,7 @@ import {constants, openSync, closeSync, fstatSync, readSync, lstatSync} from 'no
 import path from 'node:path';
 import {inflateSync} from 'node:zlib';
 import {PNG} from 'pngjs';
+import {createHash} from 'node:crypto';
 
 const fail = code => { throw Object.assign(new Error('Invalid bounded caret comparison'), {code}); };
 const invalid = () => fail('VISUAL_CARET_CONFIG_INVALID');
@@ -44,7 +45,7 @@ function box(region, width, height) {
 }
 const contains = (b, x, y) => x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1;
 
-function fileBytes(file) {
+function fileBytes(file, extraFlags = 0) {
   if (typeof file !== 'string' || !path.isAbsolute(file) || file.includes('\0')) badImage();
   const absolute = path.resolve(file);
   let current = path.parse(absolute).root, fd;
@@ -53,7 +54,7 @@ function fileBytes(file) {
       current = path.join(current, part);
       if (lstatSync(current).isSymbolicLink()) badImage();
     }
-    fd = openSync(absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
+    fd = openSync(absolute, constants.O_RDONLY | constants.O_NOFOLLOW | extraFlags);
     const info = fstatSync(fd);
     if (!info.isFile() || info.size < 45 || info.size > 16 * 1024 * 1024) badImage();
     const bytes = Buffer.alloc(info.size + 1);
@@ -71,8 +72,7 @@ function fileBytes(file) {
 
 // Keep the existing fingerprint reader's PNG/CRC/inflate limits. The comparator
 // owns each bounded byte snapshot; it never validates one path then reopens it.
-function image(file) {
-  const data = fileBytes(file);
+function decodePngBytes(data) {
   if (!data.subarray(0, 8).equals(signature)) badImage();
   let offset = 8, width, height, depth, colorType, header = false, end = false, seenData = false, afterData = false;
   const compressed = [];
@@ -111,6 +111,16 @@ function image(file) {
   } catch { badImage(); }
   if (decoded.width !== width || decoded.height !== height || decoded.data.length !== width * height * 4) badImage();
   return decoded;
+}
+
+function image(file) {
+  return decodePngBytes(fileBytes(file));
+}
+
+// The caller owns this one bounded encoded snapshot and its decoded pixels.
+export function decodeBoundedPngSnapshot(file) {
+  const bytes = fileBytes(file, constants.O_NONBLOCK || 0), decoded = decodePngBytes(bytes);
+  return {width: decoded.width, height: decoded.height, data: decoded.data, imageSha256: createHash('sha256').update(bytes).digest('hex')};
 }
 
 function approvedColor(data, offset, policy) {

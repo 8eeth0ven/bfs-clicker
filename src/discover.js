@@ -1,4 +1,6 @@
 // Semantic descriptors with frame/shadow paths. Playwright CSS pierces open shadow roots.
+import {observedVirtualChoices} from './aria-virtual.js';
+import {virtualPolicyFor} from './aria-virtual-policy.js';
 export const BASE_SELECTOR = [
   'button','a[href]','input:not([type="hidden"]):not([type="file"])','textarea','select',
   '[role="button"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="radio"],[role="switch"],[role="link"], [role="combobox"]',
@@ -30,7 +32,7 @@ export async function collectInteractives(page,config={}) {
     const url=typeof frame.url==='function'?frame.url():page.url?.();
     if(frame!==frames[0] && config._policy && !config._policy.navigation(url).allow){emit('coverage_gap',{reason:'frame_out_of_scope',url});continue;}
     const fpath=framePath(frame);
-    const capture=()=>frame.evaluate(({selector,exclusions,max})=>{
+    const capture=async()=>{const rows=await frame.evaluate(({selector,exclusions,max})=>{
       const clean=s=>String(s||'').replace(/\s+/g,' ').trim().slice(0,180);
       const visible=el=>{const style=getComputedStyle(el),r=el.getBoundingClientRect();return style.display!=='none'&&style.visibility!=='hidden'&&r.width>0&&r.height>0};
       const excluded=el=>{let cur=el;while(cur){if(exclusions.some(s=>cur.matches(s)||cur.closest(s)))return true;cur=cur.getRootNode()?.host||null;}return false;};
@@ -83,6 +85,12 @@ export async function collectInteractives(page,config={}) {
         for(const el of root.querySelectorAll('*'))if(el.shadowRoot)visit(el.shadowRoot);
       };visit(document);return out;
     },{selector:config.formExplore?BASE_SELECTOR+','+FORM_SELECTOR:BASE_SELECTOR,exclusions:config.excludeSelectors||[],max:config.maxInteractives||300});
+      for(const meta of rows)if(meta.role==='combobox'&&meta.expanded==='true'&&virtualPolicyFor(config,{...meta,framePath:fpath})){
+        const choices=await observedVirtualChoices(page,config,{...meta,framePath:fpath});
+        if(choices){meta.ariaChoices=choices;meta.ariaChoiceGap=null;}
+      }
+      return rows;
+    };
     let rows=await capture();
     // An already-open exploratory state may mount its list asynchronously.
     // This is read-only polling: inventory/planning never opens a widget here.

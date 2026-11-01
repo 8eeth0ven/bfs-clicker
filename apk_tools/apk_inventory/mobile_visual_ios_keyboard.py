@@ -80,13 +80,14 @@ def caret_contract(value):
 
 
 def gaps(config):
-    return GAPS + (CARET_GAPS if "caret" in config else [])
+    from .mobile_visual_ios_keys import GAPS as key_gaps
+    return GAPS + (CARET_GAPS if "caret" in config else []) + (key_gaps if "keyInput" in config else [])
 
 
 def keyboard_contract(value, definition):
     if (
         not isinstance(value, dict) or not {"enabled", "region", "dismissAnchor"} <= set(value)
-        or set(value) - {"enabled", "region", "sourceRegion", "dismissAnchor", "caret"}
+        or set(value) - {"enabled", "region", "sourceRegion", "dismissAnchor", "caret", "keyInput"}
         or value.get("enabled") is not True
         or not isinstance(value.get("dismissAnchor"), str)
         or not re.fullmatch(r"[A-Za-z0-9_]{1,32}", value["dismissAnchor"])
@@ -95,6 +96,9 @@ def keyboard_contract(value, definition):
         fail("VISUAL_KEYBOARD_CONFIG_INVALID")
     if "caret" in value:
         caret_contract(value["caret"])
+    if "keyInput" in value:
+        from .mobile_visual_ios_keys import key_input_contract
+        key_input_contract(value["keyInput"], definition)
     region = _region(value["region"])
     source = _region(value.get("sourceRegion", region))
     # A single owner-approved full-width near-bottom keyboard, not an arbitrary
@@ -645,6 +649,9 @@ def run(session, lease, config, definition, inputs, contracts):
     v = _visual()
     text = v._text_value(definition, inputs)
     keyboard = keyboard_contract(config.get("keyboard"), definition)
+    if "keyInput" in keyboard:
+        from .mobile_visual_ios_keys import validate_text
+        validate_text(text)
     try:
         before, geometry = _observe(session, lease, config, visible=False)
         anchors, fingerprint = v._layout(session, config, definition, before, contracts)
@@ -676,20 +683,23 @@ def run(session, lease, config, definition, inputs, contracts):
         v._settle(session)
         focused, _ = _observe(session, lease, config, geometry, True, before)
         _visible_layout(session, config, definition, focused, bound)
-        # Hardware typeKey Cmd+A/Delete can switch off the software keyboard
-        # even after its visibility was proved. The explicit software-keyboard
-        # path uses one fixed text-event clear request instead; this is not a
-        # fallback after failure, and complete empty OCR is still mandatory.
-        _dispatch(session, lease, config, definition, focused, geometry, True, "POST", "/keys", {
-            "value": ["\b" * definition["inputSchema"]["maxLength"]]}, bound)
-        v._settle(session)
-        cleared, _, cleared_visible = _prepare_observe(session, lease, config, geometry, before)
-        _prepare_layout(session, config, definition, cleared, bound, cleared_visible)
-        if region_text(cleared, definition["valueRegion"]) != "":
-            fail("VISUAL_INPUT_CLEAR_NOT_VERIFIED")
-        _dispatch(session, lease, config, definition, cleared, geometry, cleared_visible, "POST", "/keys", {"value": [text]}, bound, preparing=True)
-        v._settle(session)
-        filled, _, filled_visible = _prepare_observe(session, lease, config, geometry, before)
+        if "keyInput" in keyboard:
+            from .mobile_visual_ios_keys import replace_text
+            filled = replace_text(session, lease, config, definition, text, bound, geometry, focused)
+            filled_visible = True
+        else:
+            # Default transport stays one fixed clear /keys and one type /keys.
+            # The explicit onscreen mode above is never a fallback after failure.
+            _dispatch(session, lease, config, definition, focused, geometry, True, "POST", "/keys", {
+                "value": ["\b" * definition["inputSchema"]["maxLength"]]}, bound)
+            v._settle(session)
+            cleared, _, cleared_visible = _prepare_observe(session, lease, config, geometry, before)
+            _prepare_layout(session, config, definition, cleared, bound, cleared_visible)
+            if region_text(cleared, definition["valueRegion"]) != "":
+                fail("VISUAL_INPUT_CLEAR_NOT_VERIFIED")
+            _dispatch(session, lease, config, definition, cleared, geometry, cleared_visible, "POST", "/keys", {"value": [text]}, bound, preparing=True)
+            v._settle(session)
+            filled, _, filled_visible = _prepare_observe(session, lease, config, geometry, before)
         dismissal = _prepare_layout(session, config, definition, filled, bound, filled_visible)
         if region_text(filled, definition["valueRegion"]) != text:
             fail("VISUAL_INPUT_NOT_VERIFIED")

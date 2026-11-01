@@ -260,6 +260,48 @@ export function importOpenApi({document:input,documentUrl,referenceDocuments=[],
     if(!Array.isArray(raw)||raw.length>500){gap(ctx,'parameters_limit_or_invalid');return [];}
     return raw.map(value=>deref(value,ctx)).filter(value=>{if(!plain(value)||!safeName(value.name)||typeof value.in!=='string'){gap(ctx,'invalid_parameter');return false;}return true;});
   };
+  const multipartContract=(raw,encodings,ctx)=>{
+    const priorGaps=gaps.length,value=schema(raw,ctx),unsupported=reason=>{gap(ctx,reason);return null;};
+    if(gaps.length!==priorGaps)return null;
+    const allowedRoot=new Set(['type','properties','required','additionalProperties','minProperties','maxProperties','readOnly','writeOnly']);
+    if(!plain(value)||value.type!=='object'||!plain(value.properties)||Object.keys(value).some(key=>!allowedRoot.has(key))||value.additionalProperties!==undefined&&typeof value.additionalProperties!=='boolean')return unsupported('unsupported_multipart_object_schema');
+    const names=Object.keys(value.properties);if(!names.length||names.length>16)return unsupported('multipart_field_limit');
+    if(encodings!==undefined&&(!plain(encodings)||Object.keys(encodings).some(name=>!names.includes(name))))return unsupported('invalid_multipart_encoding');
+    for(const key of ['minProperties','maxProperties'])if(value[key]!==undefined&&(!Number.isSafeInteger(value[key])||value[key]<0))return unsupported('invalid_multipart_object_schema');
+    if((value.minProperties??0)>16||value.maxProperties===0||value.required?.some(name=>!names.includes(name)))return unsupported('unsupported_multipart_object_schema');
+    const fields=Object.create(null),properties=Object.create(null),fileCarrier=media=>({type:'object',description:'Inline file carrier for '+media+'; decoded bytes limited to 262144.',properties:{filename:{type:'string',minLength:1,maxLength:128,pattern:'^[A-Za-z0-9][A-Za-z0-9._ -]{0,127}$'},base64:{type:'string',maxLength:349528,pattern:'^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'}},required:['filename','base64'],additionalProperties:false});
+    for(const name of names){
+      if(!/^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/.test(name)||FORBIDDEN.has(name))return unsupported('unsupported_multipart_field_name');
+      let node=value.properties[name];if(node===false){properties[name]=false;continue;}if(!plain(node))return unsupported('unsupported_multipart_field_schema');
+      const array=node.type==='array',arraySchema=node;
+      if(array){if(Object.keys(node).some(key=>!['type','items','minItems','maxItems','uniqueItems','readOnly','writeOnly'].includes(key))||!plain(node.items))return unsupported('unsupported_multipart_array_schema');node=node.items;}
+      const encoding=encodings?.[name]||{};
+      if(!plain(encoding)||Object.keys(encoding).some(key=>key!=='contentType'&&!key.startsWith('x-')))return unsupported('unsupported_multipart_encoding');
+      const binary=!v31&&node.type==='string'&&node.format==='binary'||v31&&node.type===undefined;
+      let item;
+      if(binary){
+        if(array&&arraySchema.uniqueItems===true)return unsupported('unsupported_multipart_file_uniqueness');
+        if(Object.keys(node).some(key=>!['type','format','readOnly','writeOnly'].includes(key)))return unsupported('unsupported_multipart_file_constraints');
+        const media=encoding.contentType??'application/octet-stream';
+        if(typeof media!=='string'||media.length>127||!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i.test(media)||/^multipart\//i.test(media))return unsupported('unsupported_multipart_content_type');
+        fields[name]={kind:'file',contentType:media.toLowerCase(),array};item=fileCarrier(media.toLowerCase());
+      }else{
+        if(!['string','number','integer','boolean'].includes(node.type)||['binary','byte'].includes(node.format))return unsupported('unsupported_multipart_field_schema');
+        if(encoding.contentType!==undefined&&encoding.contentType!=='text/plain')return unsupported('unsupported_multipart_content_type');
+        fields[name]={kind:'text',valueType:node.type,contentType:'text/plain',array};item=clone(node);
+        if(node.type==='string'){for(const key of ['minLength','maxLength'])if(item[key]!==undefined&&(!Number.isSafeInteger(item[key])||item[key]<0))return unsupported('invalid_multipart_text_schema');item.maxLength=Math.min(item.maxLength??65536,65536);if((item.minLength??0)>item.maxLength)return unsupported('multipart_text_limit');}
+      }
+      if(array){
+        const limit=binary?8:16;for(const key of ['minItems','maxItems'])if(arraySchema[key]!==undefined&&(!Number.isSafeInteger(arraySchema[key])||arraySchema[key]<0))return unsupported('invalid_multipart_array_schema');
+        const min=Math.max(1,arraySchema.minItems??0),max=Math.min(limit,arraySchema.maxItems??limit);if(min>max)return unsupported('multipart_array_limit');
+        properties[name]={...clone(arraySchema),items:item,minItems:min,maxItems:max};
+      }else properties[name]=item;
+    }
+    if(!Object.keys(fields).length)return unsupported('multipart_fields_missing');
+    if(Math.max(1,value.minProperties??0)>Math.min(Object.keys(fields).length,value.maxProperties??16)||(value.required||[]).some(name=>properties[name]===false))return unsupported('unsupported_multipart_object_schema');
+    if(value.additionalProperties!==false)warn('multipart_only_declared_fields_supported');
+    return {rules:{schemaVersion:1,fields},schema:{...clone(value),properties,additionalProperties:false,minProperties:Math.max(1,value.minProperties??0),maxProperties:Math.min(16,value.maxProperties??16)}};
+  };
   const serverUrls=(operation,item,ctx)=>{
     if(swagger){
       const host=doc.host||base?.host,schemes=operation.schemes||doc.schemes||(base?[base.protocol.slice(0,-1)]:[]),basePath=doc.basePath||'';
@@ -291,7 +333,7 @@ export function importOpenApi({document:input,documentUrl,referenceDocuments=[],
       const params=objectSchema();params.properties.path=objectSchema();params.properties.query=objectSchema();
       const declarations={path:[],query:[],headers:[]},querySerialization=Object.create(null),combined=new Map();
       for(const raw of [item.parameters,operation.parameters]){const level=new Set();for(const parameter of listParameters(raw,ctx)){const id=parameter.in+'\0'+parameter.name;if(level.has(id))gap(ctx,'duplicate_parameter_declaration');level.add(id);combined.set(id,parameter);}}
-      let bodyContent=null,formSerialization=null;const form=objectSchema(),formParameters=new Map();let hasForm=false;
+      let bodyContent=null,formSerialization=null,multipartSerialization=null;const form=objectSchema(),formParameters=new Map();let hasForm=false;
       for(const parameter of combined.values()){
         const place=parameter.in;
         if(place==='body'&&swagger){if(bodyContent){gap(ctx,'multiple_request_bodies');continue;}bodyContent={schema:parameter.schema||{},required:parameter.required===true};continue;}
@@ -318,7 +360,7 @@ export function importOpenApi({document:input,documentUrl,referenceDocuments=[],
       if(!swagger&&operation.requestBody){
         const body=deref(operation.requestBody,ctx),content=body?.content;
         if(!plain(body)||!plain(content)||!Object.keys(content).length)gap(ctx,'invalid_request_body');
-        else{const media=['application/json','application/x-www-form-urlencoded','text/plain'].find(type=>Object.hasOwn(content,type));if(!media){gap(ctx,'unsupported_request_media_type');bodyContent={schema:{},required:body.required===true};}else{bodyContent={schema:content[media]?.schema||{},required:body.required===true,encoding:content[media]?.encoding};bodyContent.type=media;if(Object.keys(content).length>1)warn('one_supported_request_media_type_selected');}}
+        else{const media=['application/json','application/x-www-form-urlencoded','text/plain','multipart/form-data'].find(type=>Object.hasOwn(content,type));if(!media){gap(ctx,'unsupported_request_media_type');bodyContent={schema:{},required:body.required===true};}else{bodyContent={schema:content[media]?.schema||{},required:body.required===true,encoding:content[media]?.encoding};bodyContent.type=media;if(Object.keys(content).length>1)warn('one_supported_request_media_type_selected');}}
       }
       if(swagger&&(bodyContent||hasForm)){
         const consumes=operation.consumes||doc.consumes||[];
@@ -327,7 +369,8 @@ export function importOpenApi({document:input,documentUrl,referenceDocuments=[],
         if(!bodyContent.type)gap(ctx,'unsupported_request_media_type');
       }
       if(bodyContent){
-        params.properties.body=bodyContent.normalised||schema(bodyContent.schema,ctx);if(bodyContent.required)(params.required??=[]).push('body');
+        if(bodyContent.type==='multipart/form-data'){const encoded=multipartContract(bodyContent.schema,bodyContent.encoding,ctx);params.properties.body=encoded?.schema||false;if(encoded&&!['get','head'].includes(method))multipartSerialization=encoded.rules;}
+        else params.properties.body=bodyContent.normalised||schema(bodyContent.schema,ctx);if(bodyContent.required)(params.required??=[]).push('body');
         if(['get','head'].includes(method))gap(ctx,'request_body_not_supported_for_method');
         if(bodyContent.type==='text/plain'&&(!plain(params.properties.body)||params.properties.body.type!=='string'))gap(ctx,'unsupported_text_body_shape');
         if(bodyContent.type==='application/x-www-form-urlencoded'){const encoded=formContract(params.properties.body,bodyContent.encoding,formParameters,ctx);if(encoded){params.properties.body=encoded.schema;formSerialization=encoded.rules;}}
@@ -343,10 +386,10 @@ export function importOpenApi({document:input,documentUrl,referenceDocuments=[],
         try{url=new URL(server.origin+fullPath)}catch{gap(serverCtx,'invalid_operation_url');continue;}
         const pathname=url.pathname.replace(/%7B([A-Za-z_][A-Za-z0-9_]*)%7D/gi,'{$1}');
         if(!allowed.has(server.origin))gap(serverCtx,'origin_not_allowed',{origin:server.origin});else origins.add(server.origin);
-        const contract=clone(params),record={url:server.origin+pathname,method:method==='trace'?null:method.toUpperCase(),headers:bodyContent?.type?{'content-type':bodyContent.type}:{},query:{},body:null,query_serialization:clone(querySerialization),...(formSerialization?{form_serialization:clone(formSerialization)}:{}),categories:['static_candidate','openapi'],source:'asset',extraction_sources:['asset'],package:(base?redactUrl(base.href):'supplied-document')+'#/paths/'+encodeURIComponent(route)+'/'+method,description:scrub(operation.summary||operation.operationId||method.toUpperCase()+' '+route),parameters:declarations,readiness:serverCtx.problems.size?'candidate':'ready',effect:'unknown',gaps:[...serverCtx.problems],declaredMethod:method.toUpperCase()};
+        const contract=clone(params),record={url:server.origin+pathname,method:method==='trace'?null:method.toUpperCase(),headers:bodyContent?.type?{'content-type':bodyContent.type}:{},query:{},body:null,query_serialization:clone(querySerialization),...(formSerialization?{form_serialization:clone(formSerialization)}:{}),...(multipartSerialization?{multipart_serialization:clone(multipartSerialization)}:{}),categories:['static_candidate','openapi'],source:'asset',extraction_sources:['asset'],package:(base?redactUrl(base.href):'supplied-document')+'#/paths/'+encodeURIComponent(route)+'/'+method,description:scrub(operation.summary||operation.operationId||method.toUpperCase()+' '+route),parameters:declarations,readiness:serverCtx.problems.size?'candidate':'ready',effect:'unknown',gaps:[...serverCtx.problems],declaredMethod:method.toUpperCase()};
         if(serverCtx.problems.size)contract.allOf=[...(contract.allOf||[]),{not:{}}];
         const id=endpointId(sourceId,server.origin,pathname)+':'+method.toUpperCase();
-        if(seen.has(id)){const prior=seen.get(id);if(JSON.stringify(canonical([schemaOverrides[id],prior.query_serialization,prior.form_serialization,prior.headers]))!==JSON.stringify(canonical([contract,record.query_serialization,record.form_serialization,record.headers]))){gap(serverCtx,'conflicting_operation_contract');prior.readiness='candidate';prior.gaps.push('conflicting_operation_contract');schemaOverrides[id].allOf=[...(schemaOverrides[id].allOf||[]),{not:{}}];}continue;}
+        if(seen.has(id)){const prior=seen.get(id);if(JSON.stringify(canonical([schemaOverrides[id],prior.query_serialization,prior.form_serialization,prior.multipart_serialization,prior.headers]))!==JSON.stringify(canonical([contract,record.query_serialization,record.form_serialization,record.multipart_serialization,record.headers]))){gap(serverCtx,'conflicting_operation_contract');prior.readiness='candidate';prior.gaps.push('conflicting_operation_contract');schemaOverrides[id].allOf=[...(schemaOverrides[id].allOf||[]),{not:{}}];}continue;}
         schemaOverrides[id]=contract;manifest.push(record);seen.set(id,record);operations++;
       }
     }

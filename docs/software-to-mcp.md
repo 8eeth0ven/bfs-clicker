@@ -37,11 +37,13 @@ node src/software-mcp.js --output-root ./output-software --artifact-root ./examp
 
 `software_import_openapi({sourceId:"api",documentPath:"/绝对路径/openapi.yaml",documentUrl:"https://example.test/openapi.yaml"})` 支持 OpenAPI 3.0/3.1 和 Swagger 2 的 JSON/YAML 文档。先在启动配置中为该 sourceId 声明 `bindings.api.allowed_origins`；documentUrl 只用于解析相对 URL，不触发下载。
 
-规范提供的 path/query/JSON body 参数、required、枚举、范围和本地引用进入实际调用校验，查询编码同时进入固定调用契约。默认数组使用重复键；正式声明也可选择 CSV、空格、竖线分隔，以及浅对象编码。未显式提供的外部引用、循环引用、未支持的 wire 编码和文件上传保留候选及具体缺口，不能通过宽松 schema 调用。规范声明记为 static_candidate；真实调用另存验证记录，二者不会混作观测证据。写方法仍由启动配置的精确端点白名单控制。
+规范提供的 path/query/JSON body 参数、required、枚举、范围和本地引用进入实际调用校验，查询编码同时进入固定调用契约。默认数组使用重复键；正式声明也可选择 CSV、空格、竖线分隔，以及浅对象编码。未显式提供的外部引用、循环引用和未支持的 wire 编码保留候选及具体缺口，不能通过宽松 schema 调用。规范声明记为 static_candidate；真实调用另存验证记录，二者不会混作观测证据。写方法仍由启动配置的精确端点白名单控制。
 
 多文件规范可通过 `referenceDocuments:[{documentUrl:"https://example.test/models/input.yaml",documentPath:"/配置允许目录/input.yaml"}]` 提供明确的 URI 与本地文件映射。每个文件都必须位于 `artifactRoots`；URL 是文档身份，不会触发下载。支持跨文档 path item、parameter、requestBody、schema，以及被引用文档内继续出现的相对和局部 JSON Pointer。相对引用和 server URL 按所在文档解析，规则见 [OpenAPI 相对引用](https://spec.openapis.org/oas/v3.1.1.html#relative-references-in-api-description-uris)。
 
 最多 32 份引用文档，单份 8 MiB、主文档加引用合计 16 MiB；重复身份、凭据 URL、fragment 身份、循环或无法解析的引用不能成为可调用契约。`$id` 资源作用域、命名 anchor 和动态引用暂不展开；指针跳入这些未支持的作用域也会保留缺口。重新导入后的实际参数契约变化会更新 revision，使旧生成入口失效。只提供规范不能扩大可信 `allowed_origins`。引用诊断仅保留摘要，不回传原始引用字符串。
+
+读取上限按实际打开的普通文件及实际字节检查；读取中增长、截断或可检测的替换，以及非法 UTF-8 都会拒绝导入。FIFO 不会作为文档阻塞读取。不存在的主文档或引用只返回固定错误码，不回传文件名与本地路径，失败不推进来源 revision。这些检查不构成对恶意文件系统并发修改的完整原子保证。
 
 这里导入的是本地文档；需先把取得的规范保存进 artifactRoots。默认生成独立来源；传 `merge:true` 和已有来源的 `expectedRevision`，可补充到 Web/APK/iOS 来源，保留原始观测、App 身份、浏览器/移动能力和凭据绑定。补充规范不扩大原调用 origin 范围；同一路径/方法的多份正式契约冲突会保留候选及缺口，不按最后写入者放宽。再次导入同一文档位置会替换该份补充证据，refresh 保留补充内容。
 
@@ -70,6 +72,20 @@ Encoding Object 只要包含 `style`、`explode` 或 `allowReserved` 中任意�
 静态 patternProperties、additionalProperties 与可明确推导的 unevaluatedProperties 可指定动态字段的编码。allOf 中已经评价额外字段的规则不会被根层 unevaluatedProperties 错误覆盖。条件分支内的 additionalProperties、unevaluatedProperties 或 patternProperties 暂保留 candidate 和 `unsupported_conditional_form_evaluation`，不猜测完整评价传播。
 
 表单公开 schema 保留原约束及编码支持域；编码冲突、展开后字段名碰撞、非法输入或超过 1 MiB 均在 HTTP 请求前拒绝。编码规则来自可信来源，不接受调用参数覆盖。POST 仍需全局 `allow_non_get` 与逐端点批准，导入文档不自动授予调用权限。固定规则公开为 `form_serialization` / `evidence.formSerialization`，实际凭据值继续脱敏。表单专项 **7/7** 通过；此前统一软件入口全套 **173/173** 通过；最新改动的整合回归另行记录。
+
+### Multipart 文件上传
+
+正式规范中受支持的 `multipart/form-data` 会编译成固定字段契约。调用传业务文本和内联文件，例如：
+
+```json
+{"body":{"title":"示例附件","tags":["demo","文档"],"attachment":{"filename":"sample.bin","base64":"AAEC/w=="}}}
+```
+
+规范模板见 [上传示例](../examples/software/openapi-multipart.example.yaml)。OpenAPI 3.0 的 `string/format:binary` 可表示文件；3.1 支持无 `type` 的原始二进制 schema。3.1 的有类型 `string/format:binary` 保留候选，不把仅用于注解的 format 擅自解释为文件传输。文本支持字符串、数字、整数、布尔及其数组，文件数组按相同字段名生成多个 part。字段 MIME 固定于规范；复杂对象、动态字段、自定义 part 头和未支持的 encoding 保留缺口。
+
+单文件最多 256 KiB，总文件 512 KiB，最多 8 个文件、16 个字段和 32 个 part；文本单项最多 64 KiB，完整 body 最多 1 MiB。文件名为有限 ASCII 子集，base64 必须规范编码。调用者不能提供本地路径、远程 URL、任意 MIME 或请求头。POST 仍需精确端点及来源批准，不自动重试上传。
+
+响应保留业务编号、链接等内容，并用本次事务的独立脱敏集合抑制已上传的完整 base64、严格 UTF-8 原文及其精确 JSON/URI 表示；短原文只匹配完整叶子值。它不保证识别任意变换或部分回显。脱敏集合、响应捕获或匹配工作超过固定预算时，在发请求前拒绝。实际二进制响应仍返回摘要。新增编码及字段类型会进入 revision，旧生成入口不会继续使用过期的上传契约。
 
 ## 生成物
 
@@ -144,7 +160,7 @@ Android/iOS 后端执行替换输入、点击/滑动、断言和类型化提取�
 
 视觉合同 `schemaVersion:2` 对解码后的整张 Canvas 像素建立指纹；只遮罩同 selector、同 frame 中此前已填写并回读的输入区，结果区不作为动态遮罩。同一区域多次输入以最后一次为准；当前输入区及动作锚点不得与其他遮罩按像素重叠，点击点也不得落入遮罩。`visualClick` 必须落在当前 OCR 锚点文字框内。每个后续视觉动作前使用同一张 OCR 截图重读此前关联的输入值；检查后仍会核对画面，发生变化则拒绝动作。不同 selector 的别名不自动视为同一宿主，动态时间、动画或光标等未遮罩变化可能导致保守拒绝；画面一致也不能证明隐藏处理器语义未变。
 
-PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-13`。
+PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-14`。
 
 声明 `changedFromBefore:true` 的 DOM、ARIA 与视觉流程在最后触发动作前另取结果基线，防止输入时已更新的结果令无操作触发通过；提取后还会复核结果。该变化仍是时间上的证据：异步结果更新可能独立于触发动作，不能据此证明因果或后台业务完成。同一结果验证阶段中，同一 Canvas 的多个结果区域共享一次截图与 OCR；缓存仅限当前阶段，不跨动作或断言轮次复用。复用时固定 ElementHandle 并检查当前节点仍是同一宿主，替换则拒绝；触发前基线、触发后断言和提取后复核各自保留。
 
@@ -294,6 +310,18 @@ compiler12 新增本地显式启用的 `nativeVisualWorkflow.keyboard`，参照[
 
 复现脚本为 [iOS 普通键盘设备验收](../test/ios-native-visual-keyboard-device-e2e.mjs)，无设备反例见[键盘测试](../apk_tools/tests/test_mobile_visual_ios_keyboard.py)。需准备隔离的 Appium/XCUITest、已初始化 Xcode 与可用模拟器；脚本存在不等于设备验收通过。物理设备、任意键盘/第三方 App、iOS 安装字节、隐藏输入缓冲区和业务因果仍未证明。
 
+##### 按当前系统键位输入
+
+compiler14 可在可信本地 `keyboard.keyInput` 中显式设置 `mode:"onscreen"`，参见[逐字确认模板](../examples/software/ios-visual-onscreen-device.example.json)。执行器从新的界面树读取唯一、可见且启用的字符键，以及配置中固定的 shift、numbers、letters、delete 身份。每次点击当前键中心，逐次计动作预算，并重新取得整图 OCR、键盘层及布局证据。该中心同时落在另一可见 Key/Button 时会拒绝，包含未知或禁用的行；此检查不证明系统窗口所有权。支持域限三层 ASCII 字母与数字，最长 16 字符。未知层、重复键、键盘消失、源漂移和预算耗尽均拒绝继续。
+
+缺省 `confirmation:"each_prefix"` 要求逐个前缀的 OCR 精确回读；缺省 `clearPlan:"observed_shortening"` 要求每次删除后观察到缩短。实际实验中，单个 `a` 虽已出现在截图，整图 OCR 仍可能完全漏掉它。这条严格路径因此拒绝继续，不能据此记录完整设备通过。
+
+[整串确认模板](../examples/software/ios-visual-onscreen-complete-device.example.json) 另显式选择 `confirmation:"complete_text"` 与 `clearPlan:"fixed_max_length"`。它先执行可信定义 maxLength 限定的固定删除计划，再执行一份有限键入计划；中间 OCR 只用于观察，不据其分词或漏字增删动作、重试或重新聚焦。每键的新鲜度检查仍包含输入像素，切换键盘层还须比较切换前后的原始观察帧，确认输入未变化，仅沿用已批准的窄光标例外。识别过程、来源、布局或方位错误仍立即终止。
+
+固定删除完成后必须回读空值；全部键入后必须以原置信度门槛回读完整输入，随后执行原 Dismiss、隐藏阶段完整输入、布局、完整 PNG SHA、提交前结果基线和单次提交检查。`maxLength` 约束新输入，不证明旧值长度或光标位置；固定删除和 OCR 空值也不证明隐藏缓冲区真实为空。按键可能触发的未观察到的中间副作用不由整串确认保证。两项本地策略进入身份与 revision，改变后须重新学习。
+
+整串确认与固定删除相关的 137 项模拟回归通过；补充键位中心排他检查后，相关回归为 143/143。原严格路径的 123 项包含在这些回归内，不相加。真实传输诊断已回读 `alpha` 与 `Ab7z`，严格路径完整验收在首字母处拒绝；整串策略的完整设备结论以[验证记录](software-to-mcp-verification.md)为准。上述证据不能相加为一次设备验收。最多 64 次物理键仍受全局预算约束，示例的 50 动作不保证所有 16 字符组合都能执行完。
+
 ### 自定义 Web 下拉框
 
 `role="combobox"` 加 `aria-controls` 指向唯一 `role="listbox"` 的控件可使用 `choose` 步骤。输入为有限字符串枚举，私有 choices 把每个值绑定到固定 option 选择器；所有选项必须在原 actionAllowlist 中。打开控件、选择选项分别是真实点击，各计动作预算；不会用脚本改 DOM 来伪造选中。`optionLabel` 断言读取实际选项文字。
@@ -302,7 +330,15 @@ compiler12 新增本地显式启用的 `nativeVisualWorkflow.keyboard`，参照[
 
 `choose.timeoutMs` 控制展开后及选择后的有界等待，默认 3000，范围 0–10000 毫秒。每次仅展开一次，超时不重开。选择后卸载选项的控件可声明 `selection:{attribute:"data-value"}`，从 combobox 自身读取真实提交值；也可用固定 `selector` 指向同 frame 的证明目标，属性仅支持 `data-value` 或 `value`。目标须在选择前存在，选择后属性严格等于参数值；控件状态只证明选项切换，业务输出仍需独立结果断言。未声明 selection 时要求实际 option 保持挂载并选中。
 
-模板见 [ARIA 流程](../examples/software/browser-aria-workflow.example.json)、[懒挂载流程](../examples/software/browser-lazy-aria-workflow.example.json) 与 [启动配置](../examples/software/config.aria-workflows.example.json)。当前有限 string enum 支持不覆盖多选、跨 tree portal 或不完整虚拟化。
+模板见 [ARIA 流程](../examples/software/browser-aria-workflow.example.json)、[懒挂载流程](../examples/software/browser-lazy-aria-workflow.example.json) 与 [启动配置](../examples/software/config.aria-workflows.example.json)。当前有限 string enum 支持不覆盖多选和跨 tree portal。
+
+#### 复用 DOM 节点的有限虚拟列表
+
+可信启动配置可显式声明 `webConfig.ariaVirtualLists`，绑定固定 combobox、listbox、竖向滚动宿主、option 选择器和 wire 值属性，参见 [配置模板](../examples/software/config.virtual-aria.example.json)。combobox、滚动宿主及通用 option 选择器须在原 actionAllowlist，业务请求仍须逐项批准；该策略不能由 MCP 调用参数增加。
+
+探索在一次已批准的展开后，逐段滚动并核对唯一 DOM 身份、遮挡、全局 `aria-setsize` / `aria-posinset`、wire 值和完整标签。只有每个选项都实际进入视口、位置和 wire 不冲突并到达物理末端，才记录完整域证书。滚动逐次计入全局动作预算；单策略最多 200 项、64 次滚动、256 次快照和 10 秒，配置可进一步收紧。
+
+只读规划器需要完整扫描事件及成功展开记录，不自行打开页面。学习和每次调用都会重新扫描完整域，再滚回目标并点击一次，独立核对 selection 属性和最终业务输出；结果须相对入口及最终提交前的基线发生变化。域改变、缺项、未知或无限列表、层级替换、遮挡和预算耗尽都会拒绝继续。远程搜索 feed、任意 tree/grid 和缺少可靠全局索引的控件仍需单独适配。
 
 ### 原生布尔控件
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "compilerVersion": "software-to-mcp-13",
-  "status": "verified_framework_with_experimental_device_gaps",
+  "compilerVersion": "software-to-mcp-14",
+  "status": "regressions_and_package_verified_with_device_failure",
   "scope": "Generic Web/APK/iOS MCP framework; finite fixture evidence, not universal business coverage",
   "stableBaseline": {
     "compilerVersion": "software-to-mcp-11",
@@ -25,41 +25,6 @@
     },
     "packedMcpTools": 28
   },
-  "currentFocused": {
-    "iosKeyboard": {
-      "passed": 109,
-      "nodeCaretPassed": 9,
-      "scope": "bounded source/observation-pair preparation, budget recovery, caret and transport mocks; not device acceptance"
-    },
-    "visualPython": {
-      "passed": 102,
-      "scope": "historical compiler12 visual subset; current complete Python run listed separately",
-      "regionBoundaryTests": 6,
-      "compilerVersion": "software-to-mcp-12"
-    },
-    "visionRegions": {
-      "passed": 15,
-      "scope": "mock boundary + actual local OCR known-pixel coordinates; not Android business acceptance"
-    },
-    "openApiDocuments": {
-      "passed": 32,
-      "failed": 0,
-      "scope": "29 parser/runtime tests plus 3 official SDK end-to-end tests; zero implicit reference fetch"
-    },
-    "ariaSubmitBaseline": {
-      "passed": 22,
-      "failed": 0,
-      "newTests": 4,
-      "scope": "explicit changedFromBefore only; text-only matching semantics retained"
-    },
-    "nativeText": {
-      "protocolNodePassed": 9,
-      "publicProjectionPassed": 1,
-      "pythonPassed": 16,
-      "defaultVisualNodePassed": 14,
-      "scope": "strict TXT/TSV evidence and defaults; overlapping groups are not summed; not device acceptance"
-    }
-  },
   "deviceEvidence": {
     "androidVisualTextLatin": {
       "status": "passed",
@@ -75,29 +40,92 @@
       "installedBytesVerifiedByRuntime": false
     },
     "androidVisualChinese": {
-      "status": "in_progress",
+      "status": "not_passed_for_unified_and_generated_entries",
       "environment": "owned emulator; mixed text layout retained",
       "readyPublished": true,
       "unifiedAndGeneratedClosedLoopPassed": false,
       "latestCompletedAttempt": 10,
-      "latestCompletedOutcome": "Native Tesseract first Beijing sample completed; Shanghai echo contained an extra quote at confidence 0.37 and was rejected before submit",
+      "latestCompletedOutcome": "Native Tesseract Beijing sample completed; later Beijing was read as itm and Shanghai contained an extra quote at confidence 0.37; rejected before Shanghai submit, no new ready",
       "currentAttempt": null,
-      "currentAttemptStatus": "fixed OCR configuration quality investigation; no nativeText two-sample or double-entry acceptance",
+      "currentAttemptStatus": "Fixed fast/best model comparisons found no one configuration passing all three stored images; not a new device acceptance",
       "learnedSamples": [
         "北京",
         "上海"
       ],
-      "readyPublishedScope": "Vision attempt9 only; nativeText attempt10 did not publish ready"
+      "readyPublishedScope": "Historical Vision attempt9 only; nativeText attempt10 did not publish ready",
+      "historicalReady": {
+        "attempt": 9,
+        "engine": "Vision",
+        "learnedSamples": [
+          "北京",
+          "上海"
+        ],
+        "unifiedAndGeneratedClosedLoopPassed": false
+      }
     },
     "iosOrdinarySoftKeyboard": {
-      "status": "not_passed",
+      "status": "terminal_failed_freshness_guard",
       "environment": "owned simulator; real UITextField caret retained",
-      "latestAttempt": 9,
-      "latestOutcome": "After clear, source hidden before OCR and valid visible after OCR; phase guard rejected before sample input",
+      "latestAttempt": 12,
+      "latestOutcome": "First learning sample alpha completed with exactly one business submit and OCR RESULT alpha 1. Second sample executed16 fixed deletes and b, then VISUAL_FRAME_CHANGED blocked before e; no second Dismiss/submit, two-sample ready, unified gamma or generated Ab7z.",
       "readyPublished": false,
       "unifiedAndGeneratedClosedLoopPassed": false,
-      "latestCompletedAttempt": 9,
-      "currentAttempt": null
+      "latestCompletedAttempt": 12,
+      "currentAttempt": null,
+      "cleanupVerified": true,
+      "previousStrictAttempt11": {
+        "status": "failed",
+        "inputFirstAVisibleInPng": true,
+        "inputOcrCandidates": 0,
+        "dismissReached": false,
+        "submitReached": false,
+        "readyPublished": false,
+        "cleanupVerified": true
+      },
+      "currentAttemptStatus": "terminal_failed_freshness_guard",
+      "twoSampleLearningCompleted": false,
+      "cleanupScope": {
+        "allSixOwnedResourceFlags": true,
+        "fourOwnedPortsHaveNoListeners": true,
+        "preexistingDeviceIdentitiesPreserved": true,
+        "independentHostVerification": true,
+        "ownedPidPgidSimulatorAndMcpProcessesAbsent": true,
+        "all472CopiedSourceFilesUnchanged": true
+      },
+      "diagnosisStatus": "complete_no_policy_change",
+      "durationSeconds": 297.359,
+      "timeoutError": false,
+      "firstLearningSample": {
+        "input": "alpha",
+        "businessSubmits": 1,
+        "ocrResult": "RESULT alpha 1",
+        "completed": true
+      },
+      "secondLearningSample": {
+        "fixedDeletes": 16,
+        "literalPrefixDispatched": "b",
+        "nextLiteralNotDispatched": "e",
+        "dismissReached": false,
+        "submitReached": false,
+        "completed": false
+      },
+      "freshnessDiagnosis": {
+        "actualPostBFrameComparedToFreshFrames": 2,
+        "changedPixelsEach": 683,
+        "allChangedPixelsInsideInput": true,
+        "keyboardChangedPixels": 0,
+        "resultChangedPixels": 0,
+        "otherUpperAreaChangedPixels": 0,
+        "pixelsOutsideExistingCaretColorContractEach": 16,
+        "backgroundUniformNearWhite": false,
+        "osCaretIdentityProved": false,
+        "sourcePolicyOrBudgetRelaxed": false
+      },
+      "sourceCopyVerification": {
+        "files": 472,
+        "allCopiedBytesMatchedAtDiagnosisEnd": true,
+        "sharedDependenciesRemainOutsideImmutableCopy": true
+      }
     },
     "webChineseVision": {
       "status": "passed",
@@ -134,40 +162,25 @@
     "visible keyboard freshness is a locally approved limited equivalence model, not an atomic full-frame guarantee",
     "same-color narrow glyphs cannot be identified as OS caret from pixels alone",
     "new focused test counts are not a current full-regression or remote-CI result",
-    "nativeText is POSIX opt-in for native workflow OCR; ordinary iOS keyboard filtered view is not integrated"
+    "nativeText is POSIX local opt-in for native workflow OCR; raw TXT/TSV evidence is private",
+    "complete_text certifies only final visible echo; fixed_max_length does not certify hidden-buffer emptiness or each intermediate prefix",
+    "OCR may omit real source spaces even when full and regional outputs agree; field-partition research is not a production capability",
+    "descriptor snapshot checks preserve byte budgets and existing artifact-root checks; arbitrary hostile filesystem atomicity is not claimed"
   ],
   "asOf": "2026-11-01",
-  "currentFullRegression": {
-    "status": "passed",
-    "previousCompleteBaseline": "previousCompiler12FullRegression",
-    "python": {
-      "total": 426,
-      "passed": 425,
-      "failed": 0,
-      "skipped": 1,
-      "skipReason": "HBC_FIXTURE unavailable",
-      "realSignedApkFixtureProvided": true,
-      "scope": "compiler13 frozen runtime after readonly pair and nativeText fixes"
-    },
-    "software": {
-      "compilerVersion": "software-to-mcp-13",
-      "total": 265,
-      "passed": 265,
-      "failed": 0,
-      "skipped": 0,
-      "scope": "full software suite after all frozen compiler13 runtime changes"
-    },
-    "compilerVersion": "software-to-mcp-13"
-  },
   "continuousIntegration": {
     "remoteRunStatus": "not_enabled",
     "workflowTemplate": "ci.workflow.example.yml",
     "scope": "Pinned Linux/macOS CI template; current publishing credential lacks workflow scope, so Actions is not activated"
   },
   "release": {
-    "finalGate": "draft_review_scope; experimental device coverage remains pending",
-    "scope": "draft framework review; experimental device gaps remain",
-    "publicationEvidence": "GitHub commit and draft pull request record publication; Actions template remains inactive"
+    "compilerVersion": "software-to-mcp-14",
+    "status": "draft_pull_request_checkpoint",
+    "distributionType": "draft_pull_request_checkpoint",
+    "mainMerged": false,
+    "npmPublished": false,
+    "finalGate": "final_source_archive_projection_and_content_privacy_required_before_submission",
+    "scope": "Draft pull-request checkpoint, not a claim that a push or PR already occurred. Independent package install and SDK handshake passed; attempt12 terminal freshness-guard failure diagnosed, not ready. Final source/archive projection and privacy audits are required before submission; actual audit outcomes and commit are recorded in the PR and delivery report rather than self-embedded archive hashes."
   },
   "reproduce": {
     "software": "npm run test:software",
@@ -175,7 +188,15 @@
     "visionRegions": "node --test test/visual-observation.test.mjs test/visual-observation-regions.test.mjs test/visual-vision.test.mjs test/visual-vision-regions.test.mjs",
     "iosVisualText": "npm run test:ios-visual-text-workflow",
     "iosOrdinaryKeyboard": "npm run test:ios-visual-keyboard-workflow",
-    "androidVisualChinese": "npm run test:android-visual-chinese-workflow"
+    "androidVisualChinese": "npm run test:android-visual-chinese-workflow",
+    "legacy": "npm test",
+    "multipartGateway": "npm --prefix gateway test",
+    "multipartApi": "node --test --test-concurrency=1 test/openapi-multipart.test.mjs test/software-multipart-e2e.test.mjs test/openapi-discovery.test.mjs test/openapi-reference-documents.test.mjs test/software-query-serialization.test.mjs test/software-form-serialization.test.mjs",
+    "virtualAria": "node --test --test-concurrency=1 test/aria-virtual-policy.test.mjs test/software-virtual-aria.test.mjs test/software-aria-workflow.test.mjs test/software-lazy-aria.test.mjs test/software-aria-result-baseline.test.mjs test/browser-workflows.test.mjs test/workflow-planner.test.mjs test/policy.test.mjs test/store.test.mjs",
+    "boundedSpecificationRead": "node --test --test-concurrency=1 test/artifact-text.test.mjs test/openapi-reference-documents.test.mjs test/software-openapi-e2e.test.mjs",
+    "iosRelated": "PYTHONPATH=apk_tools .venv/bin/python -m unittest discover -s apk_tools/tests -p 'test_mobile_visual_ios*.py' -v",
+    "fieldResearchOnly": "npm run test:field-research",
+    "nativeNodeAfterCenterFix": "node --test --test-concurrency=1 test/software-native-visual-identity.test.mjs test/software-native-visual-secret.test.mjs test/software-native-visual-workflow.test.mjs test/software-native-visual-workflow-secret.test.mjs"
   },
   "publicEvidence": {
     "roiFusionTests": "../test/visual-observation-regions.test.mjs",
@@ -196,7 +217,22 @@
     "ariaSubmitBaseline": "../test/software-aria-result-baseline.test.mjs",
     "nativeTextNode": "../test/visual-native-text.test.mjs",
     "nativeTextPython": "../apk_tools/tests/test_mobile_visual_native_text.py",
-    "nativeTextProjection": "../test/native-visual-projection.test.mjs"
+    "nativeTextProjection": "../test/native-visual-projection.test.mjs",
+    "multipartImporter": "../test/openapi-multipart.test.mjs",
+    "multipartGateway": "../gateway/tests/multipart.test.ts",
+    "multipartMcp": "../test/software-multipart-e2e.test.mjs",
+    "multipartSpec": "../examples/software/openapi-multipart.example.yaml",
+    "virtualAriaPolicy": "../test/aria-virtual-policy.test.mjs",
+    "virtualAriaMcp": "../test/software-virtual-aria.test.mjs",
+    "virtualAriaConfig": "../examples/software/config.virtual-aria.example.json",
+    "artifactTextReader": "../test/artifact-text.test.mjs",
+    "iosOnscreenTests": "../apk_tools/tests/test_mobile_visual_ios_keys.py",
+    "iosOnscreenCompleteTests": "../apk_tools/tests/test_mobile_visual_ios_keys_complete_text.py",
+    "iosOnscreenConfig": "../examples/software/ios-visual-onscreen-device.example.json",
+    "iosOnscreenCompleteConfig": "../examples/software/ios-visual-onscreen-complete-device.example.json",
+    "iosRequestAuditTests": "../test/ios-keyboard-request-audit.test.mjs",
+    "fieldResearchScope": "../experiments/README.md",
+    "iosCenterTests": "../apk_tools/tests/test_mobile_visual_ios_keys_center.py"
   },
   "failureHistory": [
     {
@@ -218,19 +254,29 @@
     {
       "kind": "historical WebDriver fixtures and UI no-op",
       "status": "later successful runs do not erase earlier failures or prove their causes"
+    },
+    {
+      "kind": "iOS strict onscreen attempt11",
+      "status": "Actual first literal a was visible in PNG but absent from input-region OCR; failed before ready, Dismiss and submit; unknown/noRetry, owned resources cleaned."
+    },
+    {
+      "kind": "Android nativeText attempt10",
+      "status": "Beijing sample completed; later Beijing was read as itm, and Shanghai had an extra quote at confidence 0.37. No Shanghai submit or ready under that configuration."
+    },
+    {
+      "kind": "Vision field-partition research",
+      "status": "Known-source 上 海 was accepted as 上海 under a separate two-field policy; unrelated RESULT confidence 0.5 confounded earlier four-field rejections. Research only."
+    },
+    {
+      "kind": "iOS onscreen target-center ambiguity",
+      "status": "Inherited named-key uniqueness did not exclude another visible Key/Button at the same actual dispatch center; original pure XML mock dispatched once. Center exclusion now rejects the same XML before keyboard dispatch, covers unknown/disabled rows and preserves the prior failure record. No actual device misdispatch or acceptance is inferred."
+    },
+    {
+      "kind": "iOS complete_text fixed_max_length attempt12",
+      "status": "Actual VISUAL_FRAME_CHANGED after one completed alpha sample/one business submit with RESULT alpha 1. Second sample clear16+b, blocked before e and second Dismiss/submit.297.359s was observed elapsed time, not Timeout. Two fresh comparisons each differed683pixels all in input;16each violated existing caret color contract;no policy/budget relaxation,no OS caret identity proof. Not two-sample ready or unified/generated completion;cleanup verified."
     }
   ],
-  "recordedAt": "2026-11-01T10:56:42.295680+00:00",
-  "currentPackageCheck": {
-    "status": "passed",
-    "files": 334,
-    "productionOnlyInstall": true,
-    "officialSdkTools": 28,
-    "stderrBytes": 0,
-    "sourceMismatches": 0,
-    "referenceDocumentsSchemaVerified": true,
-    "runtimeBytesVerifiedBeforeFinalDocumentationProjection": true
-  },
+  "recordedAt": "2026-11-01T14:07:34.000100+00:00",
   "previousCompiler12FullRegression": {
     "status": "full_baseline_and_affected_followup_passed",
     "legacy": {
@@ -272,5 +318,285 @@
     "stderrBytes": 0,
     "sourceMismatches": 0,
     "runtimeBytesVerifiedBeforeFinalDocumentationProjection": true
+  },
+  "previousCompiler13FullRegression": {
+    "status": "passed",
+    "previousCompleteBaseline": "previousCompiler12FullRegression",
+    "python": {
+      "total": 426,
+      "passed": 425,
+      "failed": 0,
+      "skipped": 1,
+      "skipReason": "HBC_FIXTURE unavailable",
+      "realSignedApkFixtureProvided": true,
+      "scope": "compiler13 frozen runtime after readonly pair and nativeText fixes"
+    },
+    "software": {
+      "compilerVersion": "software-to-mcp-13",
+      "total": 265,
+      "passed": 265,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "full software suite after all frozen compiler13 runtime changes"
+    },
+    "compilerVersion": "software-to-mcp-13"
+  },
+  "previousCompiler13PackageCheck": {
+    "status": "passed",
+    "files": 334,
+    "productionOnlyInstall": true,
+    "officialSdkTools": 28,
+    "stderrBytes": 0,
+    "sourceMismatches": 0,
+    "referenceDocumentsSchemaVerified": true,
+    "runtimeBytesVerifiedBeforeFinalDocumentationProjection": true,
+    "compilerVersion": "software-to-mcp-13"
+  },
+  "previousCompiler13Focused": {
+    "iosKeyboard": {
+      "passed": 109,
+      "nodeCaretPassed": 9,
+      "scope": "bounded source/observation-pair preparation, budget recovery, caret and transport mocks; not device acceptance"
+    },
+    "visualPython": {
+      "passed": 102,
+      "scope": "historical compiler12 visual subset; current complete Python run listed separately",
+      "regionBoundaryTests": 6,
+      "compilerVersion": "software-to-mcp-12"
+    },
+    "visionRegions": {
+      "passed": 15,
+      "scope": "mock boundary + actual local OCR known-pixel coordinates; not Android business acceptance"
+    },
+    "openApiDocuments": {
+      "passed": 32,
+      "failed": 0,
+      "scope": "29 parser/runtime tests plus 3 official SDK end-to-end tests; zero implicit reference fetch"
+    },
+    "ariaSubmitBaseline": {
+      "passed": 22,
+      "failed": 0,
+      "newTests": 4,
+      "scope": "explicit changedFromBefore only; text-only matching semantics retained"
+    },
+    "nativeText": {
+      "protocolNodePassed": 9,
+      "publicProjectionPassed": 1,
+      "pythonPassed": 16,
+      "defaultVisualNodePassed": 14,
+      "scope": "strict TXT/TSV evidence and defaults; overlapping groups are not summed; not device acceptance"
+    },
+    "scope": "Historical focused results only; some subgroups explicitly belong to compiler12. Not compiler14 full regression."
+  },
+  "countingRule": "Focused groups overlap each other and full suites; do not sum counts or transfer historical passes to compiler14.",
+  "currentFocused": {
+    "multipart": {
+      "gateway": {
+        "total": 55,
+        "passed": 55,
+        "failed": 0,
+        "skipped": 0,
+        "includedInCurrentLegacySuite": true
+      },
+      "apiRelated": {
+        "total": 49,
+        "passed": 49,
+        "failed": 0,
+        "skipped": 0
+      },
+      "officialMcpUploads": 2,
+      "scope": "Supported formal multipart declarations; actual local HTTP bytes and unified/generated uploads checked. Overlapping suites; no filesystem-path or URL upload reading."
+    },
+    "ariaVirtualLists": {
+      "total": 73,
+      "passed": 73,
+      "failed": 0,
+      "skipped": 0,
+      "actualBusinessQueries": 4,
+      "browser": "real local Chromium",
+      "entrypoints": [
+        "unified MCP",
+        "generated MCP"
+      ],
+      "trustedOptIn": "ariaVirtualLists",
+      "scope": "Finite complete indexed list, explicit local policy, bounded scan and independent changed business result. Includes existing ARIA/workflow tests; not arbitrary or infinite lists."
+    },
+    "boundedSpecificationRead": {
+      "total": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "maximumDocumentBytes": 8388608,
+      "maximumBundleBytes": 16777216,
+      "scope": "Descriptor read, reference-document and official SDK regressions; no implicit reference fetch. Includes existing tests; not an atomic guarantee against arbitrary hostile filesystem changes."
+    },
+    "iosOnscreenStrict": {
+      "total": 123,
+      "passed": 123,
+      "failed": 0,
+      "skipped": 0,
+      "evidenceKind": "mock/parser/local-fixture tests",
+      "scope": "Includes previous 109 related tests; not device or MCP acceptance.",
+      "sourceStage": "historical_before_center_exclusion_tightening"
+    },
+    "iosOnscreenCompleteText": {
+      "total": 137,
+      "passed": 137,
+      "failed": 0,
+      "skipped": 0,
+      "includesStrictTests": 123,
+      "newTests": 14,
+      "evidenceKind": "mock/parser/local-fixture tests",
+      "trustedOptions": [
+        "complete_text",
+        "fixed_max_length"
+      ],
+      "deviceAcceptance": "attempt12_terminal_failed_freshness_guard",
+      "scope": "Two explicit local policy fields; default strict unchanged. Final whole-text echo replaces intermediate prefix equality; fixed delete plan does not prove hidden-buffer emptiness. Do not add 137 to 123.",
+      "trustedConfiguration": {
+        "path": "nativeVisualWorkflow.keyboard.keyInput",
+        "confirmation": "complete_text",
+        "clearPlan": "fixed_max_length"
+      },
+      "sourceStage": "before_center_exclusion_tightening"
+    },
+    "iosRequestAuditHelper": {
+      "total": 10,
+      "passed": 10,
+      "evidenceKind": "pure request-audit tests",
+      "deviceAcceptance": false,
+      "scope": "Request route/window validation; not actual key dispatch or device acceptance."
+    },
+    "iosOnscreenXmlReplay": {
+      "status": "passed",
+      "snapshots": 7,
+      "distinctLiteralIdentities": 62,
+      "newActions": 0,
+      "newCaptures": 0,
+      "newOcr": 0,
+      "evidenceKind": "saved real XML replay",
+      "mcpAcceptance": false,
+      "scope": "Structural key identities; does not prove physical dispatch acceptance for all 62 characters."
+    },
+    "iosOnscreenTransport": {
+      "status": "passed",
+      "finalEchoes": [
+        "alpha",
+        "Ab7z"
+      ],
+      "evidenceKind": "actual simulator transport diagnostic",
+      "mcpAcceptance": false,
+      "scope": "Final echo only; not strict-prefix or complete_text MCP learning/unified/generated acceptance."
+    },
+    "iosOnscreenCenterExclusivity": {
+      "total": 143,
+      "passed": 143,
+      "failed": 0,
+      "skipped": 0,
+      "includesPrevious137": true,
+      "newTests": 6,
+      "evidenceKind": "mock/parser/local-fixture tests",
+      "sourceStage": "after_center_exclusion_tightening",
+      "originalOverlapMockKeyboardPosts": 0,
+      "unknownAndDisabledRowsChecked": true,
+      "actualIntegerCenterSharedByProofAndDispatch": true,
+      "scope": "Same original synthetic overlapping-key XML now rejects before dispatch; seven saved real XML snapshots independently replayed with62 literal identities and0actual actions. Not device/MCP acceptance; do not sum with137/123."
+    }
+  },
+  "currentFullRegression": {
+    "compilerVersion": "software-to-mcp-14",
+    "status": "pre_patch_full_and_post_patch_affected_regressions_passed",
+    "legacy": {
+      "status": "passed",
+      "total": 239,
+      "passed": 239,
+      "failed": 0,
+      "skipped": 0,
+      "command": "npm test",
+      "scope": "unit, integration, browser e2e, legacy MCP and gateway; excludes software and Python suites"
+    },
+    "software": {
+      "status": "passed",
+      "total": 298,
+      "passed": 298,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 718658.176542,
+      "command": "npm run test:software",
+      "sourceStage": "before_native_key_center_exclusion_tightening",
+      "runtimeFilesMatchedAtRunEnd": 112,
+      "scope": "Complete compiler14 software run before the separately recorded native key-center tightening; not a full run of the later helper bytes."
+    },
+    "python": {
+      "status": "passed",
+      "total": 474,
+      "passed": 473,
+      "failed": 0,
+      "skipped": 1,
+      "durationSeconds": 123.958,
+      "skipReason": "HBC_FIXTURE unavailable: compiled Hermes sample missing",
+      "realSignedApkFixtureProvided": true,
+      "command": "npm run test:python",
+      "sourceStage": "after_native_key_center_exclusion_tightening",
+      "finalRuntimeFilesMatchedAtRunEnd": 112
+    },
+    "previousCompleteBaseline": "previousCompiler13FullRegression",
+    "currentRuntimeCoveredBySingleFullSoftwareRun": false,
+    "postSoftwareProductionDelta": {
+      "files": [
+        "apk_tools/apk_inventory/mobile_visual_ios_keys.py"
+      ],
+      "change": "Reject a tap when the actual integer center also belongs to another visible AX Key/Button row.",
+      "exactPrePostDeltaIndependentlyReviewed": true,
+      "otherHelperFunctionsAstUnchanged": 9,
+      "finalRuntimeFilesMatchedAtFollowupEnd": 112,
+      "scope": "The sole production delta after software298; final source covered by full Python and affected NativeNode followups, not relabeled as one same-source full run."
+    },
+    "nativeNodeAfterCenterFix": {
+      "status": "passed",
+      "testFiles": 4,
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 16950.285583,
+      "sourceStage": "after_native_key_center_exclusion_tightening",
+      "finalRuntimeHashesMatched": true,
+      "scope": "Affected native integration only; included in earlier full software run at earlier helper version, not an additional independent full suite."
+    }
+  },
+  "currentPackageCheck": {
+    "compilerVersion": "software-to-mcp-14",
+    "status": "passed",
+    "files": 350,
+    "gatewayDistFiles": 32,
+    "productionOnlyInstall": true,
+    "officialSdkTools": 28,
+    "stderrBytes": 0,
+    "sourceMismatches": 0,
+    "referenceDocumentsSchemaVerified": true,
+    "runtimeBytesVerifiedBeforeFinalDocumentationProjection": true,
+    "finalDocumentationArchiveProjection": "required_before_submission",
+    "fullContentPrivacyAudit": "required_before_submission",
+    "scope": "Actual package extraction, independent production-only dependency installation, production module imports and official SDK handshake passed. Final source/archive/documentation projection and complete content privacy must be audited before submission; outcomes and commit are recorded externally in the PR/delivery report, without self-attesting an unrun audit.",
+    "npmPublished": false
+  },
+  "researchOnly": {
+    "visualFieldPartitions": {
+      "status": "known_accuracy_failure_not_integrated",
+      "code": "../experiments/visual-field-partitions.js",
+      "readme": "../experiments/README.md",
+      "mcpIntegrated": false,
+      "observerIntegrated": false,
+      "pythonWorkflowIntegrated": false,
+      "capabilityCatalogIntegrated": false,
+      "includedInProductionNpmFiles": false,
+      "knownSource": "上 海",
+      "nativeOcrAndAcceptedText": "上海",
+      "knownSourceExactnessPassed": false,
+      "fourFieldConfound": "All four actual negative images also had unrelated RESULT regional confidence 0.5 below 0.6; rejection did not demonstrate whitespace or suffix protection.",
+      "twoFieldAudit": "A new explicit two-field policy over the same raw outputs accepted 上海 for known-source 上 海; NotQuery and Not搜索 were preserved whole; quotes/punctuation conflicted.",
+      "scope": "No extra OCR retries, text cleaning, threshold reduction or device acceptance. Pixel/component coverage cannot restore an omitted source-string space."
+    }
   }
 }

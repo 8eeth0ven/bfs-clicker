@@ -284,10 +284,11 @@ async function readSource(root, sourceId) {
   for (const state of states.values()) { const step = state.path.at(-1); if (state.parentId != null && step?.id) transition(state.parentId, step.id, state.id); }
   for (const edge of checkpoint.backEdges || []) if (edge.actionId != null) transition(edge.from, edge.actionId, edge.to);
   const events = checkedFile(root, 'private/events.jsonl', true);
-  let eventDigest = createHash('sha256'), invalidEvents = 0;
+  const virtualEvents=new Map();let eventDigest = createHash('sha256'), invalidEvents = 0;
   if (events) await eachJsonLine(events, row => {
     eventDigest.update(JSON.stringify(row) + '\n');
     if (row.kind === 'state') observed.set(row.evidenceId, row);
+    if(row.kind==='aria_virtual_domain_complete'&&virtualEvents.size<10000)virtualEvents.set(row.evidenceId,row);
     if (row.kind === 'action_started') starts.set(row.evidenceId, row);
     if (row.kind === 'action_finished' && row.status === 'succeeded') {
       const start = starts.get(row.executionId);
@@ -295,7 +296,7 @@ async function readSource(root, sourceId) {
     }
   }, () => invalidEvents++);
   const revision = hash({ sourceId, runId: meta.runId, identity: meta.identity, config: rawConfig, checkpoint, events: eventDigest.digest('hex'), invalidEvents });
-  return { root, sourceId, meta, config, checkpoint, states, observed, succeeded, transitions, revision, notices: recovery.notices, invalidEvents, scrub: scrubber(config) };
+  return { root, sourceId, meta, config, checkpoint, states, observed, succeeded, transitions, virtualEvents, revision, notices: recovery.notices, invalidEvents, scrub: scrubber(config) };
 }
 
 const actionFields = ['id','selector','fallbackSelector','framePath','frameUrl','kind','type','tag','htmlType','role','text','label','aria','title','href','formAction','formMethod','contextText','safeReplay','optionValue','options','scrollStep','checkedValue','hoverHint','filterContext','excluded','skipped'];

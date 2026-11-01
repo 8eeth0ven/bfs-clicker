@@ -8,6 +8,7 @@ import {openCheckpointJournal} from './checkpoint.js';
 import {createPolicy} from './policy.js';
 import {redactText} from './redact.js';
 import {visualRegion,overlap} from './browser-visual.js';
+import {validVirtualEvidence,virtualPolicyFor} from './aria-virtual-policy.js';
 const MAX_FILE=128*1024*1024,MAX_LINE=2*1024*1024,MAX_STATES=10000,MAX_CANDIDATES=100,MAX_INPUTS=8;
 const SEARCH=/search|query|filter|lookup|查询|搜索|筛选|检索/i;
 const SENSITIVE=/password|passwd|secret|token|cookie|authorization|credential|api[-_]?key|验证码|密码|口令|令牌|密钥|支付|付款|登录|登陆|注册/i;
@@ -78,10 +79,11 @@ export async function planBrowserWorkflows({runDir,sourceId,offset=0,limit=20}={
   const recovered=openCheckpointJournal({file:journal||path.join(root,'private/checkpoint.journal.jsonl'),checkpointFile:path.join(root,'private/checkpoint.json'),checkpoint:base,identity:id,runId:meta.runId,readOnly:true});
   if(recovered.notices.length)globalGaps.add('checkpoint_recovery_notice');
   const states=recovered.checkpoint.states;if(!Array.isArray(states)||states.length>MAX_STATES)fail('WORKFLOW_SOURCE_LIMIT','状态规模超出规划上限');
-  const observed=new Map(),starts=new Map(),successful=new Map(),eventHash=createHash('sha256'),stateEvidenceIds=new Set(states.map(state=>state.evidenceId));
+  const observed=new Map(),starts=new Map(),successful=new Map(),virtualEvents=new Map(),eventHash=createHash('sha256'),stateEvidenceIds=new Set(states.map(state=>state.evidenceId));
   await readEvents(localFile(root,'private/events.jsonl',true),row=>{
    eventHash.update(JSON.stringify(row)+'\n');
    if(row.kind==='state'&&stateEvidenceIds.has(row.evidenceId))observed.set(row.evidenceId,row);
+   if(row.kind==='aria_virtual_domain_complete'&&virtualEvents.size<10000)virtualEvents.set(row.evidenceId,row);
    if(row.kind==='action_started'){if(starts.size<50000)starts.set(row.evidenceId,row);else globalGaps.add('execution_index_limit')}
    if(row.kind==='action_finished'&&row.status==='succeeded'){const start=starts.get(row.executionId);if(start&&start.stateId===row.stateId&&start.actionId===row.actionId)successful.set(JSON.stringify([row.stateId,row.actionId]),{started:start.evidenceId,finished:row.evidenceId})}
   },reason=>globalGaps.add(reason));
@@ -90,7 +92,8 @@ export async function planBrowserWorkflows({runDir,sourceId,offset=0,limit=20}={
   const provenState=state=>{const event=observed.get(state?.evidenceId);return plain(state)&&Number.isSafeInteger(state.id)&&state.id>0&&typeof state.fp==='string'&&/^[a-f0-9]{32}$/.test(state.fp)&&event?.stateId===state.id&&event.url===state.url&&event.fp===state.fp;};
   const childrenByParent=new Map();for(const child of states){if(!childrenByParent.has(child.parentId))childrenByParent.set(child.parentId,[]);childrenByParent.get(child.parentId).push(child);}
   const openedChoices=(state,action)=>{
-   if(action.role!=='combobox'||action.ariaChoices?.complete||action.expanded!=='false')return action;
+   const approvedVirtual=virtualPolicyFor(config,action);
+   if(action.role!=='combobox'||action.ariaChoices?.complete&&!approvedVirtual&&action.ariaChoices.domainEvidence!=='bounded_virtual_scan'||action.expanded!=='false')return action;
    const matches=[];
    for(const child of childrenByParent.get(state.id)||[]){
     if(!provenState(child)||child.parentId!==state.id||child.url!==state.url||child.path?.length!==(state.path?.length||0)+1)continue;
@@ -98,11 +101,14 @@ export async function planBrowserWorkflows({runDir,sourceId,offset=0,limit=20}={
     const found=child.interactives?.find(item=>locatorKey(item)===locatorKey(action)&&item.role==='combobox'&&item.expanded==='true');
     if(!found||!['tag','role','name','aria','ariaControlsId','formSelector','groupSelector'].every(key=>(found[key]??null)===(action[key]??null))||hash(found.htmlConstraints||{})!==hash(action.htmlConstraints||{}))continue;
     if(!found.ariaChoices?.complete)continue;
-    if(found.ariaChoices.domainEvidence!=='aria_setsize'){globalGaps.add('aria_lazy_domain_not_proven');continue;}
+    if(found.ariaChoices.domainEvidence==='bounded_virtual_scan'){
+     const event=virtualEvents.get(found.ariaChoices.certificate?.evidenceId),execution=successful.get(JSON.stringify([state.id,last.id]));
+     if(event?.stateId!==state.id||event.actionId!==last.id||!validVirtualEvidence(found.ariaChoices,event,config,action,execution?.started)){globalGaps.add('aria_virtual_domain_not_proven');continue;}
+    }else if(found.ariaChoices.domainEvidence!=='aria_setsize'){globalGaps.add('aria_lazy_domain_not_proven');continue;}
     matches.push(found);
    }
-   if(!matches.length)return action;
-   if(new Set(matches.map(item=>hash(item.ariaChoices))).size!==1){globalGaps.add('aria_lazy_evidence_conflict');return action;}
+   if(!matches.length)return approvedVirtual||action.ariaChoices?.domainEvidence==='bounded_virtual_scan'?{...action,ariaChoices:null,ariaChoiceGap:'aria_virtual_domain_not_proven'}:action;
+   if(new Set(matches.map(item=>hash(item.ariaChoices.domainEvidence==='bounded_virtual_scan'?{...item.ariaChoices,certificate:undefined}:item.ariaChoices))).size!==1){globalGaps.add('aria_lazy_evidence_conflict');return action;}
    return {...action,ariaChoices:clone(matches[0].ariaChoices),ariaChoiceGap:null,ariaChoiceObservedAfterOpen:true};
   };
 
@@ -142,9 +148,9 @@ export async function planBrowserWorkflows({runDir,sourceId,offset=0,limit=20}={
       let choices;
       if(input.role==='combobox'){
        choices=Object.fromEntries(input.ariaChoices.options.map(option=>[option.value,{selector:option.selector,framePath:clone(input.framePath||[])}]));
-       if(input.ariaChoices.options.some(option=>!config.actionAllowlist.includes(option.selector)||!policy.action({...input,selector:option.selector,type:'click',role:'option',text:option.label,label:option.label,kind:'click'}).allow)){globalGaps.add('aria_option_action_not_approved');incomplete=true;break;}
+       if(input.ariaChoices.options.some(option=>!policy.action({...input,selector:input.ariaChoices.domainEvidence==='bounded_virtual_scan'?config.ariaVirtualLists.find(item=>item.id===input.ariaChoices.virtual.policyId)?.optionSelector:option.selector,type:'click',role:'option',text:option.label,label:option.label,kind:'click'}).allow||input.ariaChoices.domainEvidence!=='bounded_virtual_scan'&&!config.actionAllowlist.includes(option.selector))){globalGaps.add('aria_option_action_not_approved');incomplete=true;break;}
       }
-      steps.push({kind:input.role==='combobox'?'choose':input.type==='select'?'select':input.type==='checkbox'?'check':'fill',selector:input.selector,framePath:clone(input.framePath||[]),param:field,...(choices?{choices,...(input.ariaSelectionAttribute?{selection:{attribute:input.ariaSelectionAttribute}}:{})}:{}),actionId:input.id,htmlType:input.htmlType,htmlConstraints:clone(input.htmlConstraints||{})});
+      steps.push({kind:input.role==='combobox'?'choose':input.type==='select'?'select':input.type==='checkbox'?'check':'fill',selector:input.selector,framePath:clone(input.framePath||[]),param:field,...(choices?{choices,...(input.ariaSelectionAttribute?{selection:{attribute:input.ariaSelectionAttribute}}:{}),...(input.ariaChoices.domainEvidence==='bounded_virtual_scan'?{virtual:{policyId:input.ariaChoices.virtual.policyId,domain:clone(input.ariaChoices)}}:{})}:{}),actionId:input.id,htmlType:input.htmlType,htmlConstraints:clone(input.htmlConstraints||{})});
       if(!successful.has(JSON.stringify([state.id,input.id])))gaps.push('input_execution_not_proven');else gaps.push('input_parameterization_not_proven');
      }
      if(incomplete){globalGaps.add('workflow_contract_incomplete');continue}

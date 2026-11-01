@@ -1,10 +1,15 @@
 // Every replay/fallback repeats the live policy check on the exact DOM target.
 import { collectInteractives, locate, checkLiveAction, frameFor } from './discover.js';
 import { fillValueFor, isDropdownTrigger, isFormAction, pickOpenOption, prepareForm } from './formfill.js';
+import {exploreVirtualChoice} from './aria-virtual.js';
+import {virtualPolicyFor} from './aria-virtual-policy.js';
 export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={}) {
   config._runtime?.budget?.check();
   if(el.skipped || el.excluded)throw Object.assign(new Error(el.skipReason||'excluded_action'),{name:'PolicyError'});
   dialogs.invalidate?.();
+  if((el.kind==null||el.kind==='click')&&el.role==='combobox'&&virtualPolicyFor(config,el)){
+    await dialogs.handle();await exploreVirtualChoice(page,dialogs,el,config);return;
+  }
   if(el.kind==='scroll'){
     await frameFor(page,el).evaluate(step=>{
       const candidates=[document.scrollingElement,...document.querySelectorAll('[data-bfs-scroll],[role="list"],[role="listbox"]')].filter(Boolean);

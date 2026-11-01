@@ -4,6 +4,7 @@
 // Own app, simulator UUID, Appium home, WDA derived data, and service ports only.
 import assert from 'node:assert/strict';
 import {keyboardEnvelope} from './ios-keyboard-envelope.mjs';
+import {assertDeviceRequestWindow} from './ios-keyboard-request-audit.mjs';
 import {spawn,execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {existsSync,openSync,closeSync} from 'node:fs';
@@ -17,12 +18,21 @@ import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 
 const project=path.resolve(import.meta.dirname,'..'),reportDir=path.join(project,'output-vision-implementation');
-const {values}=parseArgs({options:{output:{type:'string'},python:{type:'string'},'appium-prefix':{type:'string'},runtime:{type:'string'},'device-type':{type:'string'},'prepare-only':{type:'boolean'},'await-ocr-ready':{type:'string'},'prebuilt-wda-from':{type:'string'}}});
+const {values}=parseArgs({options:{output:{type:'string'},python:{type:'string'},'appium-prefix':{type:'string'},runtime:{type:'string'},'device-type':{type:'string'},'prepare-only':{type:'boolean'},'await-ocr-ready':{type:'string'},'prebuilt-wda-from':{type:'string'},'keyboard-transport-probe':{type:'boolean'},'keyboard-probe-text':{type:'string'},'onscreen-key-input':{type:'boolean'},'onscreen-complete-text':{type:'boolean'},'onscreen-fixed-clear':{type:'boolean'}}});
+assert(!values['keyboard-probe-text']||values['keyboard-transport-probe']&&['alpha','Ab7z'].includes(values['keyboard-probe-text']),'Probe text requires transport-only mode and one fixed diagnostic sequence');
+assert(!(values['onscreen-key-input']&&values['keyboard-transport-probe']),'Production acceptance and transport-only diagnostic are separate runs');
+assert(!values['onscreen-complete-text']||values['onscreen-key-input'],'Complete text confirmation requires explicit onscreen key input');
+assert(!values['onscreen-fixed-clear']||values['onscreen-key-input'],'Fixed clear requires explicit onscreen key input');
 const output=path.resolve(values.output||path.join(reportDir,'ios-text-next-device-'+Date.now())),python=path.resolve(values.python||path.join(project,'.venv/bin/python'));
 const appiumPrefix=path.resolve(values['appium-prefix']||path.join(reportDir,'ios-appium-owned-20261029')),appiumHome=path.join(appiumPrefix,'appium-home'),appiumEntry=path.join(appiumPrefix,'node_modules/appium/build/lib/main.js');
 const appId='com.example.bfsmcp.iosvisualkeyboard',hash=value=>createHash('sha256').update(value).digest('hex'),record={date:new Date().toISOString(),kind:'real_ios_simulator',interface:'unified_and_generated_mcp',status:'running',outputDir:output,scope:{userDevicesErased:false,userAppsTouched:false,licensesAccepted:false,developerDirectoryChanged:false,globalAppiumInstalled:false,runtimeDownloadedByThisScript:false},steps:[],cleanup:{}};
 let ownedUdid,ownedName,ownedRuntime,appiumChild,appiumPort,wdaPort,mjpegPort,proxy,proxyPort,sessionId,client,generatedClient,installed=false,interrupted=false;
 const requests=[],ownedCommands=new Set(),evidenceTasks=new Set();
+async function trackedRequests(label,operation){
+ record.requestWindows??={};assert(!record.requestWindows[label]);
+ const window={startIndex:requests.length,startedAt:new Date().toISOString()};record.requestWindows[label]=window;
+ try{return await operation();}finally{window.endIndex=requests.length;window.finishedAt=new Date().toISOString();}
+}
 const save=async(file,value)=>{await mkdir(path.dirname(file),{recursive:true});await writeFile(file,JSON.stringify(value,null,2)+'\n',{mode:0o600});};
 const json=async file=>JSON.parse(await readFile(file,'utf8'));
 const log=(phase,fields={})=>{const row={phase,at:new Date().toISOString(),...fields};record.steps.push(row);process.stdout.write(JSON.stringify(row)+'\n')};
@@ -88,10 +98,13 @@ async function stopOwnedXcode(){
  for(const row of targets){const pid=Number(row[1]),group=Number(row[2]);try{process.kill(group===pid?-pid:pid,'SIGTERM')}catch{}}
  if(targets.length)await delay(800);
  for(const row of targets){const pid=Number(row[1]);try{const cmd=execFileSync('ps',['-p',String(pid),'-o','command='],{encoding:'utf8'});if(cmd.includes(path.join(output,'wda-derived-data'))&&cmd.includes('id='+ownedUdid))process.kill(Number(row[2])===pid?-pid:pid,'SIGKILL')}catch{}}
- record.cleanup.ownedXcodeStopped=true;
+ const remaining=execFileSync('ps',['-axo','pid=,command='],{encoding:'utf8'}).split('\n').filter(row=>row.includes('xcodebuild')&&row.includes(path.join(output,'wda-derived-data'))&&row.includes('id='+ownedUdid));
+ record.cleanup.ownedXcodeStopped=remaining.length===0;
 }
 async function checkCleanup(){
- const cmd=execFileSync('ps',['-axo','pid=,command='],{encoding:'utf8'}).split('\n').map(line=>line.trim().match(/^(\d+)\s+(.+)$/)).filter(Boolean);record.processCleanupAudit={ownedProcessesRemaining:cmd.filter(row=>row[2].includes(output+path.sep)&&/xcodebuild|WebDriverAgent|appium|ios-device-e2e/.test(row[2])).map(row=>({pid:Number(row[1]),command:row[2]})),ports:{}};
+ const cmd=execFileSync('ps',['-axo','pid=,pgid=,command='],{encoding:'utf8'}).split('\n').map(line=>line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/)).filter(Boolean);
+ const owned=row=>appiumChild&&(Number(row[1])===appiumChild.pid||Number(row[2])===appiumChild.pid)||ownedUdid&&row[3].includes(ownedUdid)||row[3].includes(output+path.sep)&&/xcodebuild|WebDriverAgent|appium/.test(row[3]);
+ record.processCleanupAudit={scope:'owned Appium receipt PID/PGID, owned simulator UUID, and named output paths',ownedProcessesRemaining:cmd.filter(owned).map(row=>({pid:Number(row[1]),pgid:Number(row[2]),command:row[3]})),ports:{}};
  for(const port of Object.values(record.ports||{})){const value=await run('/usr/sbin/lsof',['-nP','-t','-iTCP:'+port,'-sTCP:LISTEN'],{allowFailure:true});record.processCleanupAudit.ports[port]={listening:!!value.stdout.trim(),pids:value.stdout.trim().split('\n').filter(Boolean)}}
 }
 const driver = path.join(project, 'test', 'ios-visual-text-inspect.py');
@@ -223,10 +236,24 @@ async function main(){
   await tap(.72,.36);await delay(700);
   assert.equal(await proposal('calibration-restored'),null,'Dismiss must actually remove Keyboard before learning');
   log('keyboard_calibrated',{region:measured.region,keyCount:measured.keyCount});
+  if(values['keyboard-transport-probe']){
+   record.interface='owned_wda_keyboard_transport_probe_not_mcp';
+   record.moduleAcceptancePassed=false;record.deviceAcceptancePassed=false;record.mcpAcceptancePassed=false;
+   const {probeOnscreenKeyboard}=await import('./ios-keyboard-transport-probe.mjs');
+   record.transportProbe=await probeOnscreenKeyboard({output,project,python,run,httpJson,proxyPort,sessionId,rect,tap,appId,definition,text:values['keyboard-probe-text']||'alpha'});
+   assert.equal(record.transportProbe.echo,record.transportProbe.expected,'Onscreen keyboard text was not independently echoed');
+   record.status='passed';return;
+  }
   const caretPolicy={enabled:true,color:[66,107,242],background:[255,255,255],colorTolerance:2,maxWidthPoints:3,minHeightPoints:8,maxHeightPoints:48,maxAreaPoints:144};
   // The fixture owner explicitly grants this narrow pixel exception. Geometry
   // calibration and OCR cannot establish that a thin blue glyph is an OS caret.
   const keyboardPolicy={enabled:true,region:envelope.region,sourceRegion:measured.region,dismissAnchor:'Dismiss',caret:caretPolicy};
+  if(values['onscreen-key-input']){
+   keyboardPolicy.keyInput={mode:'onscreen',controls:{shift:{type:'XCUIElementTypeButton',name:'shift',label:'shift'},numbers:{type:'XCUIElementTypeKey',name:'more',label:'numbers'},letters:{type:'XCUIElementTypeKey',name:'more',label:'letters'},delete:{type:'XCUIElementTypeKey',name:'delete',label:'delete'}}};
+   if(values['onscreen-complete-text'])keyboardPolicy.keyInput.confirmation='complete_text';
+   if(values['onscreen-fixed-clear'])keyboardPolicy.keyInput.clearPlan='fixed_max_length';
+   record.keyboardCalibration.ownerApprovedKeyInput=keyboardPolicy.keyInput;
+  }
   record.keyboardCalibration.ownerApprovedCaretPolicy=caretPolicy;
   const deviceFile=path.join(output,'device.json');
   await save(deviceFile,{source:{id:sourceId,kind:'ios'},backend:{type:'webdriver',platform:'ios',appId,commandTimeoutMs:60000,url:'http://127.0.0.1:'+proxyPort,sessionId},limits:{maxDepth:0,maxActions:50,maxDurationMs:480000},actionAllowlist:[],nativeVisualWorkflow:{keyboard:keyboardPolicy,enabled:true,node:process.execPath,allowedWorkflows:[definition.id],approvedDefinitions:{[definition.id]:spec}}});
@@ -245,38 +272,77 @@ async function main(){
   record.discovery=await completed(client,await call(client,'software_discover',{kind:'ios',input:inventory,deviceName:'owned_ios'}));
   const sources=await call(client,'software_sources'),source=sources.sources.find(item=>item.id===sourceId);
   assert.ok(source,JSON.stringify(sources));
-  record.learning=await completed(client,await call(client,'software_bind_workflow',{sourceId,expectedRevision:source.revision,specPath:spec,samples:[{query:'alpha'},{query:'beta'}]}));
+  record.learning=await trackedRequests('learning',async()=>completed(client,await call(client,'software_bind_workflow',{sourceId,expectedRevision:source.revision,specPath:spec,samples:[{query:'alpha'},{query:'beta'}]})));
   const catalog=await call(client,'software_capabilities',{sourceId,kind:'mobile',limit:100});
   record.runtimeArtifactVerification={appArtifactVerified:catalog.source.appArtifactVerified,artifactVerification:catalog.source.artifactVerification,gaps:catalog.source.gaps};
   const cap=catalog.items.find(item=>item.readiness==='ready'&&item.inputSchema?.properties?.query);
   assert.ok(cap,JSON.stringify(catalog));record.capability=cap;
+  const nativeRecipes=Object.values(await json(path.join(output,'software/operations',record.learning.operationId,'workflow/recipes.json'))).filter(recipe=>recipe.recipeType==='ios_visual_workflow'&&recipe.definition?.id===definition.id);
+  assert.equal(nativeRecipes.length,1);
+  const contracts=nativeRecipes[0].controlContracts;
+  const anchorContracts={focus:contracts.focus,dismiss:contracts._keyboard.dismiss,submit:contracts.submit};
+  const auditWindow=(label,sequence)=>{
+   const window=record.requestWindows[label];assert(window&&Number.isSafeInteger(window.startIndex)&&Number.isSafeInteger(window.endIndex));
+   const audit=assertDeviceRequestWindow({rows:requests.slice(window.startIndex,window.endIndex),sessionId,onscreen:!!values['onscreen-key-input'],geometry:{width:rect.width,height:rect.height},keyboardRegion:measured.region,anchorContracts,expectedOutsideSequence:sequence});
+   (record.requestAudits??={})[label]=audit;return audit;
+  };
+  const auditKeys=async(label,operation,plan,{allowFinalPrefix=false}={})=>{
+   if(!values['onscreen-key-input'])return;
+   const window=record.requestWindows[label],prefix=path.join(output,'key-audit-'+label);
+   await Promise.allSettled([...evidenceTasks]);
+   await save(prefix+'-requests.json',requests.slice(window.startIndex,window.endIndex));
+   await save(prefix+'-plan.json',plan);
+   const events=path.join(output,'software/operations',operation.operationId,label==='learning'?'workflow':'execution','events.jsonl');
+   await run(python,[path.join(project,'test/ios-keyboard-key-sequence-audit.py'),'--requests',prefix+'-requests.json','--events',events,'--source-dir',output,'--device-config',deviceFile,'--width',String(rect.width),'--height',String(rect.height),'--plan',prefix+'-plan.json','--output',prefix+'-result.json',...(allowFinalPrefix?['--allow-final-prefix']:[])],{timeout:30000});
+   const audit=await json(prefix+'-result.json');assert.equal(audit.auditPassed,true);assert.equal(audit.complete,!allowFinalPrefix);assert.equal(audit.usableForSuccessAcceptance,!allowFinalPrefix);assert.equal(audit.mcpAcceptance,false);
+   (record.keyAudits??={})[label]=audit;
+  };
+  const deletes=observed=>values['onscreen-fixed-clear']?definition.inputSchema.maxLength:observed;
+  auditWindow('learning',['focus','dismiss','submit','focus','dismiss','submit']);
+  await auditKeys('learning',record.learning,[{input:'alpha',clear:deletes(0)},{input:'beta',clear:deletes(5)}]);
   assert.equal(catalog.source.appArtifactVerified,false);
   const execute=async(value)=>operation(client,await call(client,'software_call',{sourceId,capabilityId:cap.id,expectedRevision:cap.revision,params:{query:value}}));
-  record.gamma=await execute('gamma');
+  record.gamma=await trackedRequests('unified',()=>execute('gamma'));
   assert.equal(record.gamma.status,'completed',JSON.stringify(record.gamma));
   assert.equal(executionResult(record.gamma)?.ok,true,JSON.stringify(record.gamma));
   assert.match(executionResult(record.gamma).outputs.text,/(?:^|\s)gamma(?:$|\s)/);
-  record.generation=await completed(client,await call(client,'software_generate',{sourceId,expectedRevision:catalog.source.revision}));
+  auditWindow('unified',['focus','dismiss','submit']);
+  await auditKeys('unified',record.gamma,[{input:'gamma',clear:deletes(4)}]);
+  record.generation=await trackedRequests('generation',async()=>completed(client,await call(client,'software_generate',{sourceId,expectedRevision:catalog.source.revision})));
+  assert.equal(record.requestWindows.generation.startIndex,record.requestWindows.generation.endIndex,'Generating an entry must not access the device');
   generatedClient=await connect(record.generation.result.entry);
-  record.delta=await operation(generatedClient,await call(generatedClient,'cap_'+cap.id.slice(4,24),{query:'delta'}),'operation_status');
-  assert.equal(record.delta.status,'completed',JSON.stringify(record.delta));
-  assert.equal(executionResult(record.delta)?.ok,true,JSON.stringify(record.delta));
-  assert.match(executionResult(record.delta).outputs.text,/(?:^|\s)delta(?:$|\s)/);
-  for(const op of [record.gamma,record.delta]){
+  record.generatedInput=values['onscreen-key-input']?'Ab7z':'delta';
+  record.generatedCall=await trackedRequests('generated',async()=>operation(generatedClient,await call(generatedClient,'cap_'+cap.id.slice(4,24),{query:record.generatedInput}),'operation_status'));
+  assert.equal(record.generatedCall.status,'completed',JSON.stringify(record.generatedCall));
+  assert.equal(executionResult(record.generatedCall)?.ok,true,JSON.stringify(record.generatedCall));
+  assert.match(executionResult(record.generatedCall).outputs.text,new RegExp('(?:^|\\s)'+record.generatedInput+'(?:$|\\s)'));
+  auditWindow('generated',['focus','dismiss','submit']);
+  await auditKeys('generated',record.generatedCall,[{input:record.generatedInput,clear:deletes(5)}]);
+  for(const op of [record.gamma,record.generatedCall]){
    assert.equal(executionResult(op).appArtifactVerified,false);
    assert.equal(executionResult(op).untrusted,true);
    assert.equal(executionResult(op).provenance,'device_screenshot_and_local_ocr');
    assert(!JSON.stringify(executionResult(op)).includes(output),'Private paths escaped through MCP execution result');
   }
   const actionCount=rows=>rows.filter(r=>r.method==='POST'&&/\/actions$/.test(r.path)).length;
+  const keyboardActionCount=rows=>rows.filter(r=>{
+   if(r.method!=='POST'||!/\/actions$/.test(r.path))return false;
+   const actions=JSON.parse(r.body).actions;
+   if(!actions.some(a=>a.id==='keyboard-key'))return false;
+   assert.equal(actions.length,1);assert.equal(actions[0].type,'pointer');
+   const move=actions[0].actions.find(a=>a.type==='pointerMove');assert(move&&Number.isFinite(move.x)&&Number.isFinite(move.y));
+   assert(move.x>=0&&move.x<rect.width&&move.y>=measured.region.y*rect.height&&move.y<(measured.region.y+measured.region.height)*rect.height,'Keyboard tap escaped the approved current keyboard');
+   return true;
+  }).length;
   const publicKeys=rows=>rows.filter(r=>r.method==='POST'&&/\/keys$/.test(r.path)&&!r.path.includes('/wda/'));
   const keyCount=rows=>publicKeys(rows).filter(r=>!(JSON.parse(r.body).value||[]).join('').includes('\b')).length;
   const backspaceCount=rows=>publicKeys(rows).filter(r=>(JSON.parse(r.body).value||[]).join('')==='\b'.repeat(definition.inputSchema.maxLength)).length;
   const clearCount=rows=>rows.filter(r=>r.method==='POST'&&/\/execute\/sync$/.test(r.path)&&JSON.parse(r.body).script==='mobile: keys').length;
   let start=requests.length;
-  record.invalid=await execute('bad value');
+  record.invalid=await trackedRequests('invalid',()=>execute('bad value'));
   assert.equal(record.invalid.status,'failed',JSON.stringify(record.invalid));
   assert.equal(record.invalid.errorCode,'INPUT_INVALID',JSON.stringify(record.invalid));
+  assert.equal(requests.slice(start).length,0,'Invalid input must not send any backend request');
   assert.equal(actionCount(requests.slice(start)),0);assert.equal(keyCount(requests.slice(start)),0);assert.equal(clearCount(requests.slice(start)),0);assert.equal(publicKeys(requests.slice(start)).length,0);record.invalidInputRequests={pointerActions:actionCount(requests.slice(start)),allPublicKeys:publicKeys(requests.slice(start)).length,clearCommands:clearCount(requests.slice(start))};
   const mode=async(name,marker)=>{
    const preparation={name,marker,observations:[],alerts:[],startedAt:Date.now()};
@@ -327,17 +393,32 @@ async function main(){
    }
   };
   record.ignoreMode=await mode('ignore_input','RESULT IGNORE');start=requests.length;
-  record.ignoredInput=await execute('epsilon');
-  const ignored=requests.slice(start);record.ignoredInputRequests={focusAndSubmitActions:actionCount(ignored),textInputCommands:keyCount(ignored),backspaceClearCommands:backspaceCount(ignored),clearCommands:clearCount(ignored)};
+  record.ignoredInput=await trackedRequests('ignored',()=>execute('epsilon'));
+  const ignored=requests.slice(start);record.ignoredInputRequests={pointerActions:actionCount(ignored),keyboardPointerActions:keyboardActionCount(ignored),outsideKeyboardPointerActions:actionCount(ignored)-keyboardActionCount(ignored),textInputCommands:keyCount(ignored),backspaceClearCommands:backspaceCount(ignored),clearCommands:clearCount(ignored)};
   assert.equal(executionResult(record.ignoredInput)?.error?.code,'VISUAL_INPUT_NOT_VERIFIED',JSON.stringify(record.ignoredInput));
   assert.deepEqual(executionResult(record.ignoredInput).writeOutcome,{status:'unknown',automaticRetry:false});
-  assert.equal(record.ignoredInput.canResume,false);assert.equal(actionCount(ignored),1);assert.equal(keyCount(ignored),1);assert.equal(clearCount(ignored),0);assert.equal(backspaceCount(ignored),1);
+  assert.equal(record.ignoredInput.canResume,false);assert.equal(clearCount(ignored),0);
+  auditWindow('ignored',['focus']);
+  await auditKeys('ignored',record.ignoredInput,[{input:'epsilon',clear:deletes(0),finalOutside:0}],{allowFinalPrefix:!values['onscreen-complete-text']});
+  if(values['onscreen-key-input']){
+   assert.equal(actionCount(ignored)-keyboardActionCount(ignored),1,'Ignored input must stop before Dismiss or submit');
+   assert(keyboardActionCount(ignored)>=1&&keyboardActionCount(ignored)<=21+(values['onscreen-fixed-clear']?definition.inputSchema.maxLength:0),'One bounded epsilon sequence only');
+   assert.equal(publicKeys(ignored).length,0);
+  }else{assert.equal(actionCount(ignored),1);assert.equal(keyCount(ignored),1);assert.equal(backspaceCount(ignored),1);}
   record.autoMode=await mode('autoupdate_noop','RESULT AUTO');start=requests.length;
-  record.noopSubmit=await execute('epsilon');
-  const noop=requests.slice(start);record.noopSubmitRequests={focusAndSubmitActions:actionCount(noop),textInputCommands:keyCount(noop),backspaceClearCommands:backspaceCount(noop),clearCommands:clearCount(noop)};
+  record.noopSubmit=await trackedRequests('noop',()=>execute('epsilon'));
+  const noop=requests.slice(start);record.noopSubmitRequests={pointerActions:actionCount(noop),keyboardPointerActions:keyboardActionCount(noop),outsideKeyboardPointerActions:actionCount(noop)-keyboardActionCount(noop),textInputCommands:keyCount(noop),backspaceClearCommands:backspaceCount(noop),clearCommands:clearCount(noop)};
   assert.equal(executionResult(record.noopSubmit)?.error?.code,'VISUAL_RESULT_NOT_VERIFIED',JSON.stringify(record.noopSubmit));
   assert.deepEqual(executionResult(record.noopSubmit).writeOutcome,{status:'unknown',automaticRetry:false});
-  assert.equal(record.noopSubmit.canResume,false);assert.equal(actionCount(noop),3);assert.equal(keyCount(noop),1);assert.equal(clearCount(noop),0);assert.equal(backspaceCount(noop),1);
+  assert.equal(record.noopSubmit.canResume,false);assert.equal(clearCount(noop),0);
+  auditWindow('noop',['focus','dismiss','submit']);
+  await auditKeys('noop',record.noopSubmit,[{input:'epsilon',clear:deletes(0)}]);
+  if(values['onscreen-key-input']){
+   assert.equal(actionCount(noop)-keyboardActionCount(noop),3,'Focus, Dismiss and one business submit only');
+   assert(keyboardActionCount(noop)>=7+(values['onscreen-fixed-clear']?definition.inputSchema.maxLength:0)&&keyboardActionCount(noop)<=21+(values['onscreen-fixed-clear']?definition.inputSchema.maxLength:0),'One bounded epsilon sequence only');
+   assert.equal(publicKeys(noop).length,0);
+   assert.equal(publicKeys(requests).length,0,'Onscreen strategy never falls back to text-event input');
+  }else{assert.equal(actionCount(noop),3);assert.equal(keyCount(noop),1);assert.equal(backspaceCount(noop),1);}
   assert.equal(requests.filter(row=>/\/wda\/keys$/.test(row.path)).length,0,'Internal WDA path must never be sent to Appium public session');
   const png=Buffer.from((await httpJson('GET','/session/'+sessionId+'/screenshot')).value,'base64');
   assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
@@ -373,7 +454,7 @@ async function main(){
   await Promise.allSettled([...evidenceTasks]);
   await save(path.join(output,'forwarded-requests.json'),requests);
   if(ownedUdid||appiumChild)await checkCleanup();
-  if(record.status==='passed'&&(['realSessionDeleted','proxyStopped','appiumStopped','fixtureUninstalled','ownedSimulatorDeleted'].some(k=>record.cleanup[k]!==true)||record.processCleanupAudit.ownedProcessesRemaining.length||Object.values(record.processCleanupAudit.ports).some(r=>r.listening)||!record.existingDeviceIdsPreserved)){
+  if(record.status==='passed'&&(['realSessionDeleted','proxyStopped','appiumStopped','ownedXcodeStopped','fixtureUninstalled','ownedSimulatorDeleted'].some(k=>record.cleanup[k]!==true)||record.processCleanupAudit.ownedProcessesRemaining.length||Object.values(record.processCleanupAudit.ports).some(r=>r.listening)||!record.existingDeviceIdsPreserved||record.webdriverAudit.unfinished.length)){
    record.status='failed';record.moduleAcceptancePassed=false;record.deviceAcceptancePassed=false;record.mcpAcceptancePassed=false;process.exitCode=1;
   }
   record.finishedAt=new Date().toISOString();await save(path.join(output,'ios-keyboard-results.json'),record);

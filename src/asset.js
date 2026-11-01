@@ -1,4 +1,5 @@
 import {normalizeVisualConfig} from './browser-visual.js';
+import {normalizeAriaVirtualLists,assertVirtualApproval} from './aria-virtual-policy.js';
 import path from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -22,7 +23,7 @@ export const DEFAULTS = {
   seedFiles: false, shotFormat: 'png', shotQuality: 65, ignoreHTTPSErrors: false,
   authMode: 'anonymous', authCheckIntervalMs: 30000,
   auth: {}, excludeSelectors: [], excludeTextPatterns: [], skipTextPatterns: [],
-  actionAllowlist: [], writeActionAllowlist: [], requestAllowlist: [], seedRoutes: [], fingerprintNoisePatterns: [],
+  actionAllowlist: [], writeActionAllowlist: [], requestAllowlist: [], seedRoutes: [], fingerprintNoisePatterns: [], ariaVirtualLists: [],
   fingerprintIgnoreSelectors: ['[data-bfs-noise]', '[role="timer"]'],
   modalSelectors: ['[role="dialog"]','.modal'], modalCheckboxSelectors: ['input[type="checkbox"]'],
   modalCloseSelectors: ['[aria-label="Close"]'], agreeKeywords: ['接受','同意','accept','agree'],
@@ -109,6 +110,7 @@ export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false
   }
   const cfg = { ...DEFAULTS,...input, auth: {...DEFAULTS.auth,...input.auth}, stabilize: {...DEFAULTS.stabilize,...input.stabilize} };
   cfg.visual = normalizeVisualConfig(cfg.visual);
+  cfg.ariaVirtualLists = normalizeAriaVirtualLists(cfg.ariaVirtualLists);
   cfg.startUrl = canonicalAsset(cfg.startUrl);
   cfg._migration = [...(input._migration||[]),...Object.keys(input).filter(k => RETIRED.has(k)).map(k => RETIRED_NOTES[k] || `${k} 已退役；统一调度器串行探索，安全守卫始终启用`)];
   for (const k of RETIRED) delete cfg[k];
@@ -151,6 +153,7 @@ export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false
     if (rule.urlPattern) { if (!rule.urlPattern.startsWith('^') || !rule.urlPattern.endsWith('$')) throw new Error('requestAllowlist urlPattern 必须用 ^ 和 $ 锚定'); new RegExp(rule.urlPattern); }
     if(rule.operationType&&!['query','mutation','subscription'].includes(rule.operationType))throw new Error('operationType 必须是 query/mutation/subscription');
   }
+  for(const policy of cfg.ariaVirtualLists)assertVirtualApproval(cfg,policy);
   if (cfg.authInject) {
     if (typeof cfg.authInject !== 'object' || !cfg.authInject.headers || Array.isArray(cfg.authInject.headers) || Object.keys(cfg.authInject).some(k => !['headers','urlPattern'].includes(k))) throw new Error('authInject 需要 headers 对象');
     for (const [name,value] of Object.entries(cfg.authInject.headers)) if (!/^[!#$%&'*+.^_`|~\w-]+$/.test(name) || typeof value !== 'string' || /[\r\n]/.test(value)) throw new Error('authInject header 格式错误');

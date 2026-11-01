@@ -104,3 +104,17 @@ test('official MCP resolves a multi-document bundle for unified and generated en
  assert.notEqual((await call(client,'software_capabilities',{sourceId:'bundle'})).source.revision,catalog.source.revision);
  const stale=await independent.client.callTool({name:'cap_'+cap.id.slice(4,24),arguments:{path:{id:3},query:{tag:['a']}}});assert.equal(stale.isError,true);assert.match(stale.content[0].text,/SOURCE_CHANGED/);assert.equal(site.requests.length,2);
 });
+
+test('missing formal documents fail without publishing filesystem paths',{timeout:30000},async t=>{
+ const dir=temp(t),config=path.join(dir,'config.json'),out=path.join(dir,'out'),document=path.join(dir,'api.json');
+ writeFileSync(config,JSON.stringify({artifactRoots:[dir],bindings:{private_paths:{allowed_origins:['https://api.example.invalid']}}}));
+ writeFileSync(document,JSON.stringify({openapi:'3.1.1',servers:[{url:'https://api.example.invalid'}],paths:{'/items':{get:{}}}}));
+ const {client}=await connect(t,[path.join(root,'src/software-mcp.js'),'--config',config,'--output-root',out]);
+ await finish(client,await call(client,'software_import_openapi',{sourceId:'private_paths',documentPath:document}));
+ const before=(await call(client,'software_capabilities',{sourceId:'private_paths'})).source.revision;
+ for(const args of [{documentPath:path.join(dir,'missing-main.json')},{documentPath:document,referenceDocuments:[{documentUrl:'https://spec.example.invalid/types.json',documentPath:path.join(dir,'missing-ref.json')}]}]){
+  const failed=await finish(client,await call(client,'software_import_openapi',{sourceId:'private_paths',expectedRevision:before,...args}),{failed:true});
+  assert.equal(failed.errorCode,'DOCUMENT_UNAVAILABLE');assert(!failed.error.includes(dir));assert(!failed.error.includes('missing-'));
+  assert.equal((await call(client,'software_capabilities',{sourceId:'private_paths'})).source.revision,before);
+ }
+});

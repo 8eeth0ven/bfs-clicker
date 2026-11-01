@@ -16,6 +16,8 @@ import {gotoStep} from './replay.js';
 import {assertWorkflowPermission} from './workflow-permissions.js';
 import {visualAction,visualRegion,approveVisualStep,overlap,canvasObservation,visualText,groundVisualStep,visualPoint} from './browser-visual.js';
 import {readBrowserSource,checkedBrowserRunDir,browserOperationDestination,readBrowserVisibleOutput,boundBrowserVisibleOutput} from './browser-capabilities.js';
+import {virtualPolicyFor,virtualOptionSelector,validVirtualEvidence,virtualDigest} from './aria-virtual-policy.js';
+import {pinVirtualControl,scanVirtualDomain,virtualTarget,verifyVirtualTarget,closeVirtualContext} from './aria-virtual.js';
 
 const require=createRequire(new URL('../gateway/package.json',import.meta.url)),Ajv=require('ajv/dist/2020.js').default;
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -58,11 +60,17 @@ function prepare(raw,source){
     if(step.param!=null&&(!Object.hasOwn(schema.properties,step.param)||!idPattern.test(step.param)))fail('SPEC_INVALID','参数绑定必须引用声明的顶层字段');
     if(['visualClick','visualFill'].includes(step.kind)){step.visual=visualAction(step.visual,step.kind);approveVisualStep(step,source.config,raw.effect);}
     else if(step.visual!==undefined)fail('VISUAL_SPEC_INVALID','普通DOM步骤不接受视觉执行参数');
+    if(step.kind!=='choose'&&step.virtual!==undefined)fail('SPEC_INVALID','virtual只用于可信choose');
     if(step.kind==='choose'){
       const property=schema.properties[step.param],domain=property&&Object.hasOwn(property,'const')?[property.const]:property?.enum;
       if(!step.param||property?.type!=='string'||!Array.isArray(domain)||!domain.length||domain.length>200||domain.some(value=>typeof value!=='string'||value.length>512)||new Set(domain).size!==domain.length||!plain(step.choices)||Object.keys(step.choices).length!==domain.length||domain.some(value=>!Object.hasOwn(step.choices,value)))fail('SPEC_INVALID','choose需要有限string枚举与完整可信choices映射');
+      const virtualPolicy=virtualPolicyFor(source.config,step);
+      if(virtualPolicy){
+        const observed=step.virtual?.domain,certificate=observed?.certificate,event=source.virtualEvents?.get(certificate?.evidenceId),execution=event&&source.succeeded.get(JSON.stringify([String(event.stateId),event.actionId]));
+        if(!plain(step.virtual)||Object.keys(step.virtual).some(key=>!['policyId','domain'].includes(key))||step.virtual.policyId!==virtualPolicy.id||execution?.started!==certificate?.executionId||!validVirtualEvidence(observed,event,source.config,step,execution?.started)||hash(domain)!==hash(observed.options.map(option=>option.value)))fail('ARIA_VIRTUAL_DISCOVERY_UNPROVEN','需要本来源完整扫描证书与成功open证据');
+      }else if(step.virtual!==undefined)fail('ARIA_VIRTUAL_NOT_APPROVED','原来源未批准virtual策略');
       const choices=Object.create(null),seen=new Set();
-      for(const wire of domain){const target=locatorSpec({...step.choices[wire],framePath:step.choices[wire]?.framePath??step.framePath});if(hash(target.framePath)!==hash(step.framePath)||seen.has(target.selector))fail('SPEC_INVALID','choose选项必须同frame且locator不能重复');if(!source.config.actionAllowlist.includes(target.selector))fail('ACTION_NOT_APPROVED','choose所有option selector必须在原actionAllowlist明确批准');seen.add(target.selector);choices[wire]={selector:target.selector,framePath:target.framePath};}
+      for(const wire of domain){const target=locatorSpec({...step.choices[wire],framePath:step.choices[wire]?.framePath??step.framePath});if(hash(target.framePath)!==hash(step.framePath)||seen.has(target.selector))fail('SPEC_INVALID','choose选项必须同frame且locator不能重复');if(virtualPolicy?target.selector!==virtualOptionSelector(virtualPolicy,wire):!source.config.actionAllowlist.includes(target.selector))fail('ACTION_NOT_APPROVED','choose需要批准的固定或virtual精确值selector');seen.add(target.selector);choices[wire]={selector:target.selector,framePath:target.framePath};}
       step.choices=choices;
       if(step.timeoutMs!=null&&(!Number.isSafeInteger(step.timeoutMs)||step.timeoutMs<0||step.timeoutMs>10000))fail('SPEC_INVALID','choose timeoutMs必须为0–10000');
       if(step.selection!=null){
@@ -70,6 +78,7 @@ function prepare(raw,source){
         const target=locatorSpec({selector:step.selection.selector??step.selector,framePath:step.selection.framePath??step.framePath});if(hash(target.framePath)!==hash(step.framePath))fail('SPEC_INVALID','selection必须与combobox同frame');
         step.selection={selector:target.selector,framePath:target.framePath,attribute:step.selection.attribute};
       }
+      if(virtualPolicy&&!step.selection)fail('SPEC_INVALID','virtual需要独立固定selection属性证明');
     }
     return {...step,index};
   });
@@ -112,6 +121,10 @@ function prepare(raw,source){
   const params=[...new Set(steps.map(step=>step.param).filter(Boolean))];if(!params.length)fail('SPEC_INVALID','参数化workflow至少绑定一个参数');
   if(Object.keys(schema.properties).some(name=>!params.includes(name)))fail('SPEC_INVALID','公开输入字段必须绑定到实际步骤');
   for(const name of params)if(!assertions.some(item=>item.textIncludesParam===name))fail('ASSERTION_REQUIRED','每个可变参数需要对应结果断言');
+  if(steps.some(step=>step.virtual)){
+    if(!['click','visualClick'].includes(steps.at(-1).kind))fail('ASSERTION_REQUIRED','virtual流程须有独立最终业务触发');
+    for(const step of steps.filter(item=>item.virtual))if(!assertions.some(item=>item.textIncludesParam===step.param&&item.changedFromBefore===true))fail('ASSERTION_REQUIRED','virtual参数需要独立结果变化断言');
+  }
   if(steps.some(step=>step.kind==='visualClick')){
     if(!['click','visualClick'].includes(steps.at(-1).kind))fail('VISUAL_TRIGGER_REQUIRED','包含视觉点击的流程须以固定触发点击结束');
     for(const name of params)if(!assertions.some(item=>item.textIncludesParam===name&&item.changedFromBefore===true))fail('ASSERTION_REQUIRED','视觉触发的每个参数需要独立结果变化断言');
@@ -233,12 +246,14 @@ function parameterText(assertion,params,optionLabels){
   }
   return Array.isArray(value)?values.map(String).join(assertion.paramSeparator??','):String(value);
 }
-function assertionMatches(assertion,snapshot,params,baseline,optionLabels){
+function assertionMatches(assertion,snapshot,params,baseline,optionLabels,strictParam=false){
   if(assertion.count!=null&&snapshot.count!==assertion.count)return false;
   if(assertion.changedFromBefore===true&&(!baseline||snapshot.digest===baseline.digest))return false;
   if(assertion.count===0)return snapshot.count===0;
   if(snapshot.count!==1||!snapshot.visible)return false;
-  return (assertion.textIncludes==null||snapshot.text.includes(String(assertion.textIncludes)))&&(assertion.textIncludesParam==null||snapshot.text.includes(parameterText(assertion,params,optionLabels)));
+  const parameter=assertion.textIncludesParam==null?null:parameterText(assertion,params,optionLabels);
+  const matchesParam=parameter===null||(strictParam?new RegExp('(?:^|\\s)'+parameter.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:$|\\s)').test(snapshot.text):snapshot.text.includes(parameter));
+  return (assertion.textIncludes==null||snapshot.text.includes(String(assertion.textIncludes)))&&matchesParam;
 }
 async function assertResults(page,spec,params,config,{baselines=[],triggerBaselines=[],auth,wait=true,signal,optionLabels=new Map()}={}){
   const budget=config._runtime.budget,started=performance.now(),deadlines=spec.assertions.map(assertion=>started+(assertion.timeoutMs??3000));let nextAuth=0;
@@ -250,7 +265,7 @@ async function assertResults(page,spec,params,config,{baselines=[],triggerBaseli
     const snapshots=[],visualCache=new Map();let pending=false;
     try{for(let index=0;index<spec.assertions.length;index++){
       const remaining=Math.max(1,Math.min(config.actionTimeoutMs,budget.remainingMs,Math.max(100,deadlines[index]-performance.now()))),snapshot=await assertionSnapshot(page,spec.assertions[index],config,remaining,visualCache);snapshots.push(snapshot);
-      if(assertionMatches(spec.assertions[index],snapshot,params,baselines[index],optionLabels)&&(!triggerBaselines[index]||snapshot.digest!==triggerBaselines[index].digest))continue;
+      if(assertionMatches(spec.assertions[index],snapshot,params,baselines[index],optionLabels,spec.steps.some(step=>step.virtual&&step.param===spec.assertions[index].textIncludesParam))&&(!triggerBaselines[index]||snapshot.digest!==triggerBaselines[index].digest))continue;
       if(!wait||performance.now()>=deadlines[index])fail('RESULT_ASSERTION_FAILED','结果断言在本轮等待期限内未满足');
       pending=true;
     }}finally{await closeVisualCache(visualCache);}
@@ -298,7 +313,7 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
       const fresh=await changedBaselines(page,spec,config);for(let n=0;n<fresh.length;n++)if(fresh[n])triggerBaselines[n]=fresh[n];
     }
     const action={...found.metadata,...step,id:'workflow:'+spec.id+':'+index+suffix,type:kind==='fill'?'text':kind==='select'?'select':kind==='check'?'checkbox':'click',kind:'click',label:step.visual?.anchor||found.metadata.text||found.metadata.aria||kind};
-    const locator=await checkLiveAction(page,action,config),coordinate=['visualClick','visualFill'].includes(kind)?await visualPoint(page,found,found.visualGround,config):null;dialogs.invalidate();runtime.dialogRejected=false;runtime.blockedRequests=[];runtime.currentActionId=action.id;runtime.currentControl=action.label;
+    const locator=found.virtualTarget?await verifyVirtualTarget(found.virtualTarget):await checkLiveAction(page,action,config),coordinate=['visualClick','visualFill'].includes(kind)?await visualPoint(page,found,found.visualGround,config):null;dialogs.invalidate();runtime.dialogRejected=false;runtime.blockedRequests=[];runtime.currentActionId=action.id;runtime.currentControl=action.label;
     runtime.currentExecutionId=store.emit('workflow_action_started',{workflowId:spec.id,actionId:action.id,step:index,kind});executions.add(runtime.currentExecutionId);
     const timeout=Math.max(1,Math.min(config.actionTimeoutMs,budget.remainingMs));
     if(!actionAttempted&&spec.effect==='write')atomicJson(path.join(out,'write-intent.json'),{effect:'write',...writeOutcome('unknown')},false);
@@ -307,7 +322,7 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
       await page.mouse.click(coordinate.x,coordinate.y);
       if(kind==='visualFill'){budget.check();abortCheck(signal);await page.keyboard.press('ControlOrMeta+A');budget.check();abortCheck(signal);await page.keyboard.press('Backspace');budget.check();abortCheck(signal);await page.keyboard.type(String(value));budget.check();abortCheck(signal);const after=await canvasObservation(found,config,{signal}),echo=visualText(after,step.visual.valueRegion,config.visual.minConfidence);if(echo!==String(value).replace(/\s+/g,' ').trim())fail('PARAM_VALUE_REJECTED','视觉输入未由独立区域实际回读确认');}
     }
-    else if(kind==='fill')await locator.fill(String(value),{timeout});else if(kind==='select')await locator.selectOption(value,{timeout});else if(kind==='check')await locator.setChecked(value,{timeout});else if(suffix){const element=await locator.elementHandle({timeout});if(!element)fail('LOCATOR_CHANGED','ARIA点击目标已移除');try{await element.click({timeout});}finally{await element.dispose();}}else await locator.click({timeout});
+    else if(kind==='fill')await locator.fill(String(value),{timeout});else if(kind==='select')await locator.selectOption(value,{timeout});else if(kind==='check')await locator.setChecked(value,{timeout});else if(found.virtualTarget)await found.virtualTarget.context.quota.run(()=>locator.click({timeout}));else if(suffix){const element=await locator.elementHandle({timeout});if(!element)fail('LOCATOR_CHANGED','ARIA点击目标已移除');try{await element.click({timeout});}finally{await element.dispose();}}else await locator.click({timeout});
     if(!['click','visualClick','visualFill'].includes(kind)){
       const live=await locator.evaluate(element=>({valid:element.validity?.valid!==false,value:element.isContentEditable?element.textContent:element.value,checked:element.checked,selected:element.tagName==='SELECT'?Array.from(element.selectedOptions).map(option=>option.value):null}));
       if(!live.valid||kind==='fill'&&live.value!==String(value)||kind==='check'&&live.checked!==value||kind==='select'&&hash([...live.selected].sort())!==hash((Array.isArray(value)?[...value]:[value]).sort()))fail('PARAM_VALUE_REJECTED','原生约束或实际控件值拒绝该输入');
@@ -347,6 +362,28 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
         for(const input of precedingInputs){const actual=visualText(ground.observation,input.visual.valueRegion,config.visual.minConfidence),wanted=String(input.param?params[input.param]:input.value).replace(/\s+/g,' ').trim();if(actual!==wanted)fail('PARAM_VALUE_CHANGED','视觉输入在后续动作前已改变，未发送动作');}
         await dispatch(page,{...step,label:step.visual.anchor},found,i,step.kind,value,auth);
       }else if(step.kind==='choose'){
+        if(step.virtual){
+          const policy=virtualPolicyFor(config,step),context=await pinVirtualControl(page,config,policy);
+          let selected;
+          try{
+            const initial=await inspectChoiceControl(page,step,config),expected=expectedContracts?.steps[i],proofBefore=await selectionProof(page,step,config);
+            compare(initial.control.contract,expected?.control);compare(proofBefore.contract,expected?.selection);
+            await dispatch(page,step,initial.control,i,'click',undefined,auth,':open');
+            await scanVirtualDomain(context);
+            if(virtualDigest(context.options)!==virtualDigest(step.virtual.domain.options)||virtualDigest(context.contract)!==virtualDigest(step.virtual.domain.virtual.contract))fail('ARIA_VIRTUAL_DOMAIN_CHANGED','实时全域与探索证书发生变化');
+            const contract={control:initial.control.contract,selection:proofBefore.contract,virtual:{policyId:policy.id,options:context.options,contract:context.contract}};
+            compare(contract,expected);contracts.steps.push(contract);optionLabels.set(step.param,new Map(context.options.map(option=>[option.value,option.label])));
+            selected=await virtualTarget(context,value);
+            const chosen={locator:selected.locator,metadata:{...selected.option,text:selected.option.label,role:'option'},virtualTarget:selected};
+            await dispatch(page,selected.target,chosen,i,'click',undefined,auth,':option');
+            await waitAria(async()=>{
+              context.quota.check();const proof=await context.quota.run(()=>selectionProof(page,step,config));compare(proof.contract,proofBefore.contract);
+              const after=await context.quota.run(()=>inspectChoiceControl(page,step,config));compare(after.control.contract,initial.control.contract);compare(after.identity,initial.identity);
+              return proof.value===value&&await context.quota.run(()=>after.control.locator.getAttribute('aria-expanded'))==='false';
+            },config,{timeoutMs:Math.max(0,context.quota.deadline-performance.now()),signal,auth});
+          }finally{await selected?.handle.dispose();await closeVirtualContext(context);}
+          continue;
+        }
         const initial=await inspectChoiceControl(page,step,config),expected=expectedContracts?.steps[i];compare(initial.control.contract,expected?.control);
         if(expected)compare(initial.identity,Object.fromEntries(['controlsId','readOnly','disabled','required'].map(key=>[key,expected.relation[key]])));
         const proofBefore=step.selection?await selectionProof(page,step,config):null;if(proofBefore)compare(proofBefore.contract,expected?.selection);

@@ -4,6 +4,7 @@ import {CredentialProvider} from './credentials.js';
 import {truncateUtf8} from './redact.js';
 import {serializeQuery} from './query-serialization.js';
 import {serializeForm} from './form-serialization.js';
+import {serializeMultipart} from './multipart-serialization.js';
 import {GatewayError, type GatewayConfig, type SourceSnapshot, type Endpoint, type Operation, type CallParams, type GatewayResult} from './types.js';
 
 const SESSION = /(?:^|[^a-z0-9])(?:log[_-]?(?:out|off)|sign[_-]?out|revoke|注销|登出|退出登录)(?:$|[^a-z0-9])/i;
@@ -43,6 +44,8 @@ export class Executor {
     if(op.body_encoding==='unsupported')throw new GatewayError('UNSUPPORTED_BODY_ENCODING','该操作的请求体编码未获支持');
     if(op.query_serialization_conflict)throw new GatewayError('QUERY_SERIALIZATION_CONFLICT','查询编码声明冲突，需重新确认契约');
     if(op.form_serialization_conflict)throw new GatewayError('FORM_SERIALIZATION_CONFLICT','表单编码声明冲突，需重新确认契约');
+    if(op.multipart_serialization_conflict)throw new GatewayError('MULTIPART_SERIALIZATION_CONFLICT','multipart编码声明冲突，需重新确认契约');
+    if(op.body_encoding==='multipart'&&!op.multipart_serialization)throw new GatewayError('MULTIPART_CONTRACT_INVALID','multipart缺少可信编码契约');
     if(op.method!=='GET' && (!this.config.methods.allow_non_get || !this.config.methods.allow.some(a=>a.source===source.id&&a.endpoint_id===endpoint.id&&a.method===op.method)))
       throw new GatewayError('METHOD_BLOCKED','该方法未在配置与逐端点白名单同时启用');
     if(params.method && params.method!==op.method)throw new GatewayError('PARAMS_INVALID','选择的方法与端点操作不一致');
@@ -70,6 +73,7 @@ export class Executor {
     url.search=serializeQuery(call.query??{},op.query_serialization);
     assertSessionSafe(url.pathname,call);
     const credentials=await this.provider.load(source.binding);
+    let responseRedactor=credentials.redactor;
     const headers=new Headers();
     for(const [key,value] of Object.entries(source.binding.static_headers??{})){
       if(FORBIDDEN_STATIC.test(key)||/[\r\n\0]/.test(value))throw new GatewayError('HEADERS_BLOCKED','静态配置中含不允许的请求头');
@@ -77,10 +81,11 @@ export class Executor {
       headers.set(key,value);
     }
     for(const [key,value] of Object.entries(credentials.headersFor(url)))headers.set(key,value);
-    let body:string|undefined;
+    let body:string|Uint8Array<ArrayBuffer>|undefined;
     if(Object.hasOwn(call,'body')){
       if(op.body_encoding==='json'){body=JSON.stringify(call.body);headers.set('content-type','application/json');}
       else if(op.body_encoding==='text'){if(typeof call.body!=='string')throw new GatewayError('PARAMS_INVALID','文本请求体必须为字符串');body=call.body;headers.set('content-type','text/plain; charset=utf-8');}
+      else if(op.body_encoding==='multipart'){const encoded=serializeMultipart(call.body,op.multipart_serialization!);body=new Uint8Array(encoded.body);headers.set('content-type',encoded.contentType);responseRedactor=credentials.redactor.forkForTransaction(encoded.sensitiveValues);responseRedactor.assertResponseBudget(this.config.max_body_bytes);}
       else if(op.form_serialization){body=serializeForm(call.body,op.form_serialization);headers.set('content-type','application/x-www-form-urlencoded');}
       else {
         if(!call.body||typeof call.body!=='object'||Array.isArray(call.body))throw new GatewayError('PARAMS_INVALID','表单请求体必须为对象');
@@ -116,7 +121,7 @@ export class Executor {
         await response.body?.cancel();const data=base();data.observation_status=status;
         return failure('REDIRECT_BLOCKED','beta 不自动跟随重定向',data,warnings);
       }
-      const limit=this.config.max_body_bytes, captureLimit=limit+credentials.redactor.maxLookaheadBytes+8;
+      const limit=this.config.max_body_bytes, captureLimit=limit+responseRedactor.maxLookaheadBytes+8;
       const parts:Uint8Array[]=[];let captured=0,bytesRead=0,complete=!response.body;
       const reader=response.body?.getReader();
       try {
@@ -134,11 +139,11 @@ export class Executor {
         if(!textual){output.format='binary_summary';output.value=null;}
         else if(!truncated && /(?:\/|\+)json(?:\s*;|$)/i.test(contentType??'')){
           try {
-            output.value=credentials.redactor.value(JSON.parse(raw.toString('utf8')));output.format='json';
+            output.value=responseRedactor.value(JSON.parse(raw.toString('utf8')));output.format='json';
             const serialized=JSON.stringify(output.value);
             if(Buffer.byteLength(serialized)>limit){output.value=truncateUtf8(serialized,limit);output.format='text';output.truncated=true;}
-          } catch {output.format='text';output.value=credentials.redactor.prefix(raw,limit);warnings.push('INVALID_JSON_RESPONSE');}
-        } else {output.format='text';output.value=credentials.redactor.prefix(raw,limit);}
+          } catch {output.format='text';output.value=responseRedactor.prefix(raw,limit);warnings.push('INVALID_JSON_RESPONSE');}
+        } else {output.format='text';output.value=responseRedactor.prefix(raw,limit);}
       }
       output.returned_bytes=output.value===null?0:Buffer.byteLength(output.format==='json'?JSON.stringify(output.value):String(output.value));
       data.response.duration_ms=Math.round(performance.now()-started);

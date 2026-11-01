@@ -16,13 +16,17 @@ export interface Health {
 export interface Operation {
   method: Method; provenance: string[]; categories: string[]; description: string;
   extraction_sources: string[]; locations: string[]; parameter_summary: any[];
-  params_schema: Schema; body_encoding: 'json' | 'form' | 'text' | 'unsupported';
+  params_schema: Schema; body_encoding: 'json' | 'form' | 'text' | 'multipart' | 'unsupported';
   allowed: boolean; blocked_reason?: string; contract_revision: string;
   query_serialization?: Record<string, QuerySerialization>;
   query_serialization_conflict?: boolean;
   form_serialization?: FormSerialization;
   form_serialization_conflict?: boolean;
+  multipart_serialization?: MultipartSerialization;
+  multipart_serialization_conflict?: boolean;
 }
+export type MultipartField = {kind:'text';valueType:'string'|'number'|'integer'|'boolean';contentType:'text/plain';array:boolean} | {kind:'file';contentType:string;array:boolean};
+export interface MultipartSerialization {schemaVersion:1;fields:Record<string,MultipartField>}
 export interface QuerySerialization {
   style: 'form' | 'spaceDelimited' | 'pipeDelimited' | 'tabDelimited' | 'deepObject';
   explode: boolean;

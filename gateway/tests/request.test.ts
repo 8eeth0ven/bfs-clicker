@@ -125,7 +125,7 @@ test('redactor handles encoded/escaped secrets, new keys, HTML and original-pref
  assert.equal(r.value({access_token:'new-value',nested:{password:'another'}}).access_token,'[REDACTED]');
  assert.equal(r.text(r.text('token=brand-new-unknown-value')),r.text('token=brand-new-unknown-value'));
  const markerSecret=new Redactor(['A']);assert.equal(markerSecret.text(markerSecret.text('ABC')),markerSecret.text('ABC'));
- const schema=r.value({params_schema:{type:'object',properties:{token:{type:'string',examples:['secret-example']},password:{type:'string',const:'unknown-password'}},required:['token']}}).params_schema;
+ const schema=r.catalogValue({params_schema:{type:'object',properties:{token:{type:'string',examples:['secret-example']},password:{type:'string',const:'unknown-password'}},required:['token']}}).params_schema;
  assert.equal(schema.properties.token.type,'string');assert.equal(schema.properties.token.examples,undefined);assert.equal(schema.properties.password.const,undefined);
  const short=new Redactor(['1','en']);
  const publicOutput=short.result({data:{source:'site-en-1',endpoint_id:'ep_'+'1'.repeat(64),origin:'http://127.0.0.1:8765',path:'/v1/endpoints',provenance:['observed'],response:{body:{format:'text',value:'prefix1suffix'}}}});
