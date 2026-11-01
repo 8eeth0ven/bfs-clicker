@@ -3,6 +3,7 @@ import { collectInteractives, locate, checkLiveAction, frameFor } from './discov
 import { fillValueFor, isDropdownTrigger, isFormAction, pickOpenOption, prepareForm } from './formfill.js';
 import {exploreVirtualChoice} from './aria-virtual.js';
 import {virtualPolicyFor} from './aria-virtual-policy.js';
+import {resetClosedShadow} from './closed-shadow.js';
 export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={}) {
   config._runtime?.budget?.check();
   if(el.skipped || el.excluded)throw Object.assign(new Error(el.skipReason||'excluded_action'),{name:'PolicyError'});
@@ -19,12 +20,13 @@ export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={})
   }
   await dialogs.handle();
   let target=el;
-  let loc=locate(page,target);
+  let loc=locate(page,target,config);
   if(await loc.count()!==1){
+    if(el.closedShadow||el.selector?.startsWith('closed::'))throw Object.assign(new Error('closed target changed'),{code:'CLOSED_SHADOW_LOCATOR_CHANGED'});
     const items=await collectInteractives(page,config);
     target=items.find(v=>!v.skipped&&v.label===el.label&&JSON.stringify(v.framePath)===JSON.stringify(el.framePath))||null;
     if(!target)throw new Error('找不到唯一元素: '+el.label);
-    loc=locate(page,target);
+    loc=locate(page,target,config);
     if(await loc.count()!==1)throw new Error('重定位结果不唯一: '+el.label);
   }
   loc=await checkLiveAction(page,target,config);
@@ -46,7 +48,7 @@ export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={})
   }else{
     try{await loc.click({timeout});}
     catch(error){
-      if(config.jsClickFallback!==true)throw error;
+      if(config.jsClickFallback!==true||target.closedShadow)throw error;
       // JS fallback only uses the same uniquely located, newly checked element.
       loc=await checkLiveAction(page,target,config);await loc.evaluate(element=>element.click());
     }
@@ -62,6 +64,7 @@ export async function replayPath(page,dialogs,steps,config,log=()=>{},opts={}) {
   }
 }
 export async function gotoWithRetry(page,url,config,log=()=>{},label='') {
+  await resetClosedShadow(page);
   const decision=config._policy?.navigation(url);
   if(decision&&!decision.allow)throw Object.assign(new Error(decision.reason),{name:'PolicyError',reason:decision.reason});
   const retries=config.maxRetries??config.gotoRetries??1;

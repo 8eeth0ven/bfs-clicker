@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { BASE_SELECTOR } from './discover.js';
+import {closedFingerprint} from './closed-shadow.js';
 export const md5=value=>createHash('md5').update(String(value)).digest('hex');
 // These hashes aid comparison without persisting page content. Lengths describe
 // UTF-8 JSON bytes, so equal arrays and strings have a reproducible encoding.
@@ -67,5 +68,6 @@ export async function fingerprint(page,config={}) {
       };visit(document);return {url:location.href,title:document.title,lines:lines.sort(),headings,body};
     },{selector:BASE_SELECTOR,ignore:config.fingerprintIgnoreSelectors||['[data-bfs-noise]','[role="timer"]'],patterns:config.fingerprintNoisePatterns||[]}));
   }
+  if(config.closedShadowRoots?.length){const closed=await closedFingerprint(page,config);surfaces.push({url:page.url(),title:'closed_root_digests',lines:closed.map(row=>row.policyId+':'+row.sha256),headings:[],body:[]});}
   return {fp:md5(JSON.stringify(surfaces)),url:page.url(),title:await page.title(),surface:surfaces,diagnostics:summarizeFingerprintSurfaces(surfaces)};
 }

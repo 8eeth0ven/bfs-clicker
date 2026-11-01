@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "closed_search",
+  "effect": "read",
+  "inputSchema": {
+    "type": "object",
+    "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 20, "pattern": "^[a-z]+$"}},
+    "required": ["query"],
+    "additionalProperties": false
+  },
+  "entry": {"anchors": [{"selector": "closed::search::#query", "framePath": [], "closedShadow": {"schemaVersion": 1, "policyId": "search", "hosts": ["#search-widget"], "selector": "#query"}, "tag": "input"}]},
+  "steps": [
+    {"kind": "fill", "param": "query", "selector": "closed::search::#query", "framePath": [], "closedShadow": {"schemaVersion": 1, "policyId": "search", "hosts": ["#search-widget"], "selector": "#query"}},
+    {"kind": "click", "selector": "closed::search::#search", "framePath": [], "closedShadow": {"schemaVersion": 1, "policyId": "search", "hosts": ["#search-widget"], "selector": "#search"}}
+  ],
+  "assertions": [{"selector": "closed::search::#result", "framePath": [], "closedShadow": {"schemaVersion": 1, "policyId": "search", "hosts": ["#search-widget"], "selector": "#result"}, "textIncludesParam": "query", "changedFromBefore": true}],
+  "extract": [{"name": "result", "kind": "text", "selector": "closed::search::#result", "framePath": [], "closedShadow": {"schemaVersion": 1, "policyId": "search", "hosts": ["#search-widget"], "selector": "#result"}}],
+  "samples": [{"query": "alpha"}, {"query": "beta"}]
+}

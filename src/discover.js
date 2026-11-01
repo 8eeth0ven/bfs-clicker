@@ -1,6 +1,7 @@
 // Semantic descriptors with frame/shadow paths. Playwright CSS pierces open shadow roots.
 import {observedVirtualChoices} from './aria-virtual.js';
 import {virtualPolicyFor} from './aria-virtual-policy.js';
+import {closedKey,closedLocator,collectClosedInteractives} from './closed-shadow.js';
 export const BASE_SELECTOR = [
   'button','a[href]','input:not([type="hidden"]):not([type="file"])','textarea','select',
   '[role="button"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="radio"],[role="switch"],[role="link"], [role="combobox"]',
@@ -20,7 +21,7 @@ function framePath(frame) {
   while(current.parentFrame?.()){const parent=current.parentFrame();result.unshift(parent.childFrames().indexOf(current));current=parent;}
   return result;
 }
-export function actionKey(el) {return [JSON.stringify(el.framePath||[]),el.selector,el.kind||'click',el.optionValue??'',el.scrollStep??''].join('|');}
+export function actionKey(el) {return [JSON.stringify(el.framePath||[]),el.selector,el.kind||'click',el.optionValue??'',el.scrollStep??'',...(el.closedShadow?[closedKey(el)]:[])].join('|');}
 export function frameFor(page,el) {
   let frame=page.mainFrame?.()||page;
   for(const index of el.framePath||[]){frame=frame.childFrames()[index];if(!frame)throw new Error('frame 路径已失效');}
@@ -89,6 +90,7 @@ export async function collectInteractives(page,config={}) {
         const choices=await observedVirtualChoices(page,config,{...meta,framePath:fpath});
         if(choices){meta.ariaChoices=choices;meta.ariaChoiceGap=null;}
       }
+      if(frame===frames[0]&&config.closedShadowRoots?.length){const remaining=Math.max(0,(config.maxInteractives||300)-rows.length);if(remaining)rows.push(...await collectClosedInteractives(page,{...config,maxInteractives:remaining},BASE_SELECTOR));}
       return rows;
     };
     let rows=await capture();
@@ -117,14 +119,15 @@ export async function collectInteractives(page,config={}) {
   if(frames.length>(config.maxFrames||12))emit('coverage_gap',{reason:'max_frames',count:frames.length});
   return result;
 }
-export function locate(page,el) {
+export function locate(page,el,config) {
+  if(el.closedShadow!==undefined||el.selector?.startsWith('closed::'))return closedLocator(page,el,config);
   const frame=frameFor(page,el);
   if(el.selector?.startsWith('role::')){const [,role,...name]=el.selector.split('::');try{return frame.getByRole(role,{name:JSON.parse(name.join('::')),exact:false})}catch{}}
   return frame.locator(el.selector||el.fallbackSelector);
 }
 // Re-evaluate safety on the live target, including ancestors across shadow boundaries.
 export async function checkLiveAction(page,el,config) {
-  const locator=locate(page,el);
+  const locator=locate(page,el,config);
   const meta=await locator.evaluate((element,exclusions)=>{
     let current=element,excluded=false;
     while(current){if(exclusions.some(sel=>current.matches(sel)||current.closest(sel)))excluded=true;current=current.getRootNode()?.host||null;}

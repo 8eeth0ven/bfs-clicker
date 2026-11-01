@@ -20,6 +20,173 @@ GAPS=['app_artifact_not_verified','screenshot_may_include_system_ui_or_other_win
 
 def fail(code,status='blocked'): raise MobileError(code,status)
 
+
+class _PixelTask:
+    """At most three readonly operations; budget/validation between each one.
+
+    The worker waits for Python before starting the next operation. Its lifetime
+    ends before any capture/UI action, and it never retains decoded images.
+    """
+    def __init__(self, node, session):
+        self.node, self.session, self.child = node, session, None
+        self.ordinal = 0
+        self.error_code = 'VISUAL_PIXELS_UNAVAILABLE'
+        self.deadline = None
+
+    def __enter__(self):
+        self.session.budget.check()
+        try:
+            self.child = subprocess.Popen([self.node, str(PROJECT / 'src/visual-pixel-task.js')], cwd=PROJECT,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
+            os.set_blocking(self.child.stdin.fileno(), False)
+            os.set_blocking(self.child.stdout.fileno(), False)
+            return self
+        except (OSError, subprocess.SubprocessError, ValueError, TypeError):
+            self._reap()
+            fail(self.error_code)
+
+    def _reap(self, kill_group=True):
+        if self.child is None:
+            return
+        if kill_group:
+            try:
+                os.killpg(self.child.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+        if self.child.poll() is None:
+            self.child.kill()
+        self.child.wait()
+        for stream in (self.child.stdin, self.child.stdout):
+            if stream is not None and not stream.closed:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+
+    def _check(self):
+        # Cancellation/overall exhaustion keeps its own original exception.
+        self.session.budget.check()
+        if self.deadline is not None and time.monotonic() >= self.deadline:
+            fail(self.error_code)
+
+    def _wait(self):
+        self._check()
+        remaining = self.session.budget.timeout()
+        if self.deadline is not None:
+            remaining = min(remaining, self.deadline - time.monotonic())
+        if remaining <= 0:
+            self._check()
+            fail(self.error_code)
+        return min(.1, remaining)
+
+    def _read(self, limit):
+        while True:
+            ready, _, _ = select.select([self.child.stdout], [], [], self._wait())
+            if ready:
+                try:
+                    return os.read(self.child.stdout.fileno(), limit)
+                except BlockingIOError:
+                    pass
+
+    @staticmethod
+    def _pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError()
+            result[key] = value
+        return result
+
+    def _operation(self, kind, payload, error_code):
+        self.error_code = error_code
+        self.session.budget.check()
+        self.deadline = time.monotonic() + min(15, self.session.budget.timeout()) if kind == 'fingerprint' else None
+        try:
+            self.ordinal += 1
+            if self.ordinal > 3:
+                raise ValueError()
+            encoded = json.dumps({'id': self.ordinal, 'operation': kind, **payload}, allow_nan=False).encode('utf8')
+            if len(encoded) > 16384:
+                raise ValueError()
+            remaining = memoryview(encoded + b'\n')
+            while remaining:
+                _, ready, _ = select.select([], [self.child.stdin], [], self._wait())
+                if ready:
+                    try:
+                        written = os.write(self.child.stdin.fileno(), remaining[:4096])
+                    except BlockingIOError:
+                        continue
+                    if written <= 0:
+                        raise OSError()
+                    remaining = remaining[written:]
+            data = b''
+            while b'\n' not in data:
+                block = self._read(4097 - len(data))
+                if not block:
+                    raise ValueError()
+                data += block
+                if len(data) > 4096 and (b'\n' not in data or data.index(b'\n') > 4096):
+                    raise ValueError()
+            line, trailing = data.split(b'\n', 1)
+            if trailing:
+                raise ValueError()
+            value = json.loads(line.decode('utf8', errors='strict'), object_pairs_hook=self._pairs,
+                parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+            if (type(value) is not dict or set(value) != {'id', 'operation', 'ok', 'value'}
+                    or type(value['id']) is not int or value['id'] != self.ordinal
+                    or value['operation'] != kind or value['ok'] is not True):
+                raise ValueError()
+            return value['value']
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+            fail(error_code)
+
+    def fingerprint(self, observation, masks):
+        result = self._operation('fingerprint', {'path': observation['_imagePath'], 'masks': masks}, 'VISUAL_PIXELS_UNAVAILABLE')
+        if (type(result) is not dict or set(result) != {'width', 'height', 'sha256'}
+                or any(type(result[k]) is not int or result[k] != observation[k] for k in ('width', 'height'))
+                or not isinstance(result['sha256'], str) or not re.fullmatch(r'[a-f0-9]{64}', result['sha256'])):
+            fail('VISUAL_PIXELS_UNAVAILABLE')
+        self._check()
+        return result['sha256']
+
+    def caret(self, before, after, options):
+        from .mobile_visual_ios_keyboard import _validated_caret_result
+        result = self._operation('caret', {'before': before['_imagePath'], 'after': after['_imagePath'], 'options': options}, 'VISUAL_CARET_UNAVAILABLE')
+        try:
+            equivalent = _validated_caret_result(result, before)
+        except (ValueError, KeyError, TypeError):
+            fail('VISUAL_CARET_UNAVAILABLE')
+        self._check()
+        return equivalent
+
+    def __exit__(self, kind, value, traceback):
+        completed = False
+        try:
+            if kind is None:
+                self.child.stdin.close()
+                # No unsolicited/extra response is allowed after the last one.
+                if self._read(4097):
+                    fail(self.error_code)
+                while self.child.poll() is None:
+                    try:
+                        self.child.wait(timeout=self._wait())
+                    except subprocess.TimeoutExpired:
+                        continue
+                if self.child.returncode != 0:
+                    fail(self.error_code)
+                self._check()
+                completed = True
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+            fail(self.error_code)
+        finally:
+            self._reap(kill_group=not completed)
+        return False
+
+
+def _pixel_task(node, session):
+    return _PixelTask(node, session)
+
+
 def common_definition_contract(value):
  keys={'kind','schemaVersion','id','name','effect','activity','inputName','choices','resultRegion','resultPrefix'}
  if not isinstance(value,dict) or set(value)!=keys or value['kind']!='native-visual-workflow' or value['schemaVersion']!=1 or not isinstance(value['id'],str) or not NAME.fullmatch(value['id']) or value['effect'] not in ('read','write') or not isinstance(value['name'],str) or not 1<=len(value['name'])<=120 or not isinstance(value['inputName'],str) or not NAME.fullmatch(value['inputName']): fail('VISUAL_DEFINITION_INVALID')

@@ -32,11 +32,13 @@ Canvas 页面可从可信流程定义接入本地 OCR：固定文字锚点定位
 
 移动来源可按来源启用只读截图 OCR，使用 `software_observe_mobile` 获取带时间和坐标的视觉观察；生成入口在相同配置下提供 `observe_mobile`。详情见 [移动视觉观察](docs/software-to-mcp.md#移动视觉观察)。
 
-Android 自绘界面的固定枚举、英文视觉文本替换，以及 iOS 固定枚举和无系统键盘的视觉文本替换，已在自建模拟器通过统一与生成 MCP 调用。当前编译器 `software-to-mcp-14` 保留可信同图 Vision ROI 和 iOS 普通软键盘的可选合同：ROI 保留整图与边界证据，按严格词界处理冲突；键盘合同区分实际 AX 框和本地批准的有限视觉区域，恢复完整界面后才提交。**Android 中文视觉文本曾以 Vision 完成北京/上海两样本并发布 ready，但新参数调用仍失败；普通 UIKit 软键盘的完整双入口验收仍在推进。** 已通过的中文 Web/Vision 与 Android Unicode 输入有各自范围。配置见 [Android 原生视觉动作](docs/software-to-mcp.md#android-原生视觉动作)、[iOS 普通系统软键盘](docs/software-to-mcp.md#ios-普通系统软键盘)；当前状态和可运行测试见 [验证记录](docs/software-to-mcp-verification.md) 与 [公开验证摘要](docs/software-to-mcp-validation.json)。
+Android 自绘界面的固定枚举、英文视觉文本替换，以及 iOS 固定枚举和无系统键盘的视觉文本替换，已在自建模拟器通过统一与生成 MCP 调用。当前编译器 `software-to-mcp-15` 保留可信同图 Vision ROI 和 iOS 普通软键盘的可选合同：ROI 保留整图与边界证据，按严格词界处理冲突；键盘合同区分实际 AX 框和本地批准的有限视觉区域，恢复完整界面后才提交。**Android 中文视觉文本曾以 Vision 完成北京/上海两样本并发布 ready，但新参数调用仍失败；普通 UIKit 软键盘的完整双入口验收仍在推进。** 已通过的中文 Web/Vision 与 Android Unicode 输入有各自范围。配置见 [Android 原生视觉动作](docs/software-to-mcp.md#android-原生视觉动作)、[iOS 普通系统软键盘](docs/software-to-mcp.md#ios-普通系统软键盘)；当前状态和可运行测试见 [验证记录](docs/software-to-mcp-verification.md) 与 [公开验证摘要](docs/software-to-mcp-validation.json)。
 
 compiler13 补充显式多文档 OpenAPI 引用映射、原生 Tesseract 分隔信息合同，以及 DOM/ARIA 提交前结果基线。多文件规范可经过统一入口与生成入口调用；当前实验设备状态以验证摘要为准。
 
 compiler14 新增有限虚拟 ARIA 列表的完整域扫描，以及正式 API 的 multipart 内联文件上传，两项均已在本地通过统一与生成 MCP 的实际调用。规范文件读取增加实际字节上限、读取变化检查和固定错误；HTTP 响应中的 schema 字段名也不再绕过脱敏。普通 iOS 键盘另有显式按键传输策略，验收范围以验证记录为准。中文字段分区仍属于[研究代码](experiments/README.md)，未接入 MCP，也不随生产 npm 包提供该策略。
+
+compiler15 增加默认关闭的有限 closed Shadow DOM 后端：仅可信启动配置授权固定 host 链，保留 closed 模式，通过隔离读取环境和实际指针/键盘完成探索、两样本学习及统一/生成 MCP 调用。正文与不同闭根同名控件保持分离，节点重建、遮挡或未知执行会拒绝继续，支持范围见 [闭根配置](docs/software-to-mcp.md#closed-shadow-dom)。原生像素校验另减少重复启动子进程；原生流程的启动、终止和客户端等待与原 UI 时限分开计算。普通 iOS 第14轮仍在首次聚焦后因无法验证键盘可见而拒绝，未完成学习或双入口；局部计算加速不代表设备验收通过。
 
 iOS 混合控件已完成真实模拟器验收：文本、Switch 与 SegmentedControl 自动识别为三字段流程，生成入口同值控件零切换；非法枚举和域漂移在 UI 动作前拒绝。保留拉伸 Switch 点击未生效的失败证据，详见 [验证记录](docs/software-to-mcp-verification.md)。
 

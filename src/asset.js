@@ -1,5 +1,6 @@
 import {normalizeVisualConfig} from './browser-visual.js';
 import {normalizeAriaVirtualLists,assertVirtualApproval} from './aria-virtual-policy.js';
+import {normalizeClosedShadowRoots} from './closed-shadow.js';
 import path from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -23,7 +24,7 @@ export const DEFAULTS = {
   seedFiles: false, shotFormat: 'png', shotQuality: 65, ignoreHTTPSErrors: false,
   authMode: 'anonymous', authCheckIntervalMs: 30000,
   auth: {}, excludeSelectors: [], excludeTextPatterns: [], skipTextPatterns: [],
-  actionAllowlist: [], writeActionAllowlist: [], requestAllowlist: [], seedRoutes: [], fingerprintNoisePatterns: [], ariaVirtualLists: [],
+  actionAllowlist: [], writeActionAllowlist: [], requestAllowlist: [], seedRoutes: [], fingerprintNoisePatterns: [], ariaVirtualLists: [], closedShadowRoots: [],
   fingerprintIgnoreSelectors: ['[data-bfs-noise]', '[role="timer"]'],
   modalSelectors: ['[role="dialog"]','.modal'], modalCheckboxSelectors: ['input[type="checkbox"]'],
   modalCloseSelectors: ['[aria-label="Close"]'], agreeKeywords: ['接受','同意','accept','agree'],
@@ -111,6 +112,8 @@ export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false
   const cfg = { ...DEFAULTS,...input, auth: {...DEFAULTS.auth,...input.auth}, stabilize: {...DEFAULTS.stabilize,...input.stabilize} };
   cfg.visual = normalizeVisualConfig(cfg.visual);
   cfg.ariaVirtualLists = normalizeAriaVirtualLists(cfg.ariaVirtualLists);
+  cfg.closedShadowRoots = normalizeClosedShadowRoots(cfg.closedShadowRoots);
+  if(cfg.closedShadowRoots.length&&cfg.browserType!=='chromium')throw new Error('closed Shadow 后端仅支持 Chromium');
   cfg.startUrl = canonicalAsset(cfg.startUrl);
   cfg._migration = [...(input._migration||[]),...Object.keys(input).filter(k => RETIRED.has(k)).map(k => RETIRED_NOTES[k] || `${k} 已退役；统一调度器串行探索，安全守卫始终启用`)];
   for (const k of RETIRED) delete cfg[k];

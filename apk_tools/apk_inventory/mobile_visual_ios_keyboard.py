@@ -552,9 +552,26 @@ def _visible_fresh(session, lease, config, definition, observation, geometry, bo
     fail("VISUAL_FRAME_CHANGED")
 
 
-def _caret_equivalent(session, config, definition, before, after, geometry, masks):
+def _validated_caret_result(result, before):
+    if (not isinstance(result, dict) or set(result) != {"width", "height", "equivalent", "mode", "changedPixels"}
+            or any(not isinstance(result[key], int) or isinstance(result[key], bool)
+                   or result[key] != before[key] for key in ("width", "height"))
+            or not isinstance(result["equivalent"], bool)
+            or result["mode"] not in ("exact", "caret", "changed")
+            or result["equivalent"] != (result["mode"] in ("exact", "caret"))
+            or not isinstance(result["changedPixels"], int) or isinstance(result["changedPixels"], bool)
+            or not 0 <= result["changedPixels"] <= before["width"] * before["height"]
+            or (result["mode"] == "exact") != (result["changedPixels"] == 0)):
+        raise ValueError()
+    return result["equivalent"]
+
+
+def _caret_equivalent(session, config, definition, before, after, geometry, masks, *, task=None):
     """Bounded local Node helper; all failure paths reap the owned process."""
     policy = caret_contract(config["keyboard"]["caret"])
+    if task is not None:
+        return task.caret(before, after, {"masks": masks, "valueRegion": definition["valueRegion"],
+                                         "geometry": geometry, "policy": policy})
     payload = json.dumps({"before": before["_imagePath"], "after": after["_imagePath"], "options": {
         "masks": masks, "valueRegion": definition["valueRegion"], "geometry": geometry, "policy": policy,
     }}).encode()
@@ -582,20 +599,10 @@ def _caret_equivalent(session, config, definition, before, after, geometry, mask
             blocks.append(block)
         if child.wait(timeout=session.budget.timeout()) != 0:
             fail("VISUAL_CARET_UNAVAILABLE")
-        result = json.loads(b"".join(blocks))
-        if (not isinstance(result, dict) or set(result) != {"width", "height", "equivalent", "mode", "changedPixels"}
-                or any(not isinstance(result[key], int) or isinstance(result[key], bool)
-                       or result[key] != before[key] for key in ("width", "height"))
-                or not isinstance(result["equivalent"], bool)
-                or result["mode"] not in ("exact", "caret", "changed")
-                or result["equivalent"] != (result["mode"] in ("exact", "caret"))
-                or not isinstance(result["changedPixels"], int) or isinstance(result["changedPixels"], bool)
-                or not 0 <= result["changedPixels"] <= before["width"] * before["height"]
-                or (result["mode"] == "exact") != (result["changedPixels"] == 0)):
-            raise ValueError()
+        equivalent = _validated_caret_result(json.loads(b"".join(blocks)), before)
         session.budget.check()
         completed = True
-        return result["equivalent"]
+        return equivalent
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
         fail("VISUAL_CARET_UNAVAILABLE")
     finally:

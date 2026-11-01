@@ -13,6 +13,7 @@ import {authenticationStatus} from './auth.js';
 import {createEvidence} from './evidence.js';
 import {locate,checkLiveAction,frameFor} from './discover.js';
 import {gotoStep} from './replay.js';
+import {closedTarget,closedKey} from './closed-shadow.js';
 import {assertWorkflowPermission} from './workflow-permissions.js';
 import {visualAction,visualRegion,approveVisualStep,overlap,canvasObservation,visualText,groundVisualStep,visualPoint} from './browser-visual.js';
 import {readBrowserSource,checkedBrowserRunDir,browserOperationDestination,readBrowserVisibleOutput,boundBrowserVisibleOutput} from './browser-capabilities.js';
@@ -39,9 +40,9 @@ function localJson(file,max=131072){
   let value;try{value=JSON.parse(readFileSync(actual,'utf8'))}catch{fail('SPEC_INVALID','规范不是有效JSON')}
   return {file:actual,value,digest:hash(value)};
 }
-function locatorSpec(value){
+function locatorSpec(value,config){
   if(!plain(value)||typeof value.selector!=='string'||!value.selector||value.selector.length>2048||value.framePath!=null&&(!Array.isArray(value.framePath)||value.framePath.length>12||value.framePath.some(n=>!Number.isSafeInteger(n)||n<0)))fail('SPEC_INVALID','需要固定selector与有效framePath');
-  return {...clone(value),framePath:value.framePath||[]};
+  closedTarget(value,config);return {...clone(value),framePath:value.framePath||[]};
 }
 function prepare(raw,source){
   if(!plain(raw)||raw.schemaVersion!==1||!idPattern.test(raw.id||'')||!['read','write'].includes(raw.effect))fail('SPEC_INVALID','workflow需要schemaVersion=1、id及明确effect=read/write声明');
@@ -49,12 +50,13 @@ function prepare(raw,source){
   const inputSchema=clone(raw.inputSchema);if(Object.keys(inputSchema.properties).some(name=>!idPattern.test(name)||/password|passwd|secret|token|cookie|authorization|session/i.test(name)))fail('INPUT_SCHEMA_INVALID','凭据不能作为公开可变参数');let schemaNodes=0;
   const clean=(value,depth=0)=>{if(++schemaNodes>2000||depth>16)fail('INPUT_SCHEMA_INVALID','输入schema超过结构预算');if(Array.isArray(value))return value.map(v=>clean(v,depth+1));if(plain(value)){const result=Object.create(null);for(const [key,item]of Object.entries(value)){if(['$ref','$id','$async','__proto__','constructor','prototype'].includes(key))fail('INPUT_SCHEMA_INVALID','输入schema不能带引用、异步或原型键');if(['default','example','examples'].includes(key))continue;result[key]=clean(item,depth+1);}return result;}return value;};
   const schema=clean(inputSchema),ajv=new Ajv({strict:false,allErrors:true,validateFormats:false});if(hash(source.scrub(schema))!==hash(schema))fail('INPUT_SCHEMA_INVALID','公开schema包含需脱敏的秘密值');let validate;
-  const entry={url:raw.entry?.url||source.config.startUrl,anchors:(raw.entry?.anchors||[]).map(locatorSpec)};
+  const entry={url:raw.entry?.url||source.config.startUrl,anchors:(raw.entry?.anchors||[]).map(value=>locatorSpec(value,source.config))};
   if(!entry.anchors.length||entry.anchors.length>20||!createPolicy(source.config).navigation(entry.url).allow)fail('ENTRY_REJECTED','入口需要原范围内固定URL与1–20个锚点');
   if(!Array.isArray(raw.steps)||!raw.steps.length||raw.steps.length>30)fail('SPEC_INVALID','需要1–30个固定步骤');
   const steps=raw.steps.map((value,index)=>{
-    const step=locatorSpec(value);if(!['fill','click','select','check','choose','visualClick','visualFill'].includes(step.kind))fail('SPEC_INVALID','不支持该步骤类型');
+    const step=locatorSpec(value,source.config);if(!['fill','click','select','check','choose','visualClick','visualFill'].includes(step.kind))fail('SPEC_INVALID','不支持该步骤类型');
     if(['click','visualClick'].includes(step.kind)&&(Object.hasOwn(step,'param')||Object.hasOwn(step,'value')))fail('SPEC_INVALID','固定click不能声明未使用的输入绑定');
+    if(step.closedShadow&&(!['fill','click'].includes(step.kind)||step.visual!==undefined||step.virtual!==undefined))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','closed root仅支持普通文本fill与原生button click');
     if(!source.config.actionAllowlist.includes(step.selector))fail('ACTION_NOT_APPROVED','所有步骤selector必须在原actionAllowlist明确批准');
     if(!['click','visualClick'].includes(step.kind)&&(Object.hasOwn(step,'param')===Object.hasOwn(step,'value')))fail('SPEC_INVALID','输入步骤必须且只能选择param或固定value');
     if(step.param!=null&&(!Object.hasOwn(schema.properties,step.param)||!idPattern.test(step.param)))fail('SPEC_INVALID','参数绑定必须引用声明的顶层字段');
@@ -85,7 +87,7 @@ function prepare(raw,source){
   if(source.config.actionProfile!=='forms'||steps.some(step=>['fill','visualFill'].includes(step.kind))&&!source.config.fillText||!source.config.requestAllowlist.length)fail('WORKFLOW_NOT_APPROVED','原配置必须forms、填值批准及明确requestAllowlist');
   if(!Array.isArray(raw.assertions)||!raw.assertions.length||raw.assertions.length>20||!Array.isArray(raw.extract)||!raw.extract.length||raw.extract.length>5)fail('SPEC_INVALID','需要结果断言与1–5个有界提取目标');
   const assertions=raw.assertions.map(value=>{
-    const item=locatorSpec(value);
+    const item=locatorSpec(value,source.config);if(item.closedShadow&&(item.visual!==undefined||item.kind&&item.kind!=='text'))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','closed root仅支持普通DOM文本结果');
     if(item.visual!==undefined){
       if(!plain(item.visual)||Object.keys(item.visual).some(key=>key!=='region'))fail('VISUAL_SPEC_INVALID','视觉结果须有固定区域');item.visual={region:visualRegion(item.visual.region)};
       if(!source.config.visual)fail('VISUAL_NOT_CONFIGURED','视觉结果须启用本地OCR');
@@ -111,7 +113,7 @@ function prepare(raw,source){
     return item;
   });
   const extract=raw.extract.map(value=>{
-    const item=locatorSpec(value);if(!idPattern.test(item.name||'')||!['text','table','visualText'].includes(item.kind))fail('SPEC_INVALID','提取需要name与text/table/visualText类型');
+    const item=locatorSpec(value,source.config);if(item.closedShadow&&(item.visual!==undefined||item.kind&&item.kind!=='text'))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','closed root仅支持普通DOM文本结果');if(!idPattern.test(item.name||'')||!['text','table','visualText'].includes(item.kind))fail('SPEC_INVALID','提取需要name与text/table/visualText类型');
     if(item.kind==='visualText'){
       if(!plain(item.visual)||Object.keys(item.visual).some(key=>key!=='region'))fail('VISUAL_SPEC_INVALID','视觉提取需要固定区域');item.visual={region:visualRegion(item.visual.region)};
       if(!source.config.visual)fail('VISUAL_NOT_CONFIGURED','视觉提取须启用本地OCR');
@@ -133,13 +135,13 @@ function prepare(raw,source){
   try{validate=ajv.compile(schema)}catch{fail('INPUT_SCHEMA_INVALID','输入schema不能编译')}
   if(raw.networkEvidence!=null&&!['optional','required'].includes(raw.networkEvidence))fail('SPEC_INVALID','networkEvidence必须为optional或required');
   const spec={schemaVersion:1,id:raw.id,name:String(raw.name||raw.id).slice(0,160),description:String(raw.description||(raw.effect==='write'?'已真实样例验证的受控浏览器写流程':'已真实样例验证的受控浏览器查询')).slice(0,500),effect:raw.effect,networkEvidence:raw.networkEvidence||'optional',inputSchema:schema,entry,steps,assertions,extract};
-  const checkParams=params=>{if(!plain(params)||size(params)>4096||!validate(params))fail('PARAMS_INVALID','输入不符合workflow声明schema');for(const step of steps){const value=step.param?params[step.param]:step.value;if(['fill','visualFill'].includes(step.kind)&&!['string','number'].includes(typeof value)||step.kind==='check'&&typeof value!=='boolean'||step.kind==='choose'&&typeof value!=='string'||step.kind==='select'&&!(typeof value==='string'||Array.isArray(value)&&value.length<=20&&value.every(item=>typeof item==='string')))fail('PARAMS_INVALID','参数类型与固定UI步骤不兼容');}return clone(params);};
+  const checkParams=params=>{if(!plain(params)||size(params)>4096||!validate(params))fail('PARAMS_INVALID','输入不符合workflow声明schema');for(const step of steps){const value=step.param?params[step.param]:step.value;if(step.closedShadow&&step.kind==='fill'&&(Buffer.byteLength(String(value))>4096||/[\x00-\x1f\x7f]/.test(String(value))))fail('PARAMS_INVALID','closed文本参数越出有限输入域');if(['fill','visualFill'].includes(step.kind)&&!['string','number'].includes(typeof value)||step.kind==='check'&&typeof value!=='boolean'||step.kind==='choose'&&typeof value!=='string'||step.kind==='select'&&!(typeof value==='string'||Array.isArray(value)&&value.length<=20&&value.every(item=>typeof item==='string')))fail('PARAMS_INVALID','参数类型与固定UI步骤不兼容');}return clone(params);};
   return {spec,params,checkParams};
 }
 
 async function inspect(page,target,config,{text=false,timeout}={}){
   const frame=frameFor(page,target),frameUrl=new URL(frame.url());if(!config._policy.navigation(frameUrl.href).allow)fail('FRAME_OUT_OF_SCOPE','固定frame超出原导航范围');
-  const locator=locate(page,target);if(await locator.count()!==1)fail('LOCATOR_CHANGED','固定控件或结果目标不再唯一');
+  const locator=locate(page,target,config);if(await locator.count()!==1)fail('LOCATOR_CHANGED','固定控件或结果目标不再唯一');
   const metadata=await locator.evaluate((element,exclusions)=>{
     let current=element;while(current){if(exclusions.some(sel=>current.matches(sel)||current.closest(sel)))return {excluded:true};current=current.getRootNode()?.host||null;}
     const clean=value=>String(value||'').replace(/\s+/g,' ').trim().slice(0,160),form=element.form||element.closest('form'),ancestors=[];current=element;
@@ -147,7 +149,7 @@ async function inspect(page,target,config,{text=false,timeout}={}){
     return {tag:element.tagName.toLowerCase(),htmlType:(element.type||'').toLowerCase(),role:element.getAttribute('role')||'',name:element.getAttribute('name')||'',aria:element.getAttribute('aria-label')||'',title:element.getAttribute('title')||'',placeholder:element.getAttribute('placeholder')||'',text:clean(element.innerText||element.textContent),href:element.href||'',formAction:form?.action||null,formMethod:form?.method||null,editable:element.isContentEditable,constraints:{required:!!element.required,pattern:element.getAttribute('pattern'),min:element.getAttribute('min'),max:element.getAttribute('max'),minLength:element.getAttribute('minlength'),maxLength:element.getAttribute('maxlength'),step:element.getAttribute('step'),multiple:!!element.multiple},ancestors,options:element.tagName==='SELECT'?Array.from(element.options).slice(0,201).map(option=>[option.value,clean(option.text)]):null};
   },config.excludeSelectors||[],timeout==null?{}:{timeout});
   if(metadata.excluded)fail('ACTION_EXCLUDED','原excludeSelectors排除此目标');
-  const contract={...metadata,frame:frameUrl.origin+frameUrl.pathname};if(!text)delete contract.text;
+  const contract={...metadata,frame:frameUrl.origin+frameUrl.pathname,...(target.closedShadow?{closedShadow:await locator.identity()}: {})};if(!text)delete contract.text;
   if(target.tag&&metadata.tag!==target.tag.toLowerCase())fail('ANCHOR_CHANGED','固定锚点tag发生变化');
   return {locator,metadata,contract};
 }
@@ -205,7 +207,7 @@ async function selectionProof(page,step,config){
 // Only snapshots/digests remain in memory; baseline business text is never exported.
 async function resultCanvasObservation(found,target,config,cache){
   if(!cache)return canvasObservation(found,config,{signal:config._runtime.signal});
-  const key=JSON.stringify([target.selector,target.framePath||[]]);
+  const key=JSON.stringify([target.selector,target.framePath||[],closedKey(target)]);
   let current=await found.locator.elementHandle();if(!current)fail('VISUAL_RESULT_TARGET_CHANGED','视觉结果宿主已移除');
   try{
     const entry=cache.get(key);
@@ -228,7 +230,7 @@ async function changedBaselines(page,spec,config){
 async function assertionSnapshot(page,assertion,config,timeout,visualCache){
   const budget=config._runtime.budget;budget.check();
   const frame=frameFor(page,assertion);if(!config._policy.navigation(frame.url()).allow)fail('FRAME_OUT_OF_SCOPE','结果目标frame超出原导航范围');
-  const loc=locate(page,assertion),count=await loc.count();
+  const loc=locate(page,assertion,config),count=await loc.count();
   if(count>1)fail('LOCATOR_CHANGED','结果目标不再唯一');
   if(count===0)return {count,visible:false,text:null,digest:hash({count,visible:false,text:null})};
   const target=await inspect(page,assertion,config,{timeout});
@@ -341,6 +343,16 @@ async function runQuery(source,prepared,params,outputDir,expectedContracts=null,
       const input=await inspect(page,step,config),output=await inspect(page,target,config),handle=await input.locator.elementHandle();
       try{if(handle&&await output.locator.evaluate((element,other)=>element===other,handle))fail('RESULT_TARGET_INVALID','视觉结果区域与输入回读区域重叠');}finally{await handle?.dispose();}
     }
+    // Closed v1 is a finite top-level native text/button path. Reject unsupported
+    // live controls before any workflow action, not after an earlier step writes.
+    for(const [index,step] of spec.steps.entries())if(step.closedShadow){
+      const found=await inspect(page,step,config,{text:step.kind==='click'}),m=found.metadata;compare(found.contract,expectedContracts?.steps[index]);
+      if(step.kind==='fill'&&(!['input','textarea'].includes(m.tag)||m.tag==='input'&&!['text','search'].includes(m.htmlType)||await found.locator.evaluate(e=>!!e.readOnly||!!e.disabled))||step.kind==='click'&&!(m.tag==='button'||m.tag==='input'&&['button','submit'].includes(m.htmlType)))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','closed root控件不在固定原生文本/button子集中');
+    }
+    for(const target of [...spec.assertions,...spec.extract].filter(target=>target.closedShadow)){
+      const found=await inspect(page,target,config);if(['input','textarea','select','table','canvas','iframe'].includes(found.metadata.tag)||found.metadata.editable||['combobox','listbox','option'].includes(found.metadata.role))fail('CLOSED_SHADOW_SPEC_UNSUPPORTED','closed root结果需要独立普通文本节点');
+    }
+    for(const [index,target] of spec.extract.entries())if(target.closedShadow){const found=await inspect(page,target,config);compare(found.contract,expectedContracts?.outputs[index]);}
     const baselines=await changedBaselines(page,spec,config);
     runtime.workflowActive=true;
     for(let i=0;i<spec.steps.length;i++){
@@ -430,7 +442,7 @@ export async function compileBrowserWorkflow({runDir,sourceId,specFile,outputDir
     const runs=[];let contracts=null;
     for(let index=0;index<samples.length;index++){abortCheck(signal);const run=await runQuery(source,prepared,samples[index],path.join(out,'sample-'+(index+1)),contracts,signal,()=>{actionAttempted=true});runs.push({params:clone(samples[index]),...run.result,outputDir:run.outputDir});if(!run.result.ok){atomicJson(path.join(out,'validation.json'),{status:'failed',runs,...(prepared.spec.effect==='write'?{writeOutcome:writeOutcome(actionAttempted?'unknown':'not_started')}:{} )});fail('WORKFLOW_VALIDATION_FAILED','真实样本验证失败：'+run.result.error.code);}contracts??=run.contracts;}abortCheck(signal);
     const id='workflow_'+hash([sourceId,prepared.spec.id]),recipe={schemaVersion:1,kind:'browser-workflow',sourceId,sourceRunId:source.meta.runId,sourceRevision:source.revision,capabilityId:id,specFile:local.file,specDigest:local.digest,spec:prepared.spec,contracts,validation:{runs:runs.map(run=>({operationId:run.operationId,params:run.params,resultDigest:hash(run.data),outputDir:run.outputDir}))}};recipe.revision=hash(recipe);
-    const sourceRevision=hash([source.revision,recipe.revision]),capability=source.scrub({id,name:prepared.spec.name,description:prepared.spec.description,kind:'browser',inputSchema:prepared.spec.inputSchema,readiness:'ready',effect:prepared.spec.effect,revision:recipe.revision,gaps:prepared.spec.steps.some(step=>['visualClick','visualFill'].includes(step.kind))?['visual_parameter_constraints_not_observed','visual_control_semantics_not_inferred','post_trigger_change_is_temporal_evidence']:[],evidence:{kind:'live_workflow_validation',runs:runs.length,operationIds:runs.map(run=>run.operationId),networkObserved:runs.some(run=>run.observation.networkObserved),approvedResponses:runs.reduce((sum,run)=>sum+run.observation.approvedResponses,0),visualSteps:prepared.spec.steps.filter(step=>['visualClick','visualFill'].includes(step.kind)).length,visualAssertions:prepared.spec.assertions.filter(assertion=>assertion.visual).length,changedFromBeforeAssertions:prepared.spec.assertions.filter(assertion=>assertion.changedFromBefore===true).length,note:prepared.spec.effect==='write'?'write为启动配置明确授权的意图；样本真实写入，断言通过不保证任意后台提交语义':'read为可信声明；HTTP成功和断言通过不证明无业务副作用'}}),manifest={schemaVersion:1,source:{id:sourceId,kind:'web',revision:sourceRevision,runId:source.meta.runId,gaps:[]},capabilities:[capability]},recipes={[id]:recipe},validation={status:'validated',runs,...(prepared.spec.effect==='write'?{writeOutcome:writeOutcome('observed')}:{} )};
+    const sourceRevision=hash([source.revision,recipe.revision]),capability=source.scrub({id,name:prepared.spec.name,description:prepared.spec.description,kind:'browser',inputSchema:prepared.spec.inputSchema,readiness:'ready',effect:prepared.spec.effect,revision:recipe.revision,gaps:[...(prepared.spec.steps.some(step=>['visualClick','visualFill'].includes(step.kind))?['visual_parameter_constraints_not_observed','visual_control_semantics_not_inferred','post_trigger_change_is_temporal_evidence']:[]),...(prepared.spec.steps.some(step=>step.closedShadow)?['closed_shadow_top_level_native_text_button_subset','closed_shadow_host_and_targets_stable_for_entire_execution','closed_shadow_physical_edit_events_not_side_effect_proof','closed_shadow_hit_test_not_atomic']:[])],evidence:{kind:'live_workflow_validation',runs:runs.length,operationIds:runs.map(run=>run.operationId),networkObserved:runs.some(run=>run.observation.networkObserved),approvedResponses:runs.reduce((sum,run)=>sum+run.observation.approvedResponses,0),visualSteps:prepared.spec.steps.filter(step=>['visualClick','visualFill'].includes(step.kind)).length,visualAssertions:prepared.spec.assertions.filter(assertion=>assertion.visual).length,changedFromBeforeAssertions:prepared.spec.assertions.filter(assertion=>assertion.changedFromBefore===true).length,note:prepared.spec.effect==='write'?'write为启动配置明确授权的意图；样本真实写入，断言通过不保证任意后台提交语义':'read为可信声明；HTTP成功和断言通过不证明无业务副作用'}}),manifest={schemaVersion:1,source:{id:sourceId,kind:'web',revision:sourceRevision,runId:source.meta.runId,gaps:[]},capabilities:[capability]},recipes={[id]:recipe},validation={status:'validated',runs,...(prepared.spec.effect==='write'?{writeOutcome:writeOutcome('observed')}:{} )};
     const certificate=certificateFile(root,id,recipe.revision);if(existsSync(certificate)){if(hash(localJson(certificate,1048576).value.recipe)!==hash(recipe))fail('CERTIFICATE_CONFLICT','不可变验证记录冲突');}else atomicJson(certificate,{recipe,validated:true},false);
     atomicJson(path.join(out,'recipes.json'),recipes);atomicJson(path.join(out,'validation.json'),validation);atomicJson(path.join(out,'manifest.json'),manifest);
     return {manifest,recipes,validation};

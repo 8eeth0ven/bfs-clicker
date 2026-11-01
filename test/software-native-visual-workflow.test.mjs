@@ -7,12 +7,12 @@ import {temp} from './helpers.mjs';
 
 // This executable is a fixture, not Python or a device: it only records dispatch
 // and writes a self-contained learned contract. No ADB process can be started.
-async function fixture(t,{permissions={},devicePatch={},kind='apk',includeArtifactHash=true}={}){
+async function fixture(t,{permissions={},devicePatch={},kind='apk',includeArtifactHash=true,mutateDeviceBeforeConfigRead=false}={}){
  const dir=temp(t),sourceId='fixture_apk',appId='com.example.fixture',sha='a'.repeat(64),inventory=path.join(dir,'inventory'),device=path.join(dir,'device.json'),marker=path.join(dir,'dispatch.jsonl'),fake=path.join(dir,'fake-python');mkdirSync(inventory);
  writeFileSync(path.join(inventory,'source.json'),JSON.stringify({format:'endpoint-inventory',schema_version:'1.1',kind,source_id:sourceId,inventory:'endpoints.json',app:kind==='apk'?{package_name:appId,...(includeArtifactHash?{apk_sha256:sha}:{}),artifact_type:'apk',version_name:'1'}:{package_name:appId,bundle_id:appId,artifact_sha256:sha,artifact_type:'app',version_name:'1'}}));writeFileSync(path.join(inventory,'endpoints.json'),'[]');
  const deviceConfig={source:{id:sourceId,kind:'apk'},backend:{type:'adb',appId,deviceId:'fixture-device',adb:'/does/not/exist'},expectedArtifact:{kind:'apk',sha256:sha},nativeVisualWorkflow:{enabled:true,allowedWorkflows:['lookup'],approvedDefinitions:{lookup:path.join(dir,'approved-spec.json')}},...devicePatch};
  writeFileSync(device,JSON.stringify(deviceConfig));
- const fakeCode=`#!${process.execPath}\nimport fs from 'node:fs';\nconst args=process.argv.slice(2),marker=${JSON.stringify(marker)},get=k=>args[args.indexOf(k)+1];let stdin='';for await(const chunk of process.stdin)stdin+=chunk;fs.appendFileSync(marker,JSON.stringify({args,stdin:JSON.parse(stdin||'{}')})+'\\n');const dir=get('--output');fs.mkdirSync(dir,{recursive:true});if(get('--operation')==='workflow-learn'){const definition=JSON.parse(fs.readFileSync(get('--workflow'))),id='fixture_visual_cap',revision='b'.repeat(64),recipe={schemaVersion:1,recipeType:${JSON.stringify(kind==='ios'?'ios_visual_workflow':'visual_workflow')},sourceId:${JSON.stringify(sourceId)},capabilityId:id,revision,definition};const cap={id,revision,kind:'mobile',name:'Fixture lookup',description:'fixture only',effect:definition.effect,readiness:'ready',inputSchema:definition.inputSchema,gaps:[]};fs.writeFileSync(dir+'/manifest.json',JSON.stringify({schemaVersion:1,source:{id:${JSON.stringify(sourceId)},kind:${JSON.stringify(kind)},revision:'c'.repeat(64),gaps:[]},capabilities:[cap]}));fs.writeFileSync(dir+'/recipes.json',JSON.stringify({[id]:recipe}));}fs.writeFileSync(dir+'/result.json',JSON.stringify({ok:true,status:'completed',fixture:true,outputs:{text:'fixture text'}}));`;
+ const fakeCode=`#!${process.execPath}\nimport fs from 'node:fs';\nconst args=process.argv.slice(2),marker=${JSON.stringify(marker)},get=k=>args[args.indexOf(k)+1];let stdin='';for await(const chunk of process.stdin)stdin+=chunk;if(${JSON.stringify(mutateDeviceBeforeConfigRead)}){const changed=JSON.parse(fs.readFileSync(${JSON.stringify(device)}));changed.limits={maxDurationMs:1};fs.writeFileSync(${JSON.stringify(device)},JSON.stringify(changed));}fs.appendFileSync(marker,JSON.stringify({args,stdin:JSON.parse(stdin||'{}'),configPath:get('--config'),config:JSON.parse(fs.readFileSync(get('--config'))),cwd:process.cwd()})+'\\n');const dir=get('--output');fs.mkdirSync(dir,{recursive:true});if(get('--operation')==='workflow-learn'){const definition=JSON.parse(fs.readFileSync(get('--workflow'))),id='fixture_visual_cap',revision='b'.repeat(64),recipe={schemaVersion:1,recipeType:${JSON.stringify(kind==='ios'?'ios_visual_workflow':'visual_workflow')},sourceId:${JSON.stringify(sourceId)},capabilityId:id,revision,definition};const cap={id,revision,kind:'mobile',name:'Fixture lookup',description:'fixture only',effect:definition.effect,readiness:'ready',inputSchema:definition.inputSchema,gaps:[]};fs.writeFileSync(dir+'/manifest.json',JSON.stringify({schemaVersion:1,source:{id:${JSON.stringify(sourceId)},kind:${JSON.stringify(kind)},revision:'c'.repeat(64),gaps:[]},capabilities:[cap]}));fs.writeFileSync(dir+'/recipes.json',JSON.stringify({[id]:recipe}));}fs.writeFileSync(dir+'/result.json',JSON.stringify({ok:true,status:'completed',fixture:true,outputs:{text:'fixture text'}}));`;
  writeFileSync(fake,fakeCode,{mode:0o700});const runtime=createSoftwareRuntime({outputRoot:path.join(dir,'out'),artifactRoots:[dir],python:fake,devices:{test:device},workflowPermissions:{[sourceId]:permissions}});
  const built=await runtime.compile({sourceId,kind,inventoryPath:inventory,deviceName:'test'});
  const definition={schemaVersion:1,kind:'native-visual-workflow',id:'lookup',effect:'read',inputSchema:{type:'object',properties:{choice:{type:'string',enum:['first','second']}},required:['choice'],additionalProperties:false},steps:[]};
@@ -92,4 +92,21 @@ test('iOS visual ready capability uses its own module and preserves input and re
  const invoke=(params,expectedRevision=cap.revision)=>f.runtime.execute({sourceId:f.sourceId,capabilityId:cap.id,expectedRevision,params,outputDir:path.join(f.dir,'ios-call-'+Math.random().toString(36).slice(2))});
  await assert.rejects(invoke({choice:'unknown'}),/INPUT_INVALID/);await assert.rejects(invoke({choice:'first'},'0'.repeat(64)),/CAPABILITY_CHANGED/);assert.equal(f.calls().length,1);
  const called=await invoke({choice:'first'});assert.equal(called.result.ok,true);assert.equal(called.result.untrusted,true);assert.equal(called.result.provenance,'device_screenshot_and_local_ocr');assert.equal(f.calls()[1].args[1],'apk_inventory.mobile_visual_ios');assert.deepEqual(f.calls()[1].stdin,{inputs:{choice:'first'}});
+});
+
+
+test('native run snapshots bind the already-checked duration even if the original file changes before CLI reads',async t=>{
+ const f=await fixture(t,{devicePatch:{limits:{maxDurationMs:480000}},mutateDeviceBeforeConfigRead:true});
+ await f.bind();const calls=f.calls();assert.equal(calls.length,1);
+ assert.notEqual(calls[0].configPath,f.device);assert.match(path.basename(calls[0].configPath),/^native-run-[a-f0-9-]+\.json$/);
+ assert.equal(calls[0].config.limits.maxDurationMs,480000);assert.equal(JSON.parse(readFileSync(f.device)).limits.maxDurationMs,1);
+ assert.equal(existsSync(calls[0].configPath),false);
+ const current=JSON.parse(readFileSync(path.join(f.runtime.root,'sources',f.sourceId,'current.json')));assert.equal(current.deviceConfigPath,f.device);
+ assert.equal(calls[0].cwd,path.resolve(import.meta.dirname,'..'));
+});
+
+test('invalid trusted native duration fails before process dispatch and never publishes a new revision',async t=>{
+ const f=await fixture(t,{devicePatch:{limits:{maxDurationMs:true}}}),revision=f.runtime.getSource(f.sourceId).revision;
+ await assert.rejects(f.bind(),{code:'NATIVE_BUDGET_INVALID'});assert.equal(f.calls().length,0);
+ assert.equal(f.runtime.getSource(f.sourceId).revision,revision);
 });

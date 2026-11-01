@@ -2,9 +2,55 @@
 
 统一服务提供 28 个工具：12 个 Web 探索/图工具，以及 16 个来源发现、规划、绑定、执行、观察、验证、生成和任务管理工具。生成入口包含具名工具、分页能力目录、通用调用与任务查询。`ready` 表示某个来源通过受支持契约和样本验证，不表示任意网站或 App 的全部业务已经覆盖。
 
-当前编译器为 `software-to-mcp-14`。完整软件套件 298/298 在按键中心排他修复前通过；之后唯一生产改动为该守卫收紧，修复后另完成全 Python 474 项（473 通过、1 跳过）与受影响 NativeNode 12/12，不能称为同一源码的一次全量运行。独立生产依赖安装与 SDK 握手已通过；普通 UIKit 第12轮以新鲜度守卫拒绝终态失败，诊断已完成，未发布 ready。本稿为草稿 PR 检查点；最终源码/归档投影与完整内容隐私须在提交前复核，实际审计结果与 commit 随 PR 和交付报告记录。机器可读状态见[公开验证摘要](software-to-mcp-validation.json)，使用与配置见[统一入口指南](software-to-mcp.md)。compiler13 的软件 265/265、Python 426 项与包 334 文件属于历史结果，不能移作 compiler14 通过。下列结果区分当前专项、历史全量、真实本地 OCR、XML 重放、传输诊断和设备 MCP 验收；有交叠的测试组不相加。原始截图、设备标识、会话与个人路径不公开，复现以仓库测试及夹具为入口。
+本记录采用 `software-to-mcp-15` 的[草稿 PR 检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)分发范围，主分支未合并、npm 未发布；[compiler14 检查点 00f4e84](https://github.com/8eeth0ven/bfs-clicker/commit/00f4e8496f7f5863b813b484df3ed6fb940c9502)仅作历史参考。本轮完整回归和独立生产包 SDK 基线已通过，原生设备验收与最终 index/tar 内容审核分别记录；实际远端 commit 及最终审核结论由 PR 和交付记录核验。
 
-## compiler14 新增项与验收状态
+机器可读状态见[公开验证摘要](software-to-mcp-validation.json)，使用与配置见[统一入口指南](software-to-mcp.md)。不同来源、版本、重复回归和交叠专项不相加。原始截图、设备标识、会话、模型与个人路径留在私有证据中，公开复现以仓库测试、配置和明确适用范围为入口。
+
+## compiler15 当前专项与待验范围
+
+| 项目 | 已取得的证据 | 当前边界 |
+| --- | --- | --- |
+| 原生像素任务进程 | iOS 相关 Python 159/159，Node 本地 PNG/IPC 16/16；非阻塞读写/退出等待、错误回复和取消回收均有反例 | 纯文件比较作用域，不跨 UI 动作缓存；原像素、caret、输入、Dismiss 与结果闸保留。不是设备验收 |
+| 原生时间预算对齐 | 预算/快照/子进程/假 CLI/操作管理组合 37/37；独立模块重复 15/15、纯探针4项通过 | 三组交叠不相加；没有实际运行480秒或设备验收。业务预算原值不变，外层仅启动、终止及传输余量 |
+| 有限 closed Shadow DOM 流程 | producer15/15，独立真实Chromium7/7及既有Web五文件51/51分列；候选→两样本学习→统一gamma/生成delta完成有限本地闭环 | 探索seed先1次POST，学习与双入口新增4次，整个SDK夹具共5次。仅主frame显式author-closed原生文本/按钮/DOM-text子集，不覆盖closed select/check/ARIA/visual/table |
+| Python 完整回归 | 490项：489通过、1跳过；130.533秒，实际签名 APK fixture | 缺 HBC_FIXTURE 编译 Hermes 样本；相关 Python producer 与链接的 Node/Swift helper 前后源一致，不代表独立 Web/JS 预算源码全程冻结 |
+| 原生快照 Node 专项 | 4文件13/13；约12500.705ms；483份复制源/32份 dist 原生队列末核一致，生产 import通过 | 实际 MCP/HTTP 或假 CLI/观察专项；483是本轮原生验收范围，不是最终 Web/全项目源码或生产包安装证明 |
+| 普通 UIKit 第13轮 | 配置预检终态，选定设备类型与运行时不兼容 | create前停止；0设备、0UI动作、0服务端口；不是运行了工作流后的失败或设备通过 |
+| 普通 UIKit 第14轮 | 学习阶段仅一次Focus后，以 `VISUAL_KEYBOARD_NOT_VISIBLE` 终态失败；34次RPC、0键/提交/ready | after-Focus界面树仍无Keyboard；之后没有新截图，不能推断实际像素键盘是否显示。六清理、fresh主机/端口、既有设备与483份源码均复核；未通过两样本/双入口 |
+| compiler15 主项目与完整软件回归 | 本轮 `npm test` 239/239；`npm run test:software` 335/335，738060.698458ms；均0失败、0跳过 | 同一冻结范围的116份runtime与418份公开代码在两套结束时逐SHA匹配；Python producer与原生设备快照各有独立范围，不合并计数 |
+| compiler15 独立生产包与 SDK 基线 | 357文件/32dist；仅生产依赖锁定安装、生产模块导入、官方SDK28工具、stderr0、客户端已关闭 | SDK基线打包时357份文件均与源一致。最终两份验证文档投影与实际index/tar完整隐私须提交前复核，不移用基线包哈希充当最终包 |
+
+新预算链从同一份可信设备配置校验 `limits.maxDurationMs`，范围仍为整数1..3600000ms，缺省60000ms，不增加 MCP 调用参数。配置为480秒时，Python的UI预算仍为480秒；bridge外层执行等待为490秒（其中启动余量10秒），终止请求后12秒请求强制KILL并继续等直接子进程退出；exit后stdio等待最多1秒。单operation的客户端轮询窗口为512秒，每次状态查询扣减同一deadline，并把取消信号传给SDK请求。512秒不代表整个多operation设备harness的总预算。
+
+原配置读取后制作独有0600/O_EXCL私有快照；预算与Python实际读取的JSON一致，临时路径不进入长期绑定。超时或取消不能因子进程exit0冒称成功；已持久化的不确定写保持unknown/no-retry。POSIX仅管理本次自身进程组，Node直接等待自己的child；不能保证任意逃逸setsid孙进程回收，也不承诺OS硬实时清理。复现见[预算测试](../test/native-workflow-budget.test.mjs)和[子进程测试](../test/software-python-budget.test.mjs)。
+
+同一已保存第12轮失败原帧的有限生产像素块对照中，新 `_pixel_task` 与旧冻结helper的SHA/布尔结果相同，两张fresh仍被拒绝。各3次固定对照的实际子进程为8→3，中位耗时1333.24→1058.48ms；PNG解码仍为10次。该数据只涵盖两个fresh的像素比较块，未包含source、截图、HTTP、OCR或整轮设备运行，不宣传全流程或固定通用加速倍率。测试入口见[像素任务](../test/visual-pixel-task.test.mjs)和[Python任务生命周期](../apk_tools/tests/test_mobile_visual_ios_pixel_task.py)。
+
+第13轮的预检问题是隔离的设备类型选择不兼容；读取真实运行时支持列表后，第14轮实际学习仍在首样本按键前被拒绝。34次学习RPC为19次activeAppInfo、5次source、3次截图、3次方向、3次窗口框与1次Focus；没有键盘按键或业务提交，workflow events尚未生成。该错误不是Timeout。after-Focus仅有界面树证据，不能把之后没有截图解释为像素中一定没有键盘。第14轮终态不会覆盖第11/12轮失败，也不把compiler15原生快照范围外的后续Web改动追认为已参加同一设备验收。本轮完整软件与主项目回归已在116份runtime/418份公开代码冻结范围通过，不改变这次设备失败。独立生产包/SDK基线已通过；最终源码与两份验证文档的归档投影、完整内容隐私须在提交前按实际index与精确tar验证。实际分发commit和最终审计由PR/交付报告记录，不在包内自嵌最终哈希。
+
+### closed-root 的权限与守卫
+
+`webConfig.closedShadowRoots` 默认关闭，只能由本地启动配置批准；最多4个可信策略、每条host链最多4层、每策略DOM最多256节点（默认128）。只在Chromium顶层main frame中解析明确批准的author-closed链；嵌套closed链需逐条明确批准，不跨iframe，不进入未批准nested或UA根，也不把closed模式改成open。配置见[有限闭根模板](../examples/software/config.closed-shadow.example.json)与[流程模板](../examples/software/browser-closed-shadow-workflow.example.json)。
+
+当前支持原生INPUT text/search、TEXTAREA、BUTTON/INPUT button/submit，以及独立DOM文本结果。真实编辑使用鼠标与固定有限键入序列，每个物理编辑前重验同一执行租约下的root/target身份、固定语义、焦点、几何及跨host祖先exclusion；root或target在同一执行中重建会拒绝。主frame isolated world与BODY/双根同ID/页面prototype篡改反例共同核对归属，不依赖页面原型去猜目标。
+
+每次高层fill/click共用一个绝对deadline；迟到只读响应不会恢复后续编辑。每backend最多4096次CDP、每回复256KiB、fill最多4096 UTF-8字节，释放/断连使用250ms有界等待；清理失败会阻止继续导航或重新后端。已尝试但未确认成功的closed探索动作会阻止整个run resume，避免从另一frontier重发未知业务；写执行和写学习权限继续分别批准，已派发后失败保留unknown/no-retry。
+
+closed select/check/ARIA/visual/table、跨frame、未知nested/UA root、不支持的裁剪/变换几何、非唯一目标与遮挡仍拒绝。结果重建也保守拒绝，不能把同值或输入期自动更新当作提交证明。producer15项与独立7项有交叠，不能相加为22项；独立7项是浏览器语义/隔离复核，不另算一次MCP闭环。既有planner、browser capabilities/workflows、Web E2E及ARIA五文件51/51已通过；源码运行时两SDK stderr均为0，此为统一/生成调用，不是独立生产包握手。这些与已通过的335项完整软件套件有交叠，不汇总为独立总数；独立生产包SDK握手与最终分发审核另记。
+
+独立生产安装使用根锁文件执行 `npm ci --omit=dev --ignore-scripts --no-audit --no-fund --prefer-offline`，未借用源码工作区配置。SDK基线包包含closed-shadow、像素任务、预算/Python桥和两项新配置示例，排除experiments与旧生产字段分区模块；五个公开凭据模板保持原批准哈希。打包时357份源文件逐字节一致，不代表文档更新后的最终tar已复核。每次提交前须验证实际暂存index与精确tar：仅两份验证文档可相对SDK基线发生批准投影，其他打包文件及runtime应逐字节保持一致，并完成全内容隐私审核。
+
+## 本轮存储边界
+
+本任务保守保留10GiB可用空间。重build、依赖安装、模型/SDK下载或大复制前，应校验“可用空间−计划写出量≥10GiB”；本轮已有任务级预检并留本地记录。这是运行者的运维约束，不是产品runtime自动删除或全系统存储保证。
+
+此前只读审计本身未删除数据；之后已清理并再次核验48个本任务可重建缓存目录，逻辑文件445,079,035字节，allocated估算493,047,808字节（约470.21MiB）。761个保护文件哈希保持一致，原始证据或模型删除0。canonical WDA、全部frozen/prebuilt、当前依赖和最新compiler14安装均保留，可用空间仍满足10GiB底线。df观测增量501,743,616字节受APFS与系统并发活动影响，不能全部归因为本次清理。独立只读审查再次确认48目录不存在、761份保护文件及第14轮额外9份原始截图/XML的哈希一致；末次只读空间检查为32.546GiB，满足10GiB底线。该检查不等于对所有模型/依赖/保留目录逐字节重核，也不保证后续系统并发写入仍有相同余量。历史独立包探针若重跑，须按保留的archive/lock重新安装已清理的旧依赖，必要时仍需registry访问，未证明可离线重装。
+
+## compiler14 历史检查点范围
+
+compiler14 完整软件298/298发生于按键中心排他收紧前；之后唯一生产差异是该守卫，另完成全Python474项（473通过、1跳过）与受影响NativeNode12/12，不称为同一源码的一次全量。独立生产依赖安装与SDK握手350文件/32dist/28工具已通过。以下保留该检查点历史结论，不移作compiler15通过。
+
+### compiler14 新增项与当时验收状态
 
 | 项目 | 已取得的证据 | 当前边界 |
 | --- | --- | --- |
@@ -59,13 +105,13 @@ Android 中文第9轮 Vision 已完成北京/上海两样本并发布 ready；�
 
 | 版本/范围 | 结果 | 解释 |
 | --- | --- | --- |
-| compiler14 原 Web/图/MCP/网关 | 239/239 | 当前 `npm test` 完整运行，0 失败/跳过；不包含软件与 Python 套件；含网关 55 项 |
+| compiler14 原 Web/图/MCP/网关（历史） | 239/239 | 当时 `npm test` 完整运行，0 失败/跳过；不包含软件与 Python 套件；含网关 55 项 |
 | compiler14 软件完整回归（中心修复前） | 298/298；约 718658 ms | 当次冻结 112 个生产文件结束时逐哈希匹配；此后按键中心排他改动不在该次运行内 |
 | compiler14 Python 完整回归（中心修复后） | 474 项：473 通过、1 跳过；123.958 s | 使用实际签名 APK fixture；缺 HBC_FIXTURE 编译 Hermes 样本；结束时最终 112 个运行时文件逐哈希匹配 |
 | compiler14 NativeNode 受影响回归（中心修复后） | 4 文件 12/12；约 16950 ms | 原生集成专项，最终源码匹配；不能代替新源码完整软件回归 |
 | compiler14 独立生产包与 SDK | 350 文件；32 个网关 dist 文件；官方 SDK 28 工具、stderr 0 | 已实际解包、仅生产依赖独立安装、生产模块导入及握手，源码比较无差异；最终源码/文档投影及完整内容隐私为提交前必检项 |
 | compiler14 分发检查点 | 草稿 PR 检查点；主分支未合并、npm 未发布 | 最终源码/归档投影与完整内容隐私须提交前复核；结果与 commit 由 PR/交付报告记录，不在归档内自嵌最终哈希 |
-| compiler14 当前专项 | multipart 55/49、virtual 73、规范读取 27、iOS strict 123 / complete_text 137 / center 143、审计 helper 10 | 各组有交叠；143 含137，137含123。mock、XML 和实际传输与设备 MCP 分列 |
+| compiler14 历史专项 | multipart 55/49、virtual 73、规范读取 27、iOS strict 123 / complete_text 137 / center 143、审计 helper 10 | 各组有交叠；143 含137，137含123。mock、XML 和实际传输与设备 MCP 分列 |
 | compiler13 软件完整回归（历史） | 265/265 | 当时冻结运行时，0 失败/跳过 |
 | compiler13 Python 完整回归（历史） | 426 项：425 通过、1 跳过 | 提供实际签名 APK fixture；缺 Hermes 编译样本 |
 | compiler13 独立生产包（历史） | 334 文件；官方 SDK 28 工具，stderr 0 | 当时独立生产依赖安装与源码一致性验证；不是 compiler14 打包结果 |
@@ -74,9 +120,9 @@ Android 中文第9轮 Vision 已完成北京/上海两样本并发布 ready；�
 | compiler10/11 基线（历史） | compiler10 软件 215/215、原 Web/图/网关 229/229；compiler11 Python 329 项：328 通过、1 跳过 | 不含后续 compiler12–14 改动 |
 | CI 与 compiler14 分发 | Actions 未启用；草稿 PR 检查点 | 本地模板静态核对不表示远端执行通过；不提前声称 push 或 PR 已发生 |
 
-298 项结束后唯一生产差异是 `mobile_visual_ios_keys.py` 的中心排他收紧；精确前后差异和9个其余函数 AST 不变已独立核实。最终源码另通过上述全 Python 与4文件 NativeNode，两阶段记录分别保留，不合并成“同一冻结源码全量通过”。生产包 350 文件与 SDK 握手来自实际独立安装，未使用 dry-run 推算；公开文档更新后的最终源码/归档字节与完整内容隐私仍须在提交前复核，实际结论记录于 PR 和交付报告。
+compiler14 的298项结束后唯一生产差异是 `mobile_visual_ios_keys.py` 的中心排他收紧；精确前后差异和9个其余函数 AST 不变已独立核实。该版源码另通过上述全 Python 与4文件 NativeNode，两阶段记录分别保留，不合并成“同一冻结源码全量通过”。生产包 350 文件与 SDK 握手来自实际独立安装，未使用 dry-run 推算；公开文档更新后的最终源码/归档字节与完整内容隐私仍须在提交前复核，实际结论记录于 PR 和交付报告。
 
-CI 配置见[Linux/macOS 模板](ci.workflow.example.yml)。现有发布凭据缺少 `workflow` 权限，模板尚未启用为 Actions；具备权限后可放入 `.github/workflows/ci.yml`。历史官方 MCP 握手为 28 工具、stderr 0。当前版本的完整回归、独立打包与发布以[公开摘要](software-to-mcp-validation.json)的 compiler14 字段为准，历史通过不自动继承。
+CI 配置见[Linux/macOS 模板](ci.workflow.example.yml)。现有发布凭据缺少 `workflow` 权限，模板尚未启用为 Actions；具备权限后可放入 `.github/workflows/ci.yml`。历史官方 MCP 握手为 28 工具、stderr 0。compiler15 当前回归与打包状态见[公开摘要](software-to-mcp-validation.json)的当前字段；compiler14检查点保存在对应历史字段，历史通过不自动继承。
 
 ## 保留的失败与保护结论
 
@@ -101,6 +147,20 @@ npm test
 npm run test:software
 npm run test:python
 ```
+
+compiler15预算与生命周期专项可运行：
+
+```sh
+node --test --test-concurrency=1 test/native-workflow-budget.test.mjs test/software-python-budget.test.mjs test/software-python.test.mjs test/software-native-visual-workflow.test.mjs test/software-operations.test.mjs
+```
+
+像素任务的本地 PNG/IPC 专项与真实浏览器项分别运行；本轮16项记录使用以下过滤命令，没有启动浏览器：
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='^(?!actual browser screenshots)' test/visual-pixel-task.test.mjs test/visual-caret.test.mjs test/visual-pixels.test.mjs
+```
+
+closed-root最终专项复现入口为[原语测试](../test/closed-shadow.test.mjs)与[工作流测试](../test/software-closed-shadow.test.mjs)，可串行运行两文件；其15项producer记录与7项独立浏览器复核分别保留。既有五文件Web组合51项与完整软件335项记录已通过，两者交叠不相加；独立生产安装/SDK基线已通过，最终index/tar与分发按提交前流程另验。
 
 新增 multipart、有限虚拟列表及有界规范读取可通过对应仓库专项复现；精确命令见[机器可读摘要](software-to-mcp-validation.json)的 `reproduce`。配置使用[虚拟列表示例](../examples/software/config.virtual-aria.example.json)、[严格屏幕按键示例](../examples/software/ios-visual-onscreen-device.example.json)及[完整文本确认示例](../examples/software/ios-visual-onscreen-complete-device.example.json)，必须按本地目标重新批准。研究策略另用 `npm run test:field-research` 运行，属于源码仓库研究测试，不接入生产能力；当前文件集增加后，复跑测试数可能与已记录历史专项不同。
 
@@ -132,7 +192,7 @@ npm run test:ios-visual-keyboard-workflow -- --appium-prefix "$BFS_APPIUM_PREFIX
 
 `--prepare-only` 仅准备环境，不等于两样本和双入口通过。当前未完成的 Android 中文与 iOS 普通键盘脚本应作为复验入口，不作为通过保证。Linux 缺少 macOS Vision 时，相关平台测试会明确跳过；Python 缺外部编译 fixture 时也应保留 skip。
 
-## 视觉识别开销
+## 历史 Canvas OCR 复用开销
 
 同一结果验证阶段对同一实际 Canvas 节点的多个区域复用一次截图与 OCR；不跨动作或断言轮次缓存。节点被替换时，即使 selector 和像素相同也拒绝；基线、断言与提取后复核保留独立观察。
 
@@ -146,7 +206,7 @@ npm run test:ios-visual-keyboard-workflow -- --appium-prefix "$BFS_APPIUM_PREFIX
 - 写执行和真实样本学习分别批准。输入也可能自动保存；派发后失败为 unknown，执行、验证、学习不自动重试或恢复。每次新调用都可能产生新副作用。
 - OCR 文本不证明控件角色、事件处理器身份、隐藏缓冲区或后台业务因果；截图、窗口检查与派发存在非原子间隔。结果变化属于时序证据。
 - 可信输入/结果及键盘区域内的像素变化有明确豁免范围，不能由相应布局指纹证明其语义。iOS 现有 WebDriver 会话不证明安装字节，AX 框和本地 envelope 不证明系统窗口 owner。
-- 通过范围以自建模拟器和有限测试站为主；物理 Android/iPhone、任意第三方 App、任意键盘、复杂协议/媒体、闭合 Shadow DOM、无限或不完整虚拟列表仍需逐目标验证。
+- 通过范围以自建模拟器和有限测试站为主；物理 Android/iPhone、任意第三方 App、任意键盘、复杂协议/媒体、未批准的closed root及未验收组合、无限或不完整虚拟列表仍需逐目标验证。
 - iframe 遮挡采用有限采样；部分裁剪、无法证明来源的 srcdoc 和超预算内容保留 gap。静态证据、HTTP 成功、UI 回执、界面结果与业务完成分别记录。
 
 发布摘要使用白名单字段。原始截图、令牌、cookie、设备 ID、会话及个人绝对路径不属于公开验证材料；提交或打包前应再次检查实际文件集合。远端 CI 和 GitHub 提交状态不由本文预先宣称。

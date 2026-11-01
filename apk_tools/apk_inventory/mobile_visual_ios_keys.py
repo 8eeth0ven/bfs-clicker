@@ -165,8 +165,9 @@ def _fresh_key(session, lease, config, definition, observation, geometry, source
     target = _target(source, name, literal)
     masks = [definition["resultRegion"]]
     keyboard_masks = _keyboard_only_masks(config, observation)
-    expected = v.ios._masked(config["node"], session, observation, masks)
-    expected_keyboard = v.ios._masked(config["node"], session, observation, keyboard_masks)
+    with v.ios._pixel_task(config["node"], session) as task:
+        expected = task.fingerprint(observation, masks)
+        expected_keyboard = task.fingerprint(observation, keyboard_masks)
     deadline = time.monotonic() + 2
     for attempt in range(6):
         session.budget.check()
@@ -179,11 +180,12 @@ def _fresh_key(session, lease, config, definition, observation, geometry, source
         after = read_source(session, config, fresh, geometry)
         if after["layout"] != source["layout"] or _target(after, name, literal) != target:
             fail("VISUAL_KEYBOARD_LAYOUT_CHANGED")
-        if v.ios._masked(config["node"], session, fresh, keyboard_masks) == expected_keyboard:
-            if v.ios._masked(config["node"], session, fresh, masks) == expected:
-                return after
-            if "caret" in config["keyboard"] and k._caret_equivalent(session, config, definition, observation, fresh, geometry, masks):
-                return after
+        with v.ios._pixel_task(config["node"], session) as task:
+            if task.fingerprint(fresh, keyboard_masks) == expected_keyboard:
+                if task.fingerprint(fresh, masks) == expected:
+                    return after
+                if "caret" in config["keyboard"] and k._caret_equivalent(session, config, definition, observation, fresh, geometry, masks, task=task):
+                    return after
         if attempt == 5 or time.monotonic() >= deadline:
             break
         time.sleep(min(.05, session.budget.timeout()))

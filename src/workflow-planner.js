@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {createReadStream,existsSync,lstatSync,readFileSync,realpathSync,statSync} from 'node:fs';
 import path from 'node:path';
 import {normalizeConfig} from './asset.js';
+import {closedKey,closedTarget} from './closed-shadow.js';
 import {acquireLock,identity,readAtomic} from './store.js';
 import {openCheckpointJournal} from './checkpoint.js';
 import {createPolicy} from './policy.js';
@@ -19,8 +20,8 @@ const stable=value=>Array.isArray(value)?value.map(stable):plain(value)?Object.f
 const hash=value=>createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
 const within=(root,file)=>{const part=path.relative(root,file);return part===''||part!=='..'&&!part.startsWith('..'+path.sep)&&!path.isAbsolute(part)};
 const fail=(code,message)=>{throw Object.assign(new Error(message),{code})};
-const frameKey=action=>JSON.stringify(action.framePath||[]);
-const locatorKey=action=>JSON.stringify([action.framePath||[],action.selector]);
+const frameKey=action=>JSON.stringify([action.framePath||[],action.closedShadow?{policyId:action.closedShadow.policyId,hosts:action.closedShadow.hosts}:null]);
+const locatorKey=action=>JSON.stringify([action.framePath||[],action.selector,...(action.closedShadow?[closedKey(action)]:[])]);
 function validLocator(action){return typeof action.selector==='string'&&action.selector.length>0&&action.selector.length<=4096&&Array.isArray(action.framePath||[])&&(action.framePath||[]).length<=12&&(action.framePath||[]).every(n=>Number.isSafeInteger(n)&&n>=0)}
 function fieldLabel(action){return String(action.associatedLabel||action.aria||action.name||action.placeholder||'输入参数').replace(/\s+/g,' ').trim().slice(0,100)}
 function secretValues(config){const values=[...Object.values(config.authInject?.headers||{}),config.proxy?.username,config.proxy?.password].filter(value=>typeof value==='string'&&value.length>=3);if(config.storageState&&existsSync(config.storageState)&&statSync(config.storageState).size<=2*1024*1024){const saved=JSON.parse(readFileSync(config.storageState,'utf8'));for(const cookie of saved.cookies||[])if(typeof cookie.value==='string'&&cookie.value.length>=3)values.push(cookie.value);for(const origin of saved.origins||[])for(const row of origin.localStorage||[])if(SENSITIVE.test(row.name||'')&&typeof row.value==='string'&&row.value.length>=3)values.push(row.value)}return [...new Set(values)]}
@@ -120,10 +121,10 @@ export async function planBrowserWorkflows({runDir,sourceId,offset=0,limit=20}={
    const groups=new Map(),seen=new Set();
    for(const rawAction of state.interactives){
     const action=plain(rawAction)?openedChoices(state,rawAction):rawAction;
-    if(!plain(action)||!validLocator(action)||seen.has(locatorKey(action)))continue;seen.add(locatorKey(action));
+    if(!plain(action)||!validLocator(action)||seen.has(locatorKey(action)))continue;try{closedTarget(action,config)}catch{globalGaps.add('closed_shadow_target_unapproved');continue;}seen.add(locatorKey(action));
     if(action.frameUrl&&!policy.navigation(action.frameUrl).allow){globalGaps.add('frame_outside_navigation_policy');continue}
     if(action.excluded||action.skipReason==='excluded_selector'||config.excludeSelectors.includes(action.selector)){excluded++;continue}
-    const group=action.formSelector||action.groupSelector||null,key=JSON.stringify([action.framePath||[],group]);
+    const group=action.formSelector||action.groupSelector||null,key=JSON.stringify([action.framePath||[],group,action.closedShadow?{...action.closedShadow,selector:undefined}:null]);
     if(!groups.has(key))groups.set(key,{controls:[],selector:group});groups.get(key).controls.push(action);
    }
    for(const {controls,selector:groupSelector}of groups.values()){
@@ -150,20 +151,20 @@ export async function planBrowserWorkflows({runDir,sourceId,offset=0,limit=20}={
        choices=Object.fromEntries(input.ariaChoices.options.map(option=>[option.value,{selector:option.selector,framePath:clone(input.framePath||[])}]));
        if(input.ariaChoices.options.some(option=>!policy.action({...input,selector:input.ariaChoices.domainEvidence==='bounded_virtual_scan'?config.ariaVirtualLists.find(item=>item.id===input.ariaChoices.virtual.policyId)?.optionSelector:option.selector,type:'click',role:'option',text:option.label,label:option.label,kind:'click'}).allow||input.ariaChoices.domainEvidence!=='bounded_virtual_scan'&&!config.actionAllowlist.includes(option.selector))){globalGaps.add('aria_option_action_not_approved');incomplete=true;break;}
       }
-      steps.push({kind:input.role==='combobox'?'choose':input.type==='select'?'select':input.type==='checkbox'?'check':'fill',selector:input.selector,framePath:clone(input.framePath||[]),param:field,...(choices?{choices,...(input.ariaSelectionAttribute?{selection:{attribute:input.ariaSelectionAttribute}}:{}),...(input.ariaChoices.domainEvidence==='bounded_virtual_scan'?{virtual:{policyId:input.ariaChoices.virtual.policyId,domain:clone(input.ariaChoices)}}:{})}:{}),actionId:input.id,htmlType:input.htmlType,htmlConstraints:clone(input.htmlConstraints||{})});
+      steps.push({kind:input.role==='combobox'?'choose':input.type==='select'?'select':input.type==='checkbox'?'check':'fill',selector:input.selector,framePath:clone(input.framePath||[]),...(input.closedShadow?{closedShadow:clone(input.closedShadow)}:{}),param:field,...(choices?{choices,...(input.ariaSelectionAttribute?{selection:{attribute:input.ariaSelectionAttribute}}:{}),...(input.ariaChoices.domainEvidence==='bounded_virtual_scan'?{virtual:{policyId:input.ariaChoices.virtual.policyId,domain:clone(input.ariaChoices)}}:{})}:{}),actionId:input.id,htmlType:input.htmlType,htmlConstraints:clone(input.htmlConstraints||{})});
       if(!successful.has(JSON.stringify([state.id,input.id])))gaps.push('input_execution_not_proven');else gaps.push('input_parameterization_not_proven');
      }
      if(incomplete){globalGaps.add('workflow_contract_incomplete');continue}
-     steps.push({kind:'click',selector:button.selector,framePath:clone(button.framePath||[]),actionId:button.id});
+     steps.push({kind:'click',selector:button.selector,framePath:clone(button.framePath||[]),...(button.closedShadow?{closedShadow:clone(button.closedShadow)}:{}),actionId:button.id});
      const inputSchema={type:'object',properties,...(required.length?{required}:{}),additionalProperties:false},outcomeCandidates=[];
      for(const target of (button.workflowOutputs||[]).slice(0,6)){
       if(!plain(target)||!validLocator({...target,framePath:button.framePath||[]}))continue;
-      const outputId='output_'+hash([candidateId,button.framePath||[],target.selector]),kind=target.tag==='table'?'table':'text';
-      outcomeCandidates.push({id:outputId,kind,selector:target.selector,framePath:clone(button.framePath||[]),tag:target.tag||null,role:target.role||null,...(['aria','title'].includes(target.labelSource)&&target.label?{semanticLabel:safeLabel(target.label,config,knownSecrets)}:{})});
+      const outputId='output_'+hash([candidateId,button.framePath||[],target.selector,...(target.closedShadow?[closedKey(target)]:[])]),kind=target.tag==='table'?'table':'text';
+      outcomeCandidates.push({id:outputId,kind,selector:target.selector,framePath:clone(button.framePath||[]),...(target.closedShadow?{closedShadow:clone(target.closedShadow)}:{}),tag:target.tag||null,role:target.role||null,...(['aria','title'].includes(target.labelSource)&&target.label?{semanticLabel:safeLabel(target.label,config,knownSecrets)}:{})});
      }
      if(!outcomeCandidates.length)gaps.push('output_locator_missing');
      const evidence=successful.get(JSON.stringify([state.id,button.id]));if(!evidence)gaps.push('submit_execution_not_proven');
-     const spec={schemaVersion:1,id:candidateId,name:'查询流程',description:'由已观察页面控件规划的待验证参数化流程',effect:'unknown',inputSchema,entry:{url:state.url,anchors:inputs.map(action=>({selector:action.selector,framePath:clone(action.framePath||[]),tag:action.tag}))},steps,assertions:[],extract:[],samples:[],outcomeCandidates};
+     const spec={schemaVersion:1,id:candidateId,name:'查询流程',description:'由已观察页面控件规划的待验证参数化流程',effect:'unknown',inputSchema,entry:{url:state.url,anchors:inputs.map(action=>({selector:action.selector,framePath:clone(action.framePath||[]),...(action.closedShadow?{closedShadow:clone(action.closedShadow)}:{}),tag:action.tag}))},steps,assertions:[],extract:[],samples:[],outcomeCandidates};
      const uniqueGaps=[...new Set(gaps)],item={id:candidateId,name:safeLabel('查询流程：'+fieldLabel(inputs[0]),config,knownSecrets),description:'候选控件组合；需要两组变化样本和参数相关输出断言后实际验证',kind:'browser_workflow',readiness:'candidate',effect:'unknown',revision:hash([revision,spec]),inputSchema:clone(inputSchema),outputTargets:outcomeCandidates.map(target=>({id:target.id,kind:target.kind,label:target.semanticLabel||(target.kind==='table'?'结果表格':'结果区域')})),gaps:uniqueGaps,evidence:{runId:meta.runId,stateId:state.id,stateEvidenceId:state.evidenceId,submitExecution:evidence||null,inputActionKeys:inputs.map(action=>hash(action.id||locatorKey(action))),parameterizationValidated:false}};
      candidates.push(item);privateSpecs[candidateId]=spec;
     }

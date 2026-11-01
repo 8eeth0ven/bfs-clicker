@@ -33,6 +33,14 @@ node src/software-mcp.js --output-root ./output-software --artifact-root ./examp
 
 失败任务同时返回机器可读 `errorCode` 和脱敏 `error` 文本，客户端可区分 SOURCE_CHANGED、INPUT_INVALID、CAPABILITY_NOT_READY 等状态后再决定重发现或修正参数。
 
+### 原生流程的时间预算
+
+`limits.maxDurationMs` 仍是 Python 原生执行器的 UI 预算，缺省 60 秒，须为 1–3,600,000 的整数。compiler15 将可信设备配置与派生时限绑定到同一份私有运行快照；修改原配置文件不会改变已经派发的那次运行。
+
+桥接在原 UI 预算外留 10 秒启动窗口；到达外层时限或收到取消后先请求终止，最多等待 12 秒便请求强制终止，并等待直接子进程退出。退出后的输出管道另有 1 秒收尾上限。这些窗口不增加 UI 动作或重试权限，派发后未确认仍保持 unknown。脱离进程组的任意外部子进程不在完整回收保证内。
+
+例如 UI 预算 480 秒时，Python 外层时限为 490 秒；设备验收辅助代码对每个后台操作设置单一 512 秒轮询窗口，逐次扣除已用时间，进度通知不重置期限。这不是整个多操作验收脚本的总时长，也不表示其他 MCP 客户端自动采用相同等待设置。耗时能力仍返回 operationId；客户端应设置自己的有界请求/轮询期限，并在停止后等待任务实际结束。
+
 ## OpenAPI / Swagger
 
 `software_import_openapi({sourceId:"api",documentPath:"/绝对路径/openapi.yaml",documentUrl:"https://example.test/openapi.yaml"})` 支持 OpenAPI 3.0/3.1 和 Swagger 2 的 JSON/YAML 文档。先在启动配置中为该 sourceId 声明 `bindings.api.allowed_origins`；documentUrl 只用于解析相对 URL，不触发下载。
@@ -114,6 +122,16 @@ Web 适配器从真实 API 账本与流量恢复方法、query/body 形状、来
 
 成功执行后返回 `result.output`：包含有界可见正文、范围内链接，以及 `tables[{caption,columns,rows}]`。读取主文档、开放 Shadow DOM 与范围内可见 iframe；隐藏、排除、越界、裁剪或读取失败的 iframe 保留明确 gap，不读取输入框值。iframe 遮挡使用视口内九点采样，并非对每个像素的证明；部分裁剪的 frame 与暂无法证明来源的 srcdoc 保守省略。主页面与 frame 正文共享 4 KiB 预算。提取后再次核对状态，页面漂移时不会把旧状态附到新内容上。正文与独立链接跳过表格后代，表格统一经受限结构化通道脱敏。输出最多 8 KiB，执行结果最多 16 KiB，并带截断与不可信内容标记。
 
+### Closed Shadow DOM
+
+compiler15 可通过可信启动配置 `webConfig.closedShadowRoots` 显式批准固定 host 链，见 [启动模板](../examples/software/config.closed-shadow.example.json) 和 [流程模板](../examples/software/browser-closed-shadow-workflow.example.json)。默认关闭，仅支持 Chromium 的主 frame；不能从 MCP 调用参数开启或扩大批准范围，动作与网络请求仍需原白名单授权。
+
+每条策略指定唯一 `id`、固定 CSS `hosts` 链和 `maxNodes`；最多 4 条策略、每链最多 4 层，单根默认 128、上限 256 个 DOM 节点。显式 nested host 链可用；不自动遍历未批准 nested 根或浏览器 UA 根。内部定位包含策略与 host 链，不会把闭根中的 `#query` 交给正文定位器。页面保留原 closed 模式，不改 `attachShadow` 或使用 JS click/value setter；隔离读取环境避免页面重写 DOM 原型后把查询引到正文。
+
+当前支持 text/search/textarea 输入、按钮及独立 DOM 文本结果。可由探索证据生成候选，仍须两组变化样本、结果断言和每次实际调用验证；结果 baseline 也保留闭根作用域。每次实际编辑前复核焦点、固定语义、来源、跨 host 祖先排除规则、可见性和命中范围。闭根输入采用真实聚焦、选择、删除与插入事件，页面事件处理器可能产生副作用；几何与派发仍不原子。
+
+同一次执行中的 host 或目标节点被重建会拒绝，业务更新重建结果 DOM 也一样。跨 frame、select/check、ARIA 选择器、视觉步骤及表格提取等组合暂不支持，并在动作前拒绝。某次闭根探索动作已尝试但未成功确认时，整个 run 的恢复会拒绝，避免从其他 frontier 重复未知业务；单独的已验证调用也不自动重试。不能据有限示例推导任意封装组件或站点兼容。
+
 ## 参数化流程
 
 新探索会保留字段名、关联标签、HTML 必填/范围/长度/选项、外置 form 关联，以及结果区域候选；同一区域的结果定位扫描复用缓存。`software_workflows({sourceId})` 从这些私有证据识别搜索/筛选候选，公开输入 schema、outputTargets 标识与缺口。私有选择器不进入目录；旧库存没有约束时不会猜测字段必填。
@@ -160,7 +178,7 @@ Android/iOS 后端执行替换输入、点击/滑动、断言和类型化提取�
 
 视觉合同 `schemaVersion:2` 对解码后的整张 Canvas 像素建立指纹；只遮罩同 selector、同 frame 中此前已填写并回读的输入区，结果区不作为动态遮罩。同一区域多次输入以最后一次为准；当前输入区及动作锚点不得与其他遮罩按像素重叠，点击点也不得落入遮罩。`visualClick` 必须落在当前 OCR 锚点文字框内。每个后续视觉动作前使用同一张 OCR 截图重读此前关联的输入值；检查后仍会核对画面，发生变化则拒绝动作。不同 selector 的别名不自动视为同一宿主，动态时间、动画或光标等未遮罩变化可能导致保守拒绝；画面一致也不能证明隐藏处理器语义未变。
 
-PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-14`。
+PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-15`。
 
 声明 `changedFromBefore:true` 的 DOM、ARIA 与视觉流程在最后触发动作前另取结果基线，防止输入时已更新的结果令无操作触发通过；提取后还会复核结果。该变化仍是时间上的证据：异步结果更新可能独立于触发动作，不能据此证明因果或后台业务完成。同一结果验证阶段中，同一 Canvas 的多个结果区域共享一次截图与 OCR；缓存仅限当前阶段，不跨动作或断言轮次复用。复用时固定 ElementHandle 并检查当前节点仍是同一宿主，替换则拒绝；触发前基线、触发后断言和提取后复核各自保留。
 
@@ -292,9 +310,11 @@ python apk_tools/visual_helper/build.py --sdk /absolute/android-sdk --out /absol
 
 #### iOS 普通系统软键盘
 
+compiler15 将逐键校验中相邻的只读 PNG 操作合并到作用域子进程，每一步仍重读并验证原图，不跨 UI 动作缓存。旧第12轮两张拒绝帧的三轮离线对照中，这段像素计算的实际子进程从 8 个减为 3 个，中位耗时约 1.33 秒降为 1.06 秒，PNG 解码仍为 10 次，判定结果完全一致。该测量不包含整条设备流程，也不能证明新的键盘验收通过。第14轮真实验收在一次 Focus 后因 `VISUAL_KEYBOARD_NOT_VISIBLE` 拒绝，尚未清除、键入或提交；当前完整边界见验证摘要。
+
 compiler13 在 clear/type 的第一次准备观察中增加只读稳定采样：最多 3 个完整的界面树→新截图/OCR→界面树观察对，累计最多 12 次 source、3 张新图。只在严格验证后的合法键盘相位前后不一致时整组重采，不把旧图改标为新相位；特定 visible-but-offscreen 矛盾仍须等待新的合法证据。首个明确不稳定证据启动共享且不重置的 2 秒追加窗口；它限制新采样的启动，单次在途传输与 OCR 仍受原超时及总预算约束。它不重复 focus、clear、type、Dismiss 或提交，后续新鲜度与完整截图核对仍保留。
 
-compiler12 新增本地显式启用的 `nativeVisualWorkflow.keyboard`，参照[设备模板](../examples/software/ios-visual-keyboard-device.example.json)、[可信定义](../examples/software/ios-visual-keyboard-workflow.example.json)与[自然 UITextField 夹具](../apk_tools/examples/ios-visual-keyboard/main.m)。该夹具保留系统键盘和普通 caret。此路径当前相关 Python 模拟/本地 PNG 测试 109/109、Node 光标专项 9/9 通过，**完整真实模拟器验收尚未通过，尚无普通键盘两样本和统一/生成双入口通过结论**；不能以无键盘 UIKeyInput 的历史成功替代。
+compiler12 新增本地显式启用的 `nativeVisualWorkflow.keyboard`，参照[设备模板](../examples/software/ios-visual-keyboard-device.example.json)、[可信定义](../examples/software/ios-visual-keyboard-workflow.example.json)与[自然 UITextField 夹具](../apk_tools/examples/ios-visual-keyboard/main.m)。该夹具保留系统键盘和普通 caret。该分支早期 Python 模拟/本地 PNG 测试 109/109、Node 光标专项 9/9 通过；新版本专项以验证摘要为准。**完整真实模拟器验收尚未通过，尚无普通键盘两样本和统一/生成双入口通过结论**；不能以无键盘 UIKeyInput 的历史成功替代。
 
 `sourceRegion` 必须匹配本次来源树中唯一可见 Keyboard 的实际像素框；`region` 是本地管理者另行批准的视觉 envelope，包含它的有限背景和阴影。省略 `sourceRegion` 时与 `region` 相同，不自动补齐边缘。二者均须全宽且近底部；顶部额外范围同时不超过视口 2.5% 和 12pt，底部同时不超过 5% 和 24pt。输入区、focus/submit/dismiss 锚点不得与 envelope 相交。学习合同和设备身份绑定完整配置，像素失败后不会自动扩大范围。AX 框只能证明所观察的树与几何，不能证明这些额外像素属于系统窗口。
 

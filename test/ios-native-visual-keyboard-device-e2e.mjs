@@ -5,6 +5,8 @@
 import assert from 'node:assert/strict';
 import {keyboardEnvelope} from './ios-keyboard-envelope.mjs';
 import {assertDeviceRequestWindow} from './ios-keyboard-request-audit.mjs';
+import {nativeWorkflowBudget,nativeMcpRequestOptions,waitNativeOperation} from '../src/native-workflow-budget.js';
+import {runPython} from '../src/software-python.js';
 import {spawn,execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {existsSync,openSync,closeSync} from 'node:fs';
@@ -27,7 +29,9 @@ const output=path.resolve(values.output||path.join(reportDir,'ios-text-next-devi
 const appiumPrefix=path.resolve(values['appium-prefix']||path.join(reportDir,'ios-appium-owned-20261029')),appiumHome=path.join(appiumPrefix,'appium-home'),appiumEntry=path.join(appiumPrefix,'node_modules/appium/build/lib/main.js');
 const appId='com.example.bfsmcp.iosvisualkeyboard',hash=value=>createHash('sha256').update(value).digest('hex'),record={date:new Date().toISOString(),kind:'real_ios_simulator',interface:'unified_and_generated_mcp',status:'running',outputDir:output,scope:{userDevicesErased:false,userAppsTouched:false,licensesAccepted:false,developerDirectoryChanged:false,globalAppiumInstalled:false,runtimeDownloadedByThisScript:false},steps:[],cleanup:{}};
 let ownedUdid,ownedName,ownedRuntime,appiumChild,appiumPort,wdaPort,mjpegPort,proxy,proxyPort,sessionId,client,generatedClient,installed=false,interrupted=false;
-const requests=[],ownedCommands=new Set(),evidenceTasks=new Set();
+const requests=[],ownedCommands=new Set(),evidenceTasks=new Set(),commandAbort=new AbortController();
+const nativeLimits=Object.freeze({maxDepth:0,maxActions:50,maxDurationMs:480000}),nativeBudget=nativeWorkflowBudget({limits:nativeLimits});
+record.nativeBudget=nativeBudget;
 async function trackedRequests(label,operation){
  record.requestWindows??={};assert(!record.requestWindows[label]);
  const window={startIndex:requests.length,startedAt:new Date().toISOString()};record.requestWindows[label]=window;
@@ -108,14 +112,15 @@ async function checkCleanup(){
  for(const port of Object.values(record.ports||{})){const value=await run('/usr/sbin/lsof',['-nP','-t','-iTCP:'+port,'-sTCP:LISTEN'],{allowFailure:true});record.processCleanupAudit.ports[port]={listening:!!value.stdout.trim(),pids:value.stdout.trim().split('\n').filter(Boolean)}}
 }
 const driver = path.join(project, 'test', 'ios-visual-text-inspect.py');
-async function moduleOperation(operation,label,extra=[],timeout=300000){
- const target=path.join(output,label);
- await run(python,[driver,'--operation',operation,'--config',path.join(output,'device.json'),'--output',target,...extra],{timeout});
+async function moduleOperation(operation,label,extra=[],timeout=nativeBudget.timeoutMs){
+ const target=path.join(output,label),args=[driver,'--operation',operation,'--config',path.join(output,'device.json'),'--output',target,...extra];
+ let result;try{result=await runPython({python},args,{timeoutMs:timeout,cleanupGraceMs:nativeBudget.cleanupGraceMs,signal:commandAbort.signal});}catch(error){await appendFile(path.join(output,'host-commands.jsonl'),JSON.stringify({at:new Date().toISOString(),exe:python,args,error:String(error.message),timeoutMs:timeout,cleanupGraceMs:nativeBudget.cleanupGraceMs})+'\n');throw error;}
+ await appendFile(path.join(output,'host-commands.jsonl'),JSON.stringify({at:new Date().toISOString(),exe:python,args,code:0,stderr:result.stderr.slice(-4000),timeoutMs:timeout,cleanupGraceMs:nativeBudget.cleanupGraceMs})+'\n');
  return json(path.join(target,'result.json'));
 }
 const content=reply=>reply.structuredContent??JSON.parse(reply.content.find(item=>item.type==='text').text);
-async function call(c,name,args={}){
- const reply=await c.callTool({name,arguments:args});assert.ok(!reply.isError,JSON.stringify(reply));return content(reply);
+async function call(c,name,args={},requestOptions=nativeMcpRequestOptions(nativeBudget)){
+ const reply=await c.callTool({name,arguments:args},{...requestOptions,signal:commandAbort.signal});assert.ok(!reply.isError,JSON.stringify(reply));return content(reply);
 }
 async function connect(entry,args=[]){
  const transport=new StdioClientTransport({command:process.execPath,args:[entry,...args],cwd:project,stderr:'pipe',env:{...process.env}});
@@ -123,10 +128,7 @@ async function connect(entry,args=[]){
  const c=new Client({name:'bfs-real-ios-text',version:'1'});await c.connect(transport);return c;
 }
 async function operation(c,started,statusTool='software_operation'){
- return until(async()=>{
-  const value=await call(c,statusTool,{operationId:started.operationId});
-  return ['completed','failed','cancelled','interrupted'].includes(value.status)?value:null;
- },'MCP '+started.operationId,300000);
+ let last=0;return waitNativeOperation(options=>call(c,statusTool,{operationId:started.operationId},options),nativeBudget,{signal:commandAbort.signal,onPending(){if(Date.now()-last>15000){log('waiting',{for:'MCP '+started.operationId});last=Date.now();}}});
 }
 async function completed(c,started,statusTool='software_operation'){
  const value=await operation(c,started,statusTool);assert.equal(value.status,'completed',JSON.stringify(value));return value;
@@ -256,7 +258,7 @@ async function main(){
   }
   record.keyboardCalibration.ownerApprovedCaretPolicy=caretPolicy;
   const deviceFile=path.join(output,'device.json');
-  await save(deviceFile,{source:{id:sourceId,kind:'ios'},backend:{type:'webdriver',platform:'ios',appId,commandTimeoutMs:60000,url:'http://127.0.0.1:'+proxyPort,sessionId},limits:{maxDepth:0,maxActions:50,maxDurationMs:480000},actionAllowlist:[],nativeVisualWorkflow:{keyboard:keyboardPolicy,enabled:true,node:process.execPath,allowedWorkflows:[definition.id],approvedDefinitions:{[definition.id]:spec}}});
+  await save(deviceFile,{source:{id:sourceId,kind:'ios'},backend:{type:'webdriver',platform:'ios',appId,commandTimeoutMs:60000,url:'http://127.0.0.1:'+proxyPort,sessionId},limits:nativeLimits,actionAllowlist:[],nativeVisualWorkflow:{keyboard:keyboardPolicy,enabled:true,node:process.execPath,allowedWorkflows:[definition.id],approvedDefinitions:{[definition.id]:spec}}});
   const configFile=path.join(output,'runtime.json');
   await save(configFile,{outputRoot:path.join(output,'software'),artifactRoots:[output],python,devices:{owned_ios:deviceFile},bindings:{[sourceId]:{allowed_origins:[]}}});
   if(values['await-ocr-ready']){
@@ -461,5 +463,5 @@ async function main(){
   process.stdout.write(JSON.stringify({status:record.status,report:path.join(output,'ios-keyboard-results.json'),mcp:record.mcpAcceptancePassed===true})+'\n');
  }
 }
-const interrupt=()=>{interrupted=true;for(const child of ownedCommands)child.kill('SIGTERM')};
+const interrupt=()=>{interrupted=true;commandAbort.abort(new Error('interrupted'));for(const child of ownedCommands)child.kill('SIGTERM')};
 process.once('SIGINT',interrupt);process.once('SIGTERM',interrupt);await main();

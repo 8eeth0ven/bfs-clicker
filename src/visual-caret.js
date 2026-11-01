@@ -54,7 +54,7 @@ function fileBytes(file, extraFlags = 0) {
       current = path.join(current, part);
       if (lstatSync(current).isSymbolicLink()) badImage();
     }
-    fd = openSync(absolute, constants.O_RDONLY | constants.O_NOFOLLOW | extraFlags);
+    fd = openSync(absolute, constants.O_RDONLY | constants.O_NOFOLLOW | (constants.O_NONBLOCK || 0) | extraFlags);
     const info = fstatSync(fd);
     if (!info.isFile() || info.size < 45 || info.size > 16 * 1024 * 1024) badImage();
     const bytes = Buffer.alloc(info.size + 1);

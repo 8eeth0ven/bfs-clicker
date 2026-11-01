@@ -299,7 +299,7 @@ async function readSource(root, sourceId) {
   return { root, sourceId, meta, config, checkpoint, states, observed, succeeded, transitions, virtualEvents, revision, notices: recovery.notices, invalidEvents, scrub: scrubber(config) };
 }
 
-const actionFields = ['id','selector','fallbackSelector','framePath','frameUrl','kind','type','tag','htmlType','role','text','label','aria','title','href','formAction','formMethod','contextText','safeReplay','optionValue','options','scrollStep','checkedValue','hoverHint','filterContext','excluded','skipped'];
+const actionFields = ['id','selector','fallbackSelector','closedShadow','framePath','frameUrl','kind','type','tag','htmlType','role','text','label','aria','title','href','formAction','formMethod','contextText','safeReplay','optionValue','options','scrollStep','checkedValue','hoverHint','filterContext','excluded','skipped'];
 function descriptor(action) { return Object.fromEntries(actionFields.filter(key => Object.hasOwn(action, key) && action[key] !== undefined).map(key => [key, clone(action[key])])); }
 function actionProblems(source, state, action) {
   const gaps = [];
@@ -391,7 +391,7 @@ async function strictAction(page, dialogs, action, config) {
   if (action.kind === 'scroll') return clickElement(page, dialogs, action, config);
   config._runtime.budget.check(); dialogs.invalidate(); await dialogs.handle();
   let locator;
-  try { if (await locate(page, action).count() !== 1) fail('LOCATOR_CHANGED', '控件不再唯一'); locator = await checkLiveAction(page, action, config); }
+  try { if (await locate(page, action, config).count() !== 1) fail('LOCATOR_CHANGED', '控件不再唯一'); locator = await checkLiveAction(page, action, config); }
   catch (error) { if (error.name === 'PolicyError') throw error; fail('LOCATOR_CHANGED', '原始控件失效或不再唯一，拒绝按标签猜测重定位'); }
   const timeout = Math.max(1, Math.min(config.actionTimeoutMs, config._runtime.budget.remainingMs));
   try {

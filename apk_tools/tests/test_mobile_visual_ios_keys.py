@@ -117,6 +117,13 @@ class KeyHarness(Harness):
     def __enter__(self):
         super().__enter__()
         self.stack.enter_context(patch.object(keys, 'capture_locked', side_effect=self.capture))
+        owner = self
+        class PixelTask:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def fingerprint(self, observation, masks):
+                return owner.masked(None, owner.session, observation, masks)
+        self.stack.enter_context(patch.object(visual.ios, '_pixel_task', side_effect=lambda *_: PixelTask()))
         return self
 
 

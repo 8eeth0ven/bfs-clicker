@@ -169,7 +169,7 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
     // Drain responses while context still exists, then save the latest auth state.
     if(launched){await evidence.drain();if(!manualLogin||status==='completed')await saveSession(launched.context,config,store).catch(()=>{if(status==='completed'){status='partial';stopReason='session_save_failed'}});await launched.close();await evidence.drain();}
     const finalChanges=[];
-    for(const st of states.values())for(const action of st.interactives){if(action.status==='running'){action.status='planned';action.reason='interrupted_before_commit';if(!finalChanges.includes(st))finalChanges.push(st);}}
+    for(const st of states.values())for(const action of st.interactives){if(action.status==='running'){action.status=action.closedShadow?'failed':'planned';action.reason=action.closedShadow?'closed_shadow_unknown_no_retry':'interrupted_before_commit';if(action.closedShadow)action.noRetry=true;if(!finalChanges.includes(st))finalChanges.push(st);}}
     const pending={states:[...states.values()].filter(hasPending).length,actions:[...states.values()].reduce((n,s)=>n+s.interactives.filter(isPending).length,0),failed:[...states.values()].reduce((n,s)=>n+s.interactives.filter(a=>a.status==='failed').length,0),seeds:[...evidence.seeds].filter(u=>!seedsVisited.has(u)).length};
     pending.bootstrap=states.size?0:1;
     if(status==='running'){status=pending.actions||pending.failed||pending.seeds?'partial':'completed';stopReason=status==='completed'?'frontier_exhausted':pending.failed?'failed_actions':'pending_actions';}
@@ -228,6 +228,7 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
   }
   try {
     if(resume&&existsSync(path.join(store.dir,'STOP'))){rmSync(path.join(store.dir,'STOP'));store.emit('resume_stop_cleared');}
+    if(resume){const unknown=[...states.values()].filter(state=>state.interactives.some(action=>action.closedShadow&&(action.attempts||0)>0&&action.status!=='succeeded'));if(unknown.length){for(const state of unknown)for(const action of state.interactives)if(action.closedShadow&&(action.attempts||0)>0&&action.status!=='succeeded'){action.status='failed';action.reason='closed_shadow_unknown_no_retry';action.noRetry=true;}save(unknown);throw new StopError('closed_shadow_unknown_no_retry','partial');}}
     if(config.storageState)sessionLock=acquireLock(`${config.storageState}.bfs.lock`,{runId:config.runId});
     if(resume)await evidence.restore();
     store.update({runtime:{node:process.version,platform:process.platform,playwright:JSON.parse(execFileSync(process.execPath,['-e',"process.stdout.write(JSON.stringify(require('playwright/package.json').version))"],{encoding:'utf8',windowsHide:true})),codeVersion:gitVersion()}});
@@ -235,7 +236,7 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
     launched=await launchGuardedBrowser(config,policy,budget,store);evidence.attach(launched.context);
     store.update({browser:{engine:'chromium',version:launched.context.browser().version(),channel:config.channel||null}});
     await newPage();await page.evaluate(({selectors,noise,auth})=>{for(const s of [...selectors,...noise,...auth].filter(Boolean))document.querySelector(s)}, {selectors:config.excludeSelectors,noise:config.fingerprintIgnoreSelectors,auth:[config.auth.loggedInSelector,config.auth.loggedOutSelector]});
-    store.emit('coverage_gap',{reason:'closed_shadow_roots_unsupported'});
+    store.emit('coverage_gap',{reason:config.closedShadowRoots?.length?'closed_shadow_top_level_native_text_button_subset':'closed_shadow_roots_not_opted_in'});
     store.emit('coverage_gap',{reason:'websocket_webrtc_shared_workers_unsupported'});
     const response=await navigate(manualLogin?config.loginUrl||config.startUrl:config.startUrl);
     if(manualLogin){
@@ -251,7 +252,7 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
     else{
       // Rebuild the frontier BEFORE deciding completion, including states clipped by prior depth/budget.
       for(const state of states.values()){
-        for(const action of state.interactives){if(action.status==='running'||action.status==='failed'&&(action.attempts||0)<=config.maxRetries){action.status='planned';action.reason='resume_retry';}}
+        for(const action of state.interactives){if(action.closedShadow&&(action.attempts||0)>0&&action.status!=='succeeded'){action.status='failed';action.reason='closed_shadow_unknown_no_retry';action.noRetry=true;}else if(!action.noRetry&&(action.status==='running'||action.status==='failed'&&(action.attempts||0)<=config.maxRetries)){action.status='planned';action.reason='resume_retry';}}
         if(hasPending(state))frontier.push(state.id);
       }
       store.emit('resume_frontier',{states:frontier.length});
@@ -316,9 +317,9 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
           store.emit('action_finished',{stateId:state.id,actionId:action.id,executionId:action.evidenceId,status:action.status,reason:action.reason,url:page.url()});failureCount=0;lastProgress=Date.now();actionsSinceSeed++;save([state]);
         }catch(error){
           residentId=null;
-          if(error instanceof StopError||budget.reason){action.status='planned';action.reason='interrupted';dirtyStates.set(state.id,state);throw error;}
+          if(error instanceof StopError||budget.reason){action.status=action.closedShadow?'failed':'planned';action.reason=action.closedShadow?'closed_shadow_unknown_no_retry':'interrupted';if(action.closedShadow)action.noRetry=true;dirtyStates.set(state.id,state);throw error;}
           if(error.name==='PolicyError'){action.status='skipped';action.reason=error.reason||error.message;}
-          else{action.status='failed';action.reason=String(error.message||error).slice(0,800);state.failed.push({selector:action.selector,message:action.reason});failureCount++;}
+          else{action.status='failed';action.reason=String(error.message||error).slice(0,800);if(action.closedShadow)action.noRetry=true;state.failed.push({selector:action.selector,message:action.reason});failureCount++;}
           store.emit('action_finished',{stateId:state.id,actionId:action.id,executionId:action.evidenceId,status:action.status,reason:action.reason});actionsSinceSeed++;save([state]);
           if((config.circuitBreakerMax??5)>0&&failureCount>=(config.circuitBreakerMax??5))throw new StopError('consecutive_failures','partial');
         }finally{setHint(null);}
