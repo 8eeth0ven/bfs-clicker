@@ -1,0 +1,8 @@
+{
+  "outputRoot": "./output-software",
+  "artifactRoots": ["./examples/software"],
+  "python": "./.venv/bin/python",
+  "webConfig": {"shotFormat": "none", "requestDelayMs": 50},
+  "bindings": {"api": {"allowed_origins": ["https://api.example.test"]}},
+  "devices": {}
+}

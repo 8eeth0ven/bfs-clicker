@@ -16,8 +16,28 @@ export interface Health {
 export interface Operation {
   method: Method; provenance: string[]; categories: string[]; description: string;
   extraction_sources: string[]; locations: string[]; parameter_summary: any[];
-  params_schema: Schema; body_encoding: 'json' | 'form' | 'text' | 'unsupported';
+  params_schema: Schema; body_encoding: 'json' | 'form' | 'text' | 'multipart' | 'unsupported';
   allowed: boolean; blocked_reason?: string; contract_revision: string;
+  query_serialization?: Record<string, QuerySerialization>;
+  query_serialization_conflict?: boolean;
+  form_serialization?: FormSerialization;
+  form_serialization_conflict?: boolean;
+  multipart_serialization?: MultipartSerialization;
+  multipart_serialization_conflict?: boolean;
+}
+export type MultipartField = {kind:'text';valueType:'string'|'number'|'integer'|'boolean';contentType:'text/plain';array:boolean} | {kind:'file';contentType:string;array:boolean};
+export interface MultipartSerialization {schemaVersion:1;fields:Record<string,MultipartField>}
+export interface QuerySerialization {
+  style: 'form' | 'spaceDelimited' | 'pipeDelimited' | 'tabDelimited' | 'deepObject';
+  explode: boolean;
+  kind: 'scalar' | 'array' | 'object';
+}
+export type FormRule = ({mode:'style'} & QuerySerialization) | {mode:'content';contentType:'application/json'|'text/plain';kind:'scalar'|'array'|'json'};
+export interface FormSerialization {
+  fields:Record<string,FormRule>;
+  additional?:FormRule;
+  patterns?:{pattern:string;rule:FormRule}[];
+  conditions?:{when:boolean|Schema;fields:Record<string,FormRule>;patterns?:{pattern:string;rule:FormRule}[];additional?:FormRule}[];
 }
 export interface Endpoint {
   id: string; source: string; source_revision: string; origin: string; path: string;
@@ -45,7 +65,7 @@ export interface SourceSnapshot {
 }
 export interface CallParams {
   method?: Method; path?: Record<string, string | number>;
-  query?: Record<string, string | number | boolean | null | (string | number | boolean)[]>;
+  query?: Record<string, Json>;
   body?: Json;
 }
 export interface GatewayResult<T = any> {

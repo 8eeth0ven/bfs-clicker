@@ -1,0 +1,29 @@
+{
+  "outputRoot": "./output-software",
+  "artifactRoots": ["./examples/software"],
+  "webConfig": {
+    "shotFormat": "none",
+    "actionProfile": "forms",
+    "fillText": false,
+    "exploreScroll": false,
+    "navigationOrigins": ["https://app.example.test"],
+    "requestOrigins": ["https://app.example.test"],
+    "credentialOrigins": [],
+    "actionAllowlist": ["#category", "#list", "#list [role=\"option\"]", "#search"],
+    "requestAllowlist": [{"method": "POST", "url": "https://app.example.test/api/search"}],
+    "ariaVirtualLists": [{
+      "id": "cities",
+      "selector": "#category",
+      "listboxSelector": "#list",
+      "scrollSelector": "#list",
+      "optionSelector": "#list [role=\"option\"]",
+      "valueAttribute": "data-value",
+      "maxOptions": 12,
+      "maxScrolls": 12,
+      "maxSnapshots": 96,
+      "timeoutMs": 4000
+    }]
+  },
+  "bindings": {},
+  "devices": {}
+}

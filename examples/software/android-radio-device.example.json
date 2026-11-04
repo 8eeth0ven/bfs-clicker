@@ -1,0 +1,55 @@
+{
+  "backend": {
+    "type": "adb",
+    "deviceId": "REPLACE_WITH_DEVICE_SERIAL"
+  },
+  "limits": {
+    "maxActions": 40,
+    "maxDepth": 2,
+    "maxDurationMs": 120000
+  },
+  "actionAllowlist": [
+    {
+      "kind": "select",
+      "selector": {
+        "accessibilityId": "StatusGroup"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "check",
+      "selector": {
+        "accessibilityId": "all"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "check",
+      "selector": {
+        "accessibilityId": "open"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "check",
+      "selector": {
+        "accessibilityId": "closed"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "type",
+      "selector": {
+        "accessibilityId": "QueryText"
+      },
+      "effect": "read"
+    },
+    {
+      "kind": "click",
+      "selector": {
+        "accessibilityId": "Search"
+      },
+      "effect": "read"
+    }
+  ]
+}

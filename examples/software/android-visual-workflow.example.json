@@ -1,0 +1,15 @@
+{
+  "kind": "native-visual-workflow",
+  "schemaVersion": 1,
+  "id": "choose",
+  "name": "选择并读取自绘结果",
+  "effect": "read",
+  "activity": "com.example.target.Main",
+  "inputName": "choice",
+  "choices": {
+    "alpha": {"anchor": "Alpha", "expected": "ALPHA"},
+    "beta": {"anchor": "Beta", "expected": "BETA"}
+  },
+  "resultRegion": {"x": 0.05, "y": 0.5, "width": 0.85, "height": 0.2},
+  "resultPrefix": "RESULT"
+}

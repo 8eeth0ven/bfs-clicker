@@ -1,0 +1,22 @@
+openapi: 3.1.0
+info:
+  title: 示例查询接口
+  version: '1'
+servers:
+  - url: https://api.example.test/v1
+paths:
+  /items/{id}:
+    get:
+      summary: 按编号查询项目
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: integer, minimum: 1}
+        - in: query
+          name: tag
+          schema:
+            type: array
+            items: {type: string}
+      responses:
+        '200': {description: 查询响应}

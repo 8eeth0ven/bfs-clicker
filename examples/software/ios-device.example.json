@@ -1,0 +1,14 @@
+{
+  "backend": {
+    "type": "webdriver",
+    "url": "http://127.0.0.1:4723",
+    "sessionId": "REPLACE_WITH_EXISTING_SESSION",
+    "platform": "ios"
+  },
+  "limits": {
+    "maxActions": 30,
+    "maxDepth": 4,
+    "maxDurationMs": 60000
+  },
+  "actionAllowlist": []
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
+  <title>网站探索地图 · bfs-clicker</title>
+  <link rel="stylesheet" href="./graph.css">
+  <script defer src="./graph.js"></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="page-header">
+      <div class="heading"><p class="eyebrow"><span class="brand-mark" aria-hidden="true">↗</span> BFS CLICKER <span class="eyebrow-divider">/</span> 探索结果</p><h1>看清页面背后的流程。</h1><p class="subtitle">从页面操作到接口请求，沿着本次留下的证据逐步查看。</p></div>
+      <div class="header-actions"><span id="run-status" class="status-pill">等待数据</span><label class="import-button" for="graph-file">导入地图 <span aria-hidden="true">↑</span></label><input id="graph-file" class="visually-hidden" type="file" accept="application/json,.json"></div>
+    </header>
+    <section class="scope-card" aria-label="本次探索范围">
+      <div class="scope-copy"><span class="small-label">本次探索</span><p id="asset-url" class="asset-url">正在读取同目录的 graph.json…</p><p id="scope-note" class="scope-note">地图只说明本次已观察的范围。发现队列完成，不等于全站全部流程已覆盖。</p></div>
+      <div class="metrics"><div><strong id="state-count">—</strong><span>页面状态</span></div><div><strong id="action-count">—</strong><span>记录的操作</span></div><div><strong id="api-count">—</strong><span>有响应接口</span></div><div><strong id="pending-count">—</strong><span>仍待探索</span></div></div>
+    </section>
+    <p id="load-message" class="load-message" role="status" aria-live="polite">正在打开探索地图。</p>
+    <section id="coverage-panel" class="coverage-panel" hidden>
+      <details id="coverage-details"><summary id="coverage-summary">范围与覆盖说明</summary><div id="coverage-content" class="coverage-content"></div></details>
+    </section>
+    <section class="explorer" aria-label="网站流程与调用图">
+      <div class="explorer-toolbar">
+        <div class="mode-tabs" role="tablist" aria-label="地图类型"><button id="mode-flow" type="button" role="tab" aria-selected="true" data-mode="flow">页面流程</button><button id="mode-calls" type="button" role="tab" aria-selected="false" data-mode="calls">接口调用</button><button id="mode-all" type="button" role="tab" aria-selected="false" data-mode="all">全部关系</button></div>
+        <label class="search-box" for="graph-search"><span aria-hidden="true">⌕</span><input id="graph-search" type="search" placeholder="搜索页面、操作或接口" autocomplete="off" spellcheck="false"><span class="search-key" aria-hidden="true">查找</span></label>
+      </div>
+      <div class="filter-bar"><div class="filter-options"><label><input id="show-observed" type="checkbox" checked>已观察</label><label><input id="show-candidates" type="checkbox">候选线索</label><label><input id="show-inactive" type="checkbox">待办 / 跳过 / 失败</label></div><p id="filter-caption">先看已观察流程，其他线索可按需展开。</p></div>
+      <div class="explorer-body">
+        <section class="map-panel" aria-label="交互地图">
+          <div class="map-heading"><div><h2 id="map-title">页面流程</h2><p id="render-summary" aria-live="polite">准备地图中。</p></div><div class="map-nav"><button id="previous-page" type="button" aria-label="上一页节点" disabled>←</button><span id="page-label">1 / 1</span><button id="next-page" type="button" aria-label="下一页节点" disabled>→</button></div></div>
+          <div id="map-canvas" class="map-canvas"><svg id="graph-map" tabindex="0" role="group" aria-label="流程图，拖动空白处移动，滚轮缩放，点击节点查看详情"><defs><marker id="arrow-observed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker id="arrow-context" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z"></path></marker></defs><g id="graph-world"></g></svg><div id="empty-map" class="empty-map" hidden><span aria-hidden="true">⌕</span><h3>这里暂时没有匹配的节点</h3><p>试试其他关键词，或打开候选与待办筛选。</p></div><div class="canvas-hint">拖动空白处移动 · 点击节点展开</div><div class="zoom-controls"><button id="zoom-out" type="button" aria-label="缩小">−</button><span id="zoom-level">85%</span><button id="zoom-in" type="button" aria-label="放大">+</button><button id="reset-view" type="button">回到起点</button><button id="fit-view" type="button">适应显示</button></div></div>
+          <div class="map-footer"><div class="legend"><span><i class="legend-state"></i>页面状态</span><span><i class="legend-action"></i>用户操作</span><span><i class="legend-api"></i>接口</span><span><i class="legend-candidate"></i>脚本 / 地址</span></div><span id="edge-note">实线为已观察关系，虚线为上下文或静态线索。</span></div>
+          <div id="omission-note" class="omission-note" hidden></div>
+        </section>
+        <aside class="detail-panel" aria-labelledby="detail-title">
+          <div class="detail-heading"><span class="small-label">节点详情</span><button id="clear-selection" type="button" aria-label="清除节点选择" hidden>×</button></div>
+          <div id="detail-placeholder" class="detail-placeholder"><div class="placeholder-diagram" aria-hidden="true"><span>页</span><i>→</i><span>操作</span><i>→</i><span>API</span></div><h2 id="detail-title">从一个节点开始。</h2><p>点击页面、操作或接口，查看前后关系、已知路径和证据。</p><p class="detail-hint">同一个页面可以有多个状态，例如菜单展开前后。候选地址只是线索，尚不代表真实调用。</p></div>
+          <div id="detail-content" hidden><div id="detail-badges" class="detail-badges"></div><h2 id="selected-label" class="selected-label"></h2><dl id="selected-meta" class="selected-meta"></dl><div class="detail-actions"><button id="focus-node" type="button">只看周围关系</button><button id="clear-focus" type="button" hidden>返回全局</button></div><div id="selected-image"></div><section class="path-section"><h3>从入口到这里</h3><p id="path-note" class="detail-hint"></p><ol id="known-path" class="known-path"></ol></section><section class="relations-section"><h3>前后关联</h3><div id="relations"></div></section><details class="evidence-section"><summary id="evidence-summary">证据编号</summary><ul id="evidence-list"></ul></details></div>
+        </aside>
+      </div>
+    </section>
+    <footer class="page-footer"><span>本地证据地图 · 所有目标地址仅作文本展示，不会自动访问目标站点。</span><span>已知路径 ≠ 全站完整流程</span></footer>
+  </main>
+</body>
+</html>

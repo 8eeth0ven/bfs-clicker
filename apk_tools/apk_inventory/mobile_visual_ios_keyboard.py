@@ -1,0 +1,952 @@
+"""Explicit docked-keyboard phases for the native iOS visual text adapter.
+
+The server owner supplies a fixed visual envelope, a matching AX-source region
+(the same rectangle when omitted), and an outside-keyboard
+OCR dismissal anchor. WDA's bounded hierarchy must show exactly that rectangle
+as one visible keyboard with visible keys. The rectangle is masked only while
+that evidence is present; the original full layout is required after dismissal.
+This is not proof that WDA's hierarchy identifies an OS-owned window or handler.
+"""
+from __future__ import annotations
+
+import json
+import math
+import os
+import re
+import select
+import signal
+import subprocess
+import time
+import uuid
+import xml.etree.ElementTree as ET
+
+from .mobile_ui import MAX_XML, MobileError, atomic_json, digest
+from .mobile_visual import capture_locked
+from .mobile_visual_workflow import _region, ground_anchor, region_text
+
+GAPS = [
+    "trusted_fixed_docked_keyboard_region_required",
+    "trusted_keyboard_visual_envelope_temporarily_masked_while_ax_source_region_matches",
+    "keyboard_envelope_padding_is_local_authority_not_os_ownership_proof",
+    "wda_keyboard_tree_does_not_prove_os_window_ownership",
+    "keyboard_hierarchy_and_pixels_are_not_atomic",
+    "outside_keyboard_dismiss_anchor_required",
+    "other_keyboard_layouts_physical_and_third_party_coverage_pending",
+    "visible_keyboard_freshness_uses_post_ocr_pixels_with_keyboard_and_result_masks",
+    "preparation_source_stabilization_is_read_only_bounded_and_does_not_prove_atomicity",
+    "preparation_phase_pair_stabilization_requires_a_new_complete_observation",
+]
+CARET_GAPS = [
+    "local_caret_color_shape_equivalence_is_not_system_caret_identity_proof",
+    "same_colored_narrow_glyph_changes_may_match_approved_caret_policy",
+]
+CARET_JS = """import {visualCaretEquivalent} from './src/visual-caret.js';
+let s='';for await(const x of process.stdin){s+=x;if(Buffer.byteLength(s)>16384)throw Error('input limit');}
+const a=JSON.parse(s);process.stdout.write(JSON.stringify(visualCaretEquivalent(a.before,a.after,a.options)));"""
+
+
+def fail(code):
+    raise MobileError(code, "blocked")
+
+
+def _visual():
+    from . import mobile_visual_ios_text
+    return mobile_visual_ios_text
+
+
+def caret_contract(value):
+    keys = {"enabled", "color", "background", "colorTolerance", "maxWidthPoints",
+            "minHeightPoints", "maxHeightPoints", "maxAreaPoints"}
+    if not isinstance(value, dict) or set(value) != keys or value.get("enabled") is not True:
+        fail("VISUAL_CARET_CONFIG_INVALID")
+    for key in ("color", "background"):
+        if (not isinstance(value[key], list) or len(value[key]) != 3
+                or any(not isinstance(channel, int) or isinstance(channel, bool)
+                       or not 0 <= channel <= 255 for channel in value[key])):
+            fail("VISUAL_CARET_CONFIG_INVALID")
+    if max(abs(a - b) for a, b in zip(value["color"], value["background"])) < 64:
+        fail("VISUAL_CARET_CONFIG_INVALID")
+    tolerance = value["colorTolerance"]
+    if not isinstance(tolerance, int) or isinstance(tolerance, bool) or not 0 <= tolerance <= 2:
+        fail("VISUAL_CARET_CONFIG_INVALID")
+    for key in ("maxWidthPoints", "minHeightPoints", "maxHeightPoints", "maxAreaPoints"):
+        if (not isinstance(value[key], (int, float)) or isinstance(value[key], bool)
+                or not math.isfinite(value[key])):
+            fail("VISUAL_CARET_CONFIG_INVALID")
+    if (not 0 < value["maxWidthPoints"] <= 3 or not 8 <= value["minHeightPoints"] <= value["maxHeightPoints"] <= 48
+            or not 0 < value["maxAreaPoints"] <= 144):
+        fail("VISUAL_CARET_CONFIG_INVALID")
+    return value
+
+
+def caret_underlay_contract(value, policy=None):
+    """Explicit local authority for key-freshness only, never inferred from PNG."""
+    fields = {"mode", "maxUnderlayPixels", "minWhiteCoreFraction", "minSharedOpacity"}
+    if (not isinstance(value, dict) or set(value) != fields
+            or value.get("mode") != "paired_revealed_grayscale"
+            or type(value.get("maxUnderlayPixels")) is not int
+            or not 1 <= value["maxUnderlayPixels"] <= 64):
+        fail("VISUAL_CARET_UNDERLAY_CONFIG_INVALID")
+    for key, minimum in (("minWhiteCoreFraction", .8), ("minSharedOpacity", .125)):
+        number = value[key]
+        if (not isinstance(number, (int, float)) or isinstance(number, bool)
+                or not math.isfinite(number) or not minimum <= number <= 1):
+            fail("VISUAL_CARET_UNDERLAY_CONFIG_INVALID")
+    if policy is not None:
+        caret_contract(policy)
+        if policy["background"] != [255, 255, 255] or max(policy["color"]) - min(policy["color"]) < 64:
+            fail("VISUAL_CARET_UNDERLAY_CONFIG_INVALID")
+    return value
+
+
+def gaps(config):
+    from .mobile_visual_ios_keys import GAPS as key_gaps
+    return GAPS + (CARET_GAPS if "caret" in config else []) + (key_gaps if "keyInput" in config else []) + ([
+        "explicit_keyplane_and_visual_shell_are_local_owner_authority_not_os_ownership",
+        "calibration_hashes_are_provenance_only_current_app_window_image_and_keyplane_are_rechecked",
+    ] if "geometryEvidence" in config else []) + ([
+        "paired_revealed_grayscale_is_local_pixel_authority_not_os_caret_or_glyph_identity",
+        "covered_grayscale_glyph_changes_may_match_approved_underlay_visual_policy",
+    ] if isinstance(config.get("keyInput"), dict) and "caretUnderlay" in config["keyInput"] else [])
+
+
+def _point_region(rect, window):
+    return {"x": rect["x"] / window["width"], "y": rect["y"] / window["height"],
+            "width": rect["width"] / window["width"], "height": rect["height"] / window["height"]}
+
+
+def _split_contract(config, definition=None):
+    """Explicit owner authority, never derived from a parent node or hash.
+
+    Frame/source digests retain the approval's provenance. Current evidence is
+    independently required at every phase; these hashes never authorize a tap.
+    """
+    if "geometryEvidence" not in config:
+        return None
+    evidence = config["geometryEvidence"]
+    def invalid(): fail("VISUAL_KEYBOARD_GEOMETRY_CONTRACT_INVALID")
+    fields = {"schemaVersion", "mode", "authority", "appId", "window", "image",
+              "keyPlane", "visualEnvelope", "calibration"}
+    if (not isinstance(evidence, dict) or set(evidence) != fields
+            or type(evidence["schemaVersion"]) is not int or evidence["schemaVersion"] != 1
+            or evidence["mode"] != "owner_approved_split" or evidence["authority"] != "local_config"
+            or not isinstance(evidence["appId"], str)
+            or not re.fullmatch(r"[A-Za-z0-9_.-]{1,256}", evidence["appId"])):
+        invalid()
+    for name in ("window", "image"):
+        size = evidence[name]
+        if (not isinstance(size, dict) or set(size) != {"width", "height"}
+                or any(type(v) is not int or not 1 <= v <= 16384 for v in size.values())):
+            invalid()
+    window, image = evidence["window"], evidence["image"]
+    if (image["width"] * image["height"] > 16000000
+            or image["width"] * window["height"] != image["height"] * window["width"]):
+        invalid()
+    for name in ("keyPlane", "visualEnvelope"):
+        rect = evidence[name]
+        if (not isinstance(rect, dict) or set(rect) != {"x", "y", "width", "height"}
+                or any(not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) for v in rect.values())
+                or rect["x"] != 0 or rect["width"] != window["width"]
+                or rect["y"] < 0 or rect["height"] <= 0 or rect["y"] + rect["height"] > window["height"]):
+            invalid()
+    plane, shell = evidence["keyPlane"], evidence["visualEnvelope"]
+    if (not .5 <= shell["y"] / window["height"] <= .85
+            or not .95 <= (shell["y"] + shell["height"]) / window["height"] <= 1
+            or not shell["y"] <= plane["y"] <= .85 * window["height"]
+            or plane["y"] + plane["height"] > shell["y"] + shell["height"]
+            or "sourceRegion" not in config
+            or _region(config["region"]) != _point_region(shell, window)
+            or _region(config["sourceRegion"]) != _point_region(plane, window)):
+        invalid()
+    calibration = evidence["calibration"]
+    hashes = {"beforeImageSha256", "visibleImageSha256", "visibleSourceSha256"}
+    if (not isinstance(calibration, dict) or set(calibration) != hashes | {"kind"}
+            or calibration["kind"] != "owner_inspected_source_and_frame_pair"
+            or any(not isinstance(calibration[k], str) or not re.fullmatch(r"[a-f0-9]{64}", calibration[k])
+                   or calibration[k] == "0" * 64 for k in hashes)
+            or calibration["beforeImageSha256"] == calibration["visibleImageSha256"]):
+        invalid()
+    if definition is not None:
+        v = _visual()
+        box = v._box(config["region"], image["width"], image["height"])
+        for name in ("valueRegion", "resultRegion"):
+            if v._intersects(box, v._box(definition[name], image["width"], image["height"])):
+                fail("VISUAL_KEYBOARD_OCCLUDES_INPUT" if name == "valueRegion" else "VISUAL_KEYBOARD_OCCLUDES_RESULT")
+    return evidence
+
+
+def _split_context(config, observation, geometry, app_id):
+    evidence = _split_contract(config)
+    if evidence is None:
+        return None
+    if app_id != evidence["appId"]:
+        fail("VISUAL_KEYBOARD_APP_UNVERIFIED")
+    # The first hidden source precedes the initial capture/window reading. It
+    # grants no region or action; the complete observation must match afterward.
+    if geometry is not None:
+        if (not isinstance(geometry, (tuple, list)) or len(geometry) != 2
+                or tuple(geometry) != (evidence["window"]["width"], evidence["window"]["height"])
+                or any(isinstance(v, bool) for v in geometry)
+                or any(type(observation.get(k)) is not int for k in ("width", "height"))
+                or {k: observation.get(k) for k in ("width", "height")} != evidence["image"]):
+            fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+    return evidence
+
+
+def keyboard_contract(value, definition):
+    if (
+        not isinstance(value, dict) or not {"enabled", "region", "dismissAnchor"} <= set(value)
+        or set(value) - {"enabled", "region", "sourceRegion", "dismissAnchor", "caret", "keyInput", "geometryEvidence"}
+        or value.get("enabled") is not True
+        or not isinstance(value.get("dismissAnchor"), str)
+        or not re.fullmatch(r"[A-Za-z0-9_]{1,32}", value["dismissAnchor"])
+        or value["dismissAnchor"] in {definition["focusAnchor"], definition["submitAnchor"]}
+    ):
+        fail("VISUAL_KEYBOARD_CONFIG_INVALID")
+    if "caret" in value:
+        caret_contract(value["caret"])
+    if "keyInput" in value:
+        from .mobile_visual_ios_keys import key_input_contract
+        key_input_contract(value["keyInput"], definition)
+        if "caretUnderlay" in value["keyInput"]:
+            if "caret" not in value:
+                fail("VISUAL_CARET_UNDERLAY_CONFIG_INVALID")
+            caret_underlay_contract(value["keyInput"]["caretUnderlay"], value["caret"])
+    region = _region(value["region"])
+    source = _region(value.get("sourceRegion", region))
+    if _split_contract(value, definition) is not None:
+        return value
+    # A single owner-approved full-width near-bottom keyboard, not an arbitrary
+    # collection of areas whose changes could conceal application navigation.
+    # iOS may exclude its home-indicator strip from AX Keyboard bounds. Without
+    # a separate locally approved visual envelope, that gap is never masked.
+    for rectangle in (region, source):
+        if rectangle["x"] != 0 or rectangle["width"] != 1 or not .4 <= rectangle["y"] <= .85 or not .95 <= rectangle["y"] + rectangle["height"] <= 1:
+            fail("VISUAL_KEYBOARD_CONFIG_INVALID")
+    top = source["y"] - region["y"]
+    bottom = region["y"] + region["height"] - source["y"] - source["height"]
+    # The AX keyboard may omit a narrow shadow/background and home indicator.
+    # Their separate visual envelope must be explicitly approved locally. Never
+    # grow it from MCP parameters or silently round it to the screen bottom.
+    if top < -1e-9 or bottom < -1e-9 or top > .025 + 1e-9 or bottom > .05 + 1e-9:
+        fail("VISUAL_KEYBOARD_PADDING_INVALID")
+    v = _visual()
+    if v._intersects(v._box(region, 1, 1, rounded=False), v._box(definition["valueRegion"], 1, 1, rounded=False)):
+        fail("VISUAL_KEYBOARD_OCCLUDES_INPUT")
+    return value
+
+
+def _anchor(value, name, dimensions):
+    if (
+        not isinstance(value, dict) or set(value) != {"anchor", "width", "height", "normalized"}
+        or value["anchor"] != name or (value["width"], value["height"]) != dimensions
+        or any(not isinstance(value[key], int) or isinstance(value[key], bool)
+               or not 1 <= value[key] <= 20000 for key in ("width", "height"))
+    ):
+        fail("VISUAL_RECIPE_INVALID")
+    try:
+        _region(value["normalized"])
+    except MobileError:
+        fail("VISUAL_RECIPE_INVALID")
+
+
+def validate_learned(config, learned, focus):
+    if (
+        not isinstance(learned, dict) or set(learned) != {"configDigest", "dismiss", "visiblePixels"}
+        or learned["configDigest"] != digest(config)
+        or not isinstance(learned["visiblePixels"], str)
+        or not re.fullmatch(r"[a-f0-9]{64}", learned["visiblePixels"])
+    ):
+        fail("VISUAL_RECIPE_INVALID")
+    _anchor(learned["dismiss"], config["dismissAnchor"], (focus["width"], focus["height"]))
+    return learned
+
+
+def _rect(node):
+    try:
+        values = tuple(float(node.attrib[key]) for key in ("x", "y", "width", "height"))
+    except (KeyError, TypeError, ValueError):
+        fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+    if any(not math.isfinite(x) for x in values) or values[0] < 0 or values[1] < 0 or values[2] <= 0 or values[3] <= 0:
+        fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+    return values
+
+
+def _parse_source(raw, app_id, unique=False):
+    if not isinstance(app_id, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,256}", app_id):
+        fail("VISUAL_KEYBOARD_APP_UNVERIFIED")
+    try:
+        size = len(raw.encode("utf8")) if isinstance(raw, str) else MAX_XML + 1
+    except UnicodeError:
+        fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+    if size > MAX_XML or re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", raw, re.I):
+        fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+    try:
+        root = ET.fromstring(raw)
+    except (ET.ParseError, ValueError):
+        fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+    stack, keyboards, all_keyboards, applications, count = [(root, 0)], [], [], [], 0
+    while stack:
+        node, depth = stack.pop()
+        count += 1
+        if count > 10000 or depth > 64:
+            fail("VISUAL_KEYBOARD_SOURCE_LIMIT")
+        kind = node.attrib.get("type", node.tag)
+        if kind == "XCUIElementTypeApplication":
+            applications.append(node)
+        if kind == "XCUIElementTypeKeyboard":
+            all_keyboards.append(node)
+            # A hidden keyboard may be translated below the viewport (as in
+            # the captured WDA evidence), but malformed geometry is not a phase.
+            _rect(node)
+            if node.attrib.get("visible") not in ("true", "false"):
+                fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+            if node.attrib["visible"] == "true":
+                keyboards.append(node)
+        stack.extend((child, depth + 1) for child in node)
+    if len(applications) != 1 or applications[0].attrib.get("bundleId") != app_id:
+        fail("VISUAL_KEYBOARD_APP_UNVERIFIED")
+    if any(keyboard not in set(applications[0].iter()) for keyboard in (all_keyboards if unique else keyboards)):
+        fail("VISUAL_KEYBOARD_APP_UNVERIFIED")
+    if len(all_keyboards if unique else keyboards) > 1:
+        fail("VISUAL_KEYBOARD_AMBIGUOUS")
+    return keyboards
+
+
+class _KeyboardBelowViewport(Exception):
+    """A validated visible tree contradicts its wholly below-window rectangle."""
+
+
+def _inspect_source(raw, geometry, app_id, allow_below=False, unique=False):
+    keyboards = _parse_source(raw, app_id, unique=allow_below or unique)
+    if not keyboards:
+        return None
+    if (not isinstance(geometry, (tuple, list)) or len(geometry) != 2
+            or any(not isinstance(value, (int, float)) or isinstance(value, bool)
+                   or not math.isfinite(value) or not 0 < value <= 16384 for value in geometry)):
+        fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+    keyboard = keyboards[0]
+    x, y, width, height = _rect(keyboard)
+    screen_width, screen_height = geometry
+    outside = x + width > screen_width or y + height > screen_height
+    if outside and not allow_below:
+        fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+    keys = [node for node in keyboard.iter()
+            if node.attrib.get("type", node.tag) == "XCUIElementTypeKey" and node.attrib.get("visible") == "true"]
+    if not keys:
+        fail("VISUAL_KEYBOARD_KEYS_UNVERIFIED")
+    for key in keys:
+        kx, ky, kw, kh = _rect(key)
+        if kx < x or ky < y or kx + kw > x + width or ky + kh > y + height:
+            fail("VISUAL_KEYBOARD_KEYS_UNVERIFIED")
+    if outside:
+        if allow_below and x == 0 and width == screen_width and height <= screen_height and y >= screen_height:
+            raise _KeyboardBelowViewport()
+        fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+    return {"region": {"x": x / screen_width, "y": y / screen_height,
+                       "width": width / screen_width, "height": height / screen_height},
+            "keyCount": len(keys)}
+
+
+def inspect_source(raw, geometry, app_id):
+    """Observation only: a calibration proposal, never an action grant.
+
+    The owner must approve the returned rectangle in local device configuration.
+    This function deliberately does not dispatch, alter settings, or mask pixels.
+    """
+    return _inspect_source(raw, geometry, app_id)
+
+
+def _preparation_sampling():
+    return {"deadline": None, "firstInstability": None, "sourceReads": 0,
+            "pairs": 0, "observations": 0, "completedObservations": 0,
+            "ocrStartChecks": 0, "mismatches": 0}
+
+
+def _sampling_check(budget, sampling, code="VISUAL_KEYBOARD_PHASE_UNSTABLE"):
+    budget.check()
+    if sampling["deadline"] is not None and time.monotonic() >= sampling["deadline"]:
+        fail(code)
+
+
+def _sampling_unstable(sampling, kind):
+    # One additional window for the entire preparation, starting at its first
+    # explicit instability. A later phase mismatch never renews a below-source
+    # window that was already started.
+    if sampling["deadline"] is None:
+        sampling["deadline"] = time.monotonic() + 2
+        sampling["firstInstability"] = kind
+
+
+def _preparation_source(session, sampling, code="VISUAL_KEYBOARD_PHASE_UNSTABLE"):
+    _sampling_check(session.budget, sampling, code)
+    if sampling["sourceReads"] >= 12:
+        fail("VISUAL_KEYBOARD_PHASE_UNSTABLE")
+    session.backend.foreground()
+    _sampling_check(session.budget, sampling, code)
+    sampling["sourceReads"] += 1
+    raw = session.backend.request("GET", "/source")
+    session.budget.check()
+    return raw
+
+
+def _preparation_proposal(session, geometry, sampling=None):
+    """At most three source reads, only for a strictly identified contradiction.
+
+    WDA can report visible=true during a keyboard's offscreen transition. That
+    snapshot grants no phase and no mask: wait for a new, independently parsed
+    hidden or in-window snapshot. The additional window begins at the first
+    contradiction and is shared with any later whole-observation resampling.
+    Individual transport and overall session timeouts remain unchanged.
+    """
+    started, contradictions, status = time.monotonic(), 0, "rejected"
+    sampling = _preparation_sampling() if sampling is None else sampling
+    initial_reads = sampling["sourceReads"]
+    try:
+        for attempt in range(3):
+            raw = _preparation_source(session, sampling, "VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+            try:
+                proposal = _inspect_source(raw, geometry, session.backend.app_id, allow_below=True)
+            except _KeyboardBelowViewport:
+                contradictions += 1
+                _sampling_unstable(sampling, "below_visible_source")
+                session.backend.foreground()
+                _sampling_check(session.budget, sampling, "VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+                if attempt == 2:
+                    fail("VISUAL_KEYBOARD_GEOMETRY_UNVERIFIED")
+                time.sleep(min(.05, max(0, sampling["deadline"] - time.monotonic()), session.budget.timeout()))
+                continue
+            session.backend.foreground()
+            session.budget.check()
+            status = "observed_visible" if proposal is not None else "observed_hidden"
+            return proposal
+    finally:
+        if contradictions:
+            atomic_json(session.output / "visual-private" / ("keyboard-source-stabilization-" + uuid.uuid4().hex + ".json"), {
+                "sourceReads": sampling["sourceReads"] - initial_reads, "contradictions": contradictions, "status": status,
+                "elapsedMs": round((time.monotonic() - started) * 1000),
+                "maximumSourceReads": 3, "nominalWindowMs": 2000,
+                "uiActionRetried": False, "offscreenVisibleAcceptedAsHidden": False,
+            })
+
+
+def keyboard_state(session, config, observation, geometry, visible, stabilize=False, sampling=None):
+    """Read a bounded WDA hierarchy; no role or dismissal receipt is proof."""
+    split = _split_context(config, observation, geometry, session.backend.app_id)
+    if stabilize:
+        # This opt-in is confined to the first preparation read after clear or
+        # type. Focus, OCR-after, freshness, dispatch and restored checks remain
+        # single strict observations, never phase-normalized retries.
+        if visible is not None:
+            fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+        proposal = _preparation_proposal(session, geometry, sampling)
+    else:
+        if sampling is not None:
+            if visible is not None:
+                fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+            raw = _preparation_source(session, sampling)
+        else:
+            session.backend.foreground()
+            raw = session.backend.request("GET", "/source")
+        if visible is False:
+            if _parse_source(raw, session.backend.app_id, unique=split is not None):
+                fail("VISUAL_KEYBOARD_NOT_HIDDEN")
+            session.backend.foreground()
+            return None
+        proposal = _inspect_source(raw, geometry, session.backend.app_id, unique=visible is None or split is not None)
+        session.backend.foreground()
+    if proposal is None:
+        if visible is True:
+            fail("VISUAL_KEYBOARD_NOT_VISIBLE")
+        # None requests observation of the preparation phase, never permission
+        # to mask a missing keyboard or to repeat an input action.
+        return None
+    return _keyboard_region(config, observation, geometry, proposal)
+
+
+def _keyboard_region(config, observation, geometry, proposal):
+    """Validate a source proposal against the unchanged local visual envelope."""
+    actual = proposal["region"]
+    v = _visual()
+    # Exact outward-rounded pixel bounds: no owner-approved extra area beyond
+    # the observed keyboard is silently excluded from change detection.
+    source = config.get("sourceRegion", config["region"])
+    if v._box(actual, observation["width"], observation["height"]) != v._box(source, observation["width"], observation["height"]):
+        fail("VISUAL_KEYBOARD_REGION_MISMATCH")
+    actual_box = v._box(actual, observation["width"], observation["height"])
+    envelope_box = v._box(config["region"], observation["width"], observation["height"])
+    if any(actual_box[index] < envelope_box[index] for index in (0, 1)) or any(actual_box[index] > envelope_box[index] for index in (2, 3)):
+        fail("VISUAL_KEYBOARD_PADDING_INVALID")
+    split = _split_contract(config)
+    if split is not None:
+        # Outward pixel equality alone must not hide a subpixel key-plane drift.
+        if actual != _point_region(split["keyPlane"], split["window"]):
+            fail("VISUAL_KEYBOARD_REGION_MISMATCH")
+        return actual
+    top = (source["y"] - config["region"]["y"]) * geometry[1]
+    bottom = (config["region"]["y"] + config["region"]["height"] - source["y"] - source["height"]) * geometry[1]
+    if top > 12 + 1e-9 or bottom > 24 + 1e-9 or top < -1e-9 or bottom < -1e-9:
+        fail("VISUAL_KEYBOARD_PADDING_INVALID")
+    return actual
+
+
+def _observe(session, lease, config, geometry=None, visible=False, reference=None):
+    v = _visual()
+    # Dimensions from geometry are needed to compare the source rectangle;
+    # the initial hidden check does not use rectangle math.
+    provisional = reference or ({"width": 1, "height": 1} if geometry is None else {"width": geometry[0], "height": geometry[1]})
+    split = _split_contract(config["keyboard"])
+    if split is not None and reference is None and geometry is not None:
+        # Projection dimensions for this source-only precheck, not an image
+        # observation. The new full OCR image and post-source below must match
+        # independently before this function can return any usable evidence.
+        provisional = split["image"]
+    keyboard_state(session, config["keyboard"], provisional, geometry, visible)
+    observation = v._observe(session, lease, config)
+    actual_geometry = v._geometry(session, observation, geometry)
+    keyboard_state(session, config["keyboard"], observation, actual_geometry, visible)
+    # Hidden phases retain the original exact-image guard. Visible actions
+    # separately verify post-OCR pixels without masking the input region.
+    if not visible:
+        v.unchanged_locked(session, lease, session.output / "visual-private", observation)
+    return observation, actual_geometry
+
+
+def _focus_state(session, config, observation, geometry, sampling, instability):
+    """One strict source read; classify hidden before its post-app guard.
+
+    The candidate was already admitted by _focus_observe. All of its reads
+    retain the original transport/overall budgets, including this final app
+    guard; a hidden result itself never grants a mask or an input action.
+    """
+    session.budget.check()
+    _split_context(config, observation, geometry, session.backend.app_id)
+    if sampling["sourceReads"] >= 6:
+        fail("VISUAL_KEYBOARD_NOT_VISIBLE")
+    session.backend.foreground()
+    session.budget.check()
+    sampling["sourceReads"] += 1
+    raw = session.backend.request("GET", "/source")
+    session.budget.check()
+    proposal = _inspect_source(raw, geometry, session.backend.app_id, unique=True)
+    if proposal is None:
+        # Start at the actual classification, not after a potentially slow
+        # foreground request. A subsequent hidden observation cannot renew it.
+        _sampling_unstable(sampling, instability)
+    session.backend.foreground()
+    session.budget.check()
+    if proposal is None:
+        return None
+    return _keyboard_region(config, observation, geometry, proposal)
+
+
+def _focus_observe(session, lease, config, geometry, reference):
+    """After one focus, admit at most three read-only visible candidates.
+
+    The first strict hidden source (or V/H mismatch) opens a single two-second
+    window for starting additional candidates. An admitted complete pair may
+    finish beyond that window under the original transport/overall budgets:
+    it still requires a new full OCR frame, geometry, source and app checks.
+    No offscreen-visible/invalid-source error is retried or phase-normalized.
+    """
+    if getattr(session, "_focus_observing", False):
+        fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+    v, sampling, status = _visual(), _preparation_sampling(), "rejected"
+    started = time.monotonic()
+    session._focus_observing = True
+    try:
+        for attempt in range(3):
+            _sampling_check(session.budget, sampling, "VISUAL_KEYBOARD_NOT_VISIBLE")
+            sampling["pairs"] += 1
+            if _focus_state(session, config["keyboard"], reference, geometry, sampling,
+                            "focus_hidden_source") is None:
+                continue
+            session.budget.check()
+            sampling["observations"] += 1
+            observation = v._observe(session, lease, config)
+            sampling["completedObservations"] += 1
+            session.budget.check()
+            actual_geometry = v._geometry(session, observation, geometry)
+            if _focus_state(session, config["keyboard"], observation, actual_geometry,
+                            sampling, "focus_phase_mismatch") is not None:
+                status = "observed_visible"
+                return observation, actual_geometry
+            sampling["mismatches"] += 1
+            # This complete frame is discarded. The next admitted candidate
+            # must start from a new source and a newly captured/full-OCR frame.
+        fail("VISUAL_KEYBOARD_NOT_VISIBLE")
+    finally:
+        del session._focus_observing
+        if sampling["firstInstability"] is not None:
+            atomic_json(session.output / "visual-private" / ("keyboard-focus-observation-" + uuid.uuid4().hex + ".json"), {
+                "attempts": sampling["pairs"], "sourceReads": sampling["sourceReads"],
+                "newObservations": sampling["observations"], "completedObservations": sampling["completedObservations"],
+                "phaseMismatches": sampling["mismatches"], "firstInstability": sampling["firstInstability"],
+                "status": status, "elapsedMs": round((time.monotonic() - started) * 1000),
+                "maximumAttempts": 3, "maximumSourceReads": 6, "maximumNewObservations": 3,
+                "additionalAttemptStartWindowMs": 2000, "windowLimitsAttemptStartOnly": True,
+                "uiActionRetried": False, "discardedFrameReused": False,
+            })
+
+
+class _PreparationObservationBudget:
+    """Delegate the original budget; guard only the new OCR payload boundary.
+
+    The iOS backend keeps its original budget object. capture_locked uses this
+    session budget only for check(), and observe_locked first calls timeout()
+    after capture and immediately before starting its OCR child. Once that
+    start check passes, in-flight OCR keeps the original overall budget.
+    """
+    def __init__(self, original, sampling):
+        self.original, self.sampling, self.ocr_started = original, sampling, False
+
+    def __getattr__(self, name):
+        return getattr(self.original, name)
+
+    def timeout(self, *args, **kwargs):
+        if not self.ocr_started:
+            _sampling_check(self.original, self.sampling)
+            remaining = self.original.timeout(*args, **kwargs)
+            self.ocr_started = True
+            self.sampling["ocrStartChecks"] += 1
+            return remaining
+        return self.original.timeout(*args, **kwargs)
+
+
+def _preparation_observation(session, lease, config, sampling):
+    original = session.budget
+    if session.backend.budget is not original or getattr(session, "_preparation_observing", False):
+        fail("VISUAL_KEYBOARD_SOURCE_INVALID")
+    _sampling_check(original, sampling)
+    if sampling["observations"] >= 3:
+        fail("VISUAL_KEYBOARD_PHASE_UNSTABLE")
+    sampling["observations"] += 1
+    session._preparation_observing = True
+    session.budget = _PreparationObservationBudget(original, sampling)
+    try:
+        observation = _visual()._observe(session, lease, config)
+        sampling["completedObservations"] += 1
+        return observation
+    finally:
+        session.budget = original
+        del session._preparation_observing
+
+
+def _prepare_observe(session, lease, config, geometry, reference):
+    """Lock the source-observed phase around OCR after one clear/type action.
+
+    Unlike the post-Dismiss hidden observation, preparation can retain an
+    active caret. Its dispatch guard checks decoded pixels with only the result
+    masked when hidden; it never borrows a keyboard mask from an earlier phase.
+    """
+    v, sampling, status = _visual(), _preparation_sampling(), "rejected"
+    started = time.monotonic()
+    try:
+        for attempt in range(3):
+            _sampling_check(session.budget, sampling)
+            sampling["pairs"] += 1
+            visible = keyboard_state(session, config["keyboard"], reference, geometry, None,
+                                     stabilize=True, sampling=sampling) is not None
+            observation = _preparation_observation(session, lease, config, sampling)
+            _sampling_check(session.budget, sampling)
+            actual_geometry = v._geometry(session, observation, geometry)
+            after_visible = keyboard_state(session, config["keyboard"], observation, actual_geometry,
+                                           None, sampling=sampling) is not None
+            if visible == after_visible:
+                status = "observed_visible" if visible else "observed_hidden"
+                return observation, actual_geometry, visible
+            sampling["mismatches"] += 1
+            _sampling_unstable(sampling, "phase_mismatch")
+            if attempt == 2:
+                fail("VISUAL_KEYBOARD_PHASE_UNSTABLE")
+            _sampling_check(session.budget, sampling)
+            # The mismatched image is discarded. The next pair must capture
+            # and OCR a complete new frame; no existing image is reclassified.
+    finally:
+        if sampling["firstInstability"] is not None:
+            atomic_json(session.output / "visual-private" / ("keyboard-pair-stabilization-" + uuid.uuid4().hex + ".json"), {
+                "pairs": sampling["pairs"], "sourceReads": sampling["sourceReads"],
+                "observationAttempts": sampling["observations"], "completedObservations": sampling["completedObservations"],
+                "ocrStartChecks": sampling["ocrStartChecks"], "phaseMismatches": sampling["mismatches"],
+                "firstInstability": sampling["firstInstability"], "status": status,
+                "elapsedMs": round((time.monotonic() - started) * 1000),
+                "maximumPairs": 3, "maximumSourceReads": 12, "maximumNewObservations": 3,
+                "additionalWindowMs": 2000, "uiActionRetried": False, "discardedFrameReused": False,
+            })
+
+
+def _dismiss_anchor(observation, definition, keyboard, expected=None):
+    v = _visual()
+    anchor = ground_anchor(observation, keyboard["dismissAnchor"], expected)
+    masks = [definition["valueRegion"], definition["resultRegion"], keyboard["region"]]
+    box = tuple(round(x) for x in v._box(anchor["normalized"], observation["width"], observation["height"], rounded=False))
+    if any(v._intersects(box, v._box(mask, observation["width"], observation["height"])) for mask in masks):
+        fail("VISUAL_KEYBOARD_MASK_OVERLAPS_ANCHOR")
+    return anchor
+
+
+def _visible_layout(session, config, definition, observation, bound):
+    v = _visual()
+    region = config["keyboard"]["region"]
+    keyboard_box = v._box(region, observation["width"], observation["height"])
+    # A system key named Search must not become a duplicate application
+    # submit anchor. Only tokens fully outside the proven keyboard participate.
+    tokens = []
+    for token in observation["tokens"]:
+        b = token["bounds"]
+        box = (b["x"], b["y"], b["x"] + b["width"], b["y"] + b["height"])
+        if not v._intersects(box, keyboard_box):
+            tokens.append(token)
+    outside = {**observation, "tokens": tokens}
+    masks = [definition["valueRegion"], definition["resultRegion"], region]
+    for name, key in ((definition["focusAnchor"], "focus"), (definition["submitAnchor"], "submit")):
+        anchor = ground_anchor(outside, name, bound[key])
+        box = tuple(round(x) for x in v._box(anchor["normalized"], observation["width"], observation["height"], rounded=False))
+        if any(v._intersects(box, v._box(mask, observation["width"], observation["height"])) for mask in masks):
+            fail("VISUAL_KEYBOARD_MASK_OVERLAPS_ANCHOR")
+    dismissal = _dismiss_anchor(outside, definition, config["keyboard"], bound["_keyboard"]["dismiss"])
+    if v.ios._masked(config["node"], session, observation, masks) != bound["_keyboard"]["visiblePixels"]:
+        fail("VISUAL_LAYOUT_CHANGED")
+    return dismissal
+
+
+def _prepare_layout(session, config, definition, observation, bound, visible):
+    if visible:
+        return _visible_layout(session, config, definition, observation, bound)
+    # The original two-region layout fingerprint includes the whole area that
+    # used to contain the keyboard. Only input and result are layout-dynamic.
+    _visual()._layout(session, config, definition, observation, bound)
+    return _dismiss_anchor(observation, definition, config["keyboard"], bound["_keyboard"]["dismiss"])
+
+
+def _pointer(anchor, geometry):
+    box = anchor["normalized"]
+    x, y = int((box["x"] + box["width"] / 2) * geometry[0]), int((box["y"] + box["height"] / 2) * geometry[1])
+    if not 0 <= x < geometry[0] or not 0 <= y < geometry[1]:
+        fail("VISUAL_COORDINATES_UNVERIFIED")
+    return {"actions": [{"type": "pointer", "id": "finger", "parameters": {"pointerType": "touch"},
+                         "actions": [{"type": "pointerMove", "duration": 0, "x": x, "y": y, "origin": "viewport"},
+                                     {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}]}]}
+
+
+def _visible_fresh(session, lease, config, definition, observation, geometry, bound, visible=True):
+    v = _visual()
+    # The result may be obscured and is not used until restoration. The INPUT
+    # IS NOT MASKED here: new characters, erased glyphs or moved app anchors
+    # after OCR invalidate dispatch. Keyboard/candidate-row animations alone
+    # may differ. Without the explicit local caret policy, read-only captures
+    # may only wait for the exact same caret phase. The optional comparator is
+    # restricted to a bounded single approved color-line bar inside the input.
+    masks = ([config["keyboard"]["region"]] if visible else []) + [definition["resultRegion"]]
+    expected = v.ios._masked(config["node"], session, observation, masks)
+    deadline = time.monotonic() + 2
+    # Preserve the existing visible same-phase read bound. A newly supported
+    # hidden preparation phase adds no polling or extra settling wait.
+    attempts = 6 if visible else 1
+    for attempt in range(attempts):
+        session.budget.check()
+        keyboard_state(session, config["keyboard"], observation, geometry, visible)
+        captured = capture_locked(session, session.output / "visual-private" / ("keyboard-fresh-" + uuid.uuid4().hex), lease)
+        fresh = {**captured, "_imagePath": captured["imagePath"]}
+        v._geometry(session, fresh, geometry)
+        keyboard_state(session, config["keyboard"], fresh, geometry, visible)
+        if (fresh["width"], fresh["height"]) != (observation["width"], observation["height"]):
+            fail("VISUAL_COORDINATES_UNVERIFIED")
+        if v.ios._masked(config["node"], session, fresh, masks) == expected:
+            return
+        if "caret" in config["keyboard"] and _caret_equivalent(session, config, definition, observation, fresh, geometry, masks):
+            return
+        if attempt == attempts - 1 or time.monotonic() >= deadline:
+            break
+        time.sleep(min(.05, session.budget.timeout()))
+    fail("VISUAL_FRAME_CHANGED")
+
+
+def _validated_caret_result(result, before):
+    if (not isinstance(result, dict) or set(result) != {"width", "height", "equivalent", "mode", "changedPixels"}
+            or any(not isinstance(result[key], int) or isinstance(result[key], bool)
+                   or result[key] != before[key] for key in ("width", "height"))
+            or not isinstance(result["equivalent"], bool)
+            or result["mode"] not in ("exact", "caret", "changed")
+            or result["equivalent"] != (result["mode"] in ("exact", "caret"))
+            or not isinstance(result["changedPixels"], int) or isinstance(result["changedPixels"], bool)
+            or not 0 <= result["changedPixels"] <= before["width"] * before["height"]
+            or (result["mode"] == "exact") != (result["changedPixels"] == 0)):
+        raise ValueError()
+    return result["equivalent"]
+
+
+def _caret_equivalent(session, config, definition, before, after, geometry, masks, *, task=None, underlay=None):
+    """Bounded local Node helper; all failure paths reap the owned process."""
+    policy = caret_contract(config["keyboard"]["caret"])
+    # Only _fresh_key explicitly passes this validated local option. Merely
+    # finding it in config must not broaden any other caret caller/phase.
+    if underlay is not None:
+        policy = {**policy, "underlay": caret_underlay_contract(underlay, policy)}
+    if task is not None:
+        return task.caret(before, after, {"masks": masks, "valueRegion": definition["valueRegion"],
+                                         "geometry": geometry, "policy": policy})
+    payload = json.dumps({"before": before["_imagePath"], "after": after["_imagePath"], "options": {
+        "masks": masks, "valueRegion": definition["valueRegion"], "geometry": geometry, "policy": policy,
+    }}).encode()
+    if len(payload) > 16384:
+        fail("VISUAL_CARET_UNAVAILABLE")
+    child, completed = None, False
+    try:
+        session.budget.check()
+        child = subprocess.Popen([config["node"], "--input-type=module", "-e", CARET_JS], cwd=_visual().ios.PROJECT,
+                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
+        child.stdin.write(payload)
+        child.stdin.close()
+        blocks, size = [], 0
+        while True:
+            session.budget.check()
+            ready, _, _ = select.select([child.stdout], [], [], min(.1, session.budget.timeout()))
+            if not ready:
+                continue
+            block = os.read(child.stdout.fileno(), 4097 - size)
+            if not block:
+                break
+            size += len(block)
+            if size > 4096:
+                fail("VISUAL_CARET_UNAVAILABLE")
+            blocks.append(block)
+        if child.wait(timeout=session.budget.timeout()) != 0:
+            fail("VISUAL_CARET_UNAVAILABLE")
+        equivalent = _validated_caret_result(json.loads(b"".join(blocks)), before)
+        session.budget.check()
+        completed = True
+        return equivalent
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+        fail("VISUAL_CARET_UNAVAILABLE")
+    finally:
+        if child is not None:
+            if not completed:
+                try:
+                    os.killpg(child.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+            if child.poll() is None:
+                child.kill()
+            child.wait()
+            for stream in (child.stdin, child.stdout):
+                if stream is not None and not stream.closed:
+                    try:
+                        stream.close()
+                    except OSError:
+                        pass
+
+
+def _dispatch(session, lease, config, definition, observation, geometry, visible, method, route, body, bound=None, preparing=False):
+    v = _visual()
+    v._geometry(session, observation, geometry)
+    if visible or preparing:
+        if bound is None:
+            fail("VISUAL_RECIPE_INVALID")
+        # The supplied phase observation has fresh full-region OCR. Validate its
+        # anchors/layout, then prove the input and upper page pixels still match
+        # with a post-OCR capture. Do not use a hidden-input mask for freshness.
+        dismissal = _prepare_layout(session, config, definition, observation, bound, visible)
+        _visible_fresh(session, lease, config, definition, observation, geometry, bound, visible)
+        if route == "/actions":
+            body = _pointer(dismissal, geometry)
+    else:
+        keyboard_state(session, config["keyboard"], observation, geometry, False)
+        v.unchanged_locked(session, lease, session.output / "visual-private", observation)
+    keyboard_state(session, config["keyboard"], observation, geometry, visible)
+    v._geometry(session, observation, geometry)
+    session.budget.action()
+    atomic_json(session.output / "write-intent.json", {"effect": definition["effect"], "status": "unknown", "automaticRetry": False})
+    session._visual_dispatched = True
+    return session.backend.request(method, route, body)
+
+
+def _tap(session, lease, config, definition, observation, geometry, visible, anchor, bound=None, preparing=False):
+    return _dispatch(session, lease, config, definition, observation, geometry, visible,
+                     "POST", "/actions", _pointer(anchor, geometry), bound, preparing)
+
+
+def run(session, lease, config, definition, inputs, contracts):
+    v = _visual()
+    text = v._text_value(definition, inputs)
+    keyboard = keyboard_contract(config.get("keyboard"), definition)
+    if "keyInput" in keyboard:
+        from .mobile_visual_ios_keys import validate_text
+        validate_text(text)
+    try:
+        before, geometry = _observe(session, lease, config, visible=False)
+        anchors, fingerprint = v._layout(session, config, definition, before, contracts)
+        dismissal = _dismiss_anchor(before, definition, keyboard, contracts.get("_keyboard", {}).get("dismiss"))
+        masked = v.ios._masked(config["node"], session, before,
+                               [definition["valueRegion"], definition["resultRegion"], keyboard["region"]])
+        # Retain the approved learned anchor contract after ground_anchor has
+        # checked the newly observed box; do not turn permitted OCR-box jitter
+        # into an unrelated exact-dict comparison failure.
+        previous = contracts.get("_keyboard")
+        learned = {"configDigest": digest(keyboard),
+                   "dismiss": previous["dismiss"] if previous is not None else dismissal,
+                   "visiblePixels": masked}
+        if contracts.get("_keyboard") not in (None, learned):
+            fail("VISUAL_LAYOUT_CHANGED")
+        bound = {**anchors, "_pixels": fingerprint, "_keyboard": learned}
+        # Full initial OCR has already grounded all application anchors. Do
+        # not let any owner-approved keyboard mask intersect an actual target.
+        keyboard_box = v._box(keyboard["region"], before["width"], before["height"])
+        if v._intersects(keyboard_box, v._box(definition["valueRegion"], before["width"], before["height"])):
+            fail("VISUAL_KEYBOARD_OCCLUDES_INPUT")
+        target_boxes = [tuple(round(x) for x in v._box(a["normalized"], before["width"], before["height"], rounded=False))
+                        for a in [anchors["focus"], anchors["submit"], dismissal]]
+        if any(v._intersects(box, keyboard_box) for box in target_boxes):
+            fail("VISUAL_KEYBOARD_MASK_OVERLAPS_ANCHOR")
+        if any(v._intersects(box, other) for index, box in enumerate(target_boxes) for other in target_boxes[index+1:]):
+            fail("VISUAL_ANCHOR_AMBIGUOUS")
+        _tap(session, lease, config, definition, before, geometry, False, anchors["focus"])
+        v._settle(session)
+        focused, _ = _focus_observe(session, lease, config, geometry, before)
+        _visible_layout(session, config, definition, focused, bound)
+        if "keyInput" in keyboard:
+            from .mobile_visual_ios_keys import replace_text
+            filled = replace_text(session, lease, config, definition, text, bound, geometry, focused)
+            filled_visible = True
+        else:
+            # Default transport stays one fixed clear /keys and one type /keys.
+            # The explicit onscreen mode above is never a fallback after failure.
+            _dispatch(session, lease, config, definition, focused, geometry, True, "POST", "/keys", {
+                "value": ["\b" * definition["inputSchema"]["maxLength"]]}, bound)
+            v._settle(session)
+            cleared, _, cleared_visible = _prepare_observe(session, lease, config, geometry, before)
+            _prepare_layout(session, config, definition, cleared, bound, cleared_visible)
+            if region_text(cleared, definition["valueRegion"]) != "":
+                fail("VISUAL_INPUT_CLEAR_NOT_VERIFIED")
+            _dispatch(session, lease, config, definition, cleared, geometry, cleared_visible, "POST", "/keys", {"value": [text]}, bound, preparing=True)
+            v._settle(session)
+            filled, _, filled_visible = _prepare_observe(session, lease, config, geometry, before)
+        dismissal = _prepare_layout(session, config, definition, filled, bound, filled_visible)
+        if region_text(filled, definition["valueRegion"]) != text:
+            fail("VISUAL_INPUT_NOT_VERIFIED")
+        # No result baseline is read while the keyboard can cover the output.
+        _tap(session, lease, config, definition, filled, geometry, filled_visible, dismissal, bound, preparing=True)
+        v._settle(session)
+        restored, _ = _observe(session, lease, config, geometry, False)
+        restored_anchors, _ = v._layout(session, config, definition, restored, bound)
+        _dismiss_anchor(restored, definition, keyboard, dismissal)
+        if region_text(restored, definition["valueRegion"]) != text:
+            fail("VISUAL_INPUT_NOT_VERIFIED")
+        old = region_text(restored, definition["resultRegion"])
+        _tap(session, lease, config, definition, restored, geometry, False, restored_anchors["submit"])
+        v._settle(session)
+        after, _ = _observe(session, lease, config, geometry, False)
+        v._layout(session, config, definition, after, bound)
+        result = region_text(after, definition["resultRegion"])
+        if (region_text(after, definition["valueRegion"]) != text or result == old
+                or not result.startswith(definition["resultPrefix"] + " ")
+                or not re.search(r"(?:^|\s)" + re.escape(text) + r"(?:$|\s)", result)):
+            fail("VISUAL_RESULT_NOT_VERIFIED")
+        v.unchanged_locked(session, lease, session.output / "visual-private", after)
+        keyboard_state(session, keyboard, after, geometry, False)
+        contracts.update(bound)
+        return {"text": result}
+    except Exception as exc:
+        if getattr(session, "_visual_dispatched", False):
+            exc.writeOutcome = {"status": "unknown", "automaticRetry": False}
+        raise

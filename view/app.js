@@ -63,8 +63,11 @@ function render(){
   $('result-note').textContent=run.active?(run.status==='stopping'?'正在停止并保存进度，请等待任务结束。':'正在按当前预算探索。达到上限会保存进度；“直到跑完”模式持续处理发现队列。'):
     (reasons[run.stopReason]||run.stopReason||'任务结束')+'。待探索动作 '+(run.pending?.actions||0)+'，失败动作 '+(run.pending?.failed||0)+'。';
   $('output-dir').textContent='结果目录：'+run.outputDir;
-  $('report-links').hidden=!run.report;
-  if(run.report){$('report-link').href=run.report;const prefix='/runs/'+encodeURIComponent(run.id)+'/';$('apis-link').href=prefix+'apis.json';$('pending-link').href=prefix+'unexplored-actions.json';}
+  $('report-links').hidden=!run.report&&!run.graph;
+  $('report-link').hidden=!run.report;
+  $('graph-link').hidden=!run.graph;if(run.graph)$('graph-link').href=run.graph;
+  if(run.report)$('report-link').href=run.report;
+  const prefix='/runs/'+encodeURIComponent(run.id)+'/';$('apis-link').href=prefix+'apis.json';$('pending-link').href=prefix+'unexplored-actions.json';
   const logs=$('logs'),atBottom=logs.scrollTop+logs.clientHeight>=logs.scrollHeight-15;
   const text=(run.logs||[]).join('\n')||'任务已记录，运行日志将在此显示。';
   if(logs.textContent!==text){logs.textContent=text;if(atBottom)logs.scrollTop=logs.scrollHeight;}

@@ -1,0 +1,29 @@
+openapi: 3.0.3
+info:
+  title: 文件上传示例
+  version: '1'
+servers:
+  - url: https://api.example.test/v1
+paths:
+  /uploads:
+    post:
+      summary: 上传附件并返回业务编号
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [title, attachment]
+              properties:
+                title: {type: string, minLength: 1, maxLength: 120}
+                tags:
+                  type: array
+                  maxItems: 4
+                  items: {type: string, maxLength: 32}
+                attachment: {type: string, format: binary}
+            encoding:
+              attachment: {contentType: application/octet-stream}
+      responses:
+        '201': {description: 包含上传编号的业务响应}

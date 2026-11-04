@@ -1,0 +1,8 @@
+{
+  "backend": {"type": "adb", "deviceId": "REPLACE_WITH_DEVICE_SERIAL"},
+  "limits": {"maxActions": 30, "maxDepth": 4, "maxDurationMs": 60000},
+  "actionAllowlist": [
+    {"kind": "type", "selector": {"resourceId": "com.example.demo:id/title"}, "effect": "read"},
+    {"kind": "click", "selector": {"resourceId": "com.example.demo:id/save"}, "effect": "write"}
+  ]
+}

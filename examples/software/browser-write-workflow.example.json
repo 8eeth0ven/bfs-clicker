@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "create_note",
+  "name": "创建示例笔记",
+  "effect": "write",
+  "networkEvidence": "required",
+  "inputSchema": {
+    "type": "object",
+    "properties": {"title": {"type": "string", "minLength": 2, "maxLength": 80}},
+    "required": ["title"],
+    "additionalProperties": false
+  },
+  "entry": {"url": "https://app.example.test/notes", "anchors": [{"selector": "#title", "tag": "input"}, {"selector": "#save", "tag": "button"}]},
+  "steps": [{"kind": "fill", "selector": "#title", "param": "title"}, {"kind": "click", "selector": "#save"}],
+  "assertions": [{"selector": "#receipt", "textIncludesParam": "title", "changedFromBefore": true}],
+  "extract": [{"name": "receipt", "selector": "#receipt", "kind": "text"}],
+  "samples": [{"title": "BFS test note alpha"}, {"title": "BFS test note beta"}]
+}

@@ -1,3 +1,6 @@
+import {normalizeVisualConfig} from './browser-visual.js';
+import {normalizeAriaVirtualLists,assertVirtualApproval} from './aria-virtual-policy.js';
+import {normalizeClosedShadowRoots} from './closed-shadow.js';
 import path from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -9,7 +12,8 @@ export const DEFAULTS = {
   maxDurationMs: 300000, maxRequests: 1500, maxTabs: 1, maxRetries: 1,
   maxActions: 500, maxStatesPerHost: 50, requestDelayMs: 50, retryMaxDelayMs: 5000,
   gotoTimeoutMs: 15000, actionTimeoutMs: 4000, drainTimeoutMs: 5000,
-  captureTraffic: true, harCapture: true, harPath: 'traffic.har',
+  captureTraffic: true, captureBinaryBodies: false, captureInitiators: true, harCapture: true, harPath: 'traffic.har',
+  checkpointIntervalMs: 1000, reuseVerifiedState: true, seedInterleaveActions: 8,
   trafficMaxBodyBytes: 65536, trafficHarvestMaxBytes: 1048576, bodyTimeoutMs: 3000,
   maxBodyConcurrency: 2, maxPendingBodies: 32, maxApiSamples: 20,
   maxRequestBodyBytes: 65536,
@@ -20,7 +24,7 @@ export const DEFAULTS = {
   seedFiles: false, shotFormat: 'png', shotQuality: 65, ignoreHTTPSErrors: false,
   authMode: 'anonymous', authCheckIntervalMs: 30000,
   auth: {}, excludeSelectors: [], excludeTextPatterns: [], skipTextPatterns: [],
-  actionAllowlist: [], requestAllowlist: [], seedRoutes: [], fingerprintNoisePatterns: [],
+  actionAllowlist: [], writeActionAllowlist: [], requestAllowlist: [], seedRoutes: [], fingerprintNoisePatterns: [], ariaVirtualLists: [], closedShadowRoots: [],
   fingerprintIgnoreSelectors: ['[data-bfs-noise]', '[role="timer"]'],
   modalSelectors: ['[role="dialog"]','.modal'], modalCheckboxSelectors: ['input[type="checkbox"]'],
   modalCloseSelectors: ['[aria-label="Close"]'], agreeKeywords: ['接受','同意','accept','agree'],
@@ -53,15 +57,15 @@ const RETIRED = new Set(['rootPool','rootPoolSize','overviewBatchSize','overview
 const OPTIONAL = ['startUrl','outputDir','storageState','persistentProfile','channel','extraLaunchArgs',
   'userAgent','proxy','authInject','credentialOrigins','navigationOrigins','requestOrigins','includeUrlPattern',
   'authProfileId','sessionWritebackTo','loginUrl','loginPageRe','loginLoggedInUrlContains',
-  'loginTimeoutMs','gotoRetries','relocateRetries','circuitBreakerMax','urlShapeDedup',
-  'pageSimDedup','pageSimThreshold','discoverySeedBatch','formValues','fillTextValue', 'authEpoch'];
+  'loginTimeoutMs','gotoRetries','relocateRetries','circuitBreakerMax','urlShapeDedup','closedStagePlanning',
+  'pageSimDedup','pageSimThreshold','discoverySeedBatch','formValues','fillTextValue', 'authEpoch','visual'];
 const POSITIVE = ['maxStates','maxDurationMs','maxRequests','maxTabs','maxActions','maxStatesPerHost',
   'gotoTimeoutMs','actionTimeoutMs','drainTimeoutMs','trafficMaxBodyBytes','trafficHarvestMaxBytes',
   'bodyTimeoutMs','maxBodyConcurrency','maxPendingBodies','maxApiSamples','maxFrames','maxInteractives',
-  'authCheckIntervalMs','loginTimeoutMs','retryMaxDelayMs','maxRequestBodyBytes'];
+  'authCheckIntervalMs','loginTimeoutMs','retryMaxDelayMs','maxRequestBodyBytes','checkpointIntervalMs','seedInterleaveActions'];
 const NONNEGATIVE = ['maxDepth','maxRetries','requestDelayMs','maxScrollSteps','maxSelectOptions',
   'discoverySeedCap','gotoRetries','relocateRetries','circuitBreakerMax','discoverySeedBatch','authEpoch'];
-const ARRAYS = ['excludeSelectors','excludeTextPatterns','skipTextPatterns','actionAllowlist',
+const ARRAYS = ['excludeSelectors','excludeTextPatterns','skipTextPatterns','actionAllowlist','writeActionAllowlist',
   'seedRoutes','fingerprintNoisePatterns','fingerprintIgnoreSelectors','modalSelectors','modalCheckboxSelectors',
   'modalCloseSelectors','agreeKeywords','consentKeywords','extraLaunchArgs'];
 
@@ -97,6 +101,12 @@ export function readSession(file) {
   }
   return state;
 }
+function closedStagePlanning(value,roots){
+  if(value===undefined)return undefined;
+  const invalid=()=>{throw Object.assign(new Error('CLOSED_STAGE_PLANNING_INVALID：需要已批准闭根及唯一明确的 workflowId'),{code:'CLOSED_STAGE_PLANNING_INVALID'});};
+  if(value===null||typeof value!=='object'||Array.isArray(value)||Object.keys(value).length!==1||!Object.hasOwn(value,'workflowId')||typeof value.workflowId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(value.workflowId)||['__proto__','constructor','prototype'].includes(value.workflowId)||!roots.length)invalid();
+  return {workflowId:value.workflowId};
+}
 export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false } = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('config 必须是 JSON 对象');
   if(input.auth!=null&&(typeof input.auth!=='object'||Array.isArray(input.auth)))throw new Error('auth 必须是对象');
@@ -106,6 +116,12 @@ export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false
     if (!['_configPath','_legacy','_migration','_policy','_runtime','_recoveredFromPrevious','sessionId','runId'].includes(key) && !allowed.has(key)) throw new Error(`未知配置项: ${key}`);
   }
   const cfg = { ...DEFAULTS,...input, auth: {...DEFAULTS.auth,...input.auth}, stabilize: {...DEFAULTS.stabilize,...input.stabilize} };
+  cfg.visual = normalizeVisualConfig(cfg.visual);
+  cfg.ariaVirtualLists = normalizeAriaVirtualLists(cfg.ariaVirtualLists);
+  cfg.closedShadowRoots = normalizeClosedShadowRoots(cfg.closedShadowRoots);
+  if(cfg.closedShadowRoots.length&&cfg.browserType!=='chromium')throw new Error('closed Shadow 后端仅支持 Chromium');
+  const stagePlanning=closedStagePlanning(cfg.closedStagePlanning,cfg.closedShadowRoots);
+  if(stagePlanning)cfg.closedStagePlanning=stagePlanning;else delete cfg.closedStagePlanning;
   cfg.startUrl = canonicalAsset(cfg.startUrl);
   cfg._migration = [...(input._migration||[]),...Object.keys(input).filter(k => RETIRED.has(k)).map(k => RETIRED_NOTES[k] || `${k} 已退役；统一调度器串行探索，安全守卫始终启用`)];
   for (const k of RETIRED) delete cfg[k];
@@ -148,6 +164,7 @@ export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false
     if (rule.urlPattern) { if (!rule.urlPattern.startsWith('^') || !rule.urlPattern.endsWith('$')) throw new Error('requestAllowlist urlPattern 必须用 ^ 和 $ 锚定'); new RegExp(rule.urlPattern); }
     if(rule.operationType&&!['query','mutation','subscription'].includes(rule.operationType))throw new Error('operationType 必须是 query/mutation/subscription');
   }
+  for(const policy of cfg.ariaVirtualLists)assertVirtualApproval(cfg,policy);
   if (cfg.authInject) {
     if (typeof cfg.authInject !== 'object' || !cfg.authInject.headers || Array.isArray(cfg.authInject.headers) || Object.keys(cfg.authInject).some(k => !['headers','urlPattern'].includes(k))) throw new Error('authInject 需要 headers 对象');
     for (const [name,value] of Object.entries(cfg.authInject.headers)) if (!/^[!#$%&'*+.^_`|~\w-]+$/.test(name) || typeof value !== 'string' || /[\r\n]/.test(value)) throw new Error('authInject header 格式错误');
@@ -176,6 +193,7 @@ export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false
   if (cfg.authMode==='manual') { cfg.headless=false; if (!cfg.storageState) cfg.storageState=path.join(baseDir,'output','session.json'); }
   if (cfg.actionProfile==='safe' && (cfg.fillText || cfg.formExplore)) throw new Error('填表需要 --profile forms 和明确 requestAllowlist');
   if (cfg.actionProfile==='forms' && !cfg.requestAllowlist.length) throw new Error('forms 策略需要明确 requestAllowlist');
+  if (cfg.writeActionAllowlist.length && (cfg.actionProfile!=='forms' || !cfg.requestAllowlist.length || cfg.writeActionAllowlist.length>100 || cfg.writeActionAllowlist.some(selector=>!selector || selector.length>2048 || !cfg.actionAllowlist.includes(selector)))) throw new Error('writeActionAllowlist 需要 forms、明确 requestAllowlist，且固定 selector 必须属于 actionAllowlist');
   if (cfg.fillText && !cfg.formValues && !cfg.fillTextValue) throw new Error('填表需要 formValues 或 fillTextValue');
   cfg.runId = cfg.runId || `${randomUUID()}_${new URL(cfg.startUrl).host}`;
   cfg.sessionId = cfg.runId;

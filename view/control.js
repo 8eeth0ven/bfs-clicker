@@ -97,8 +97,9 @@ export function createControlPanel({outputRoot=path.join(PROJECT_ROOT,'output-ru
     const working=!!worker;
     const interrupted=!working&&meta.status==='running';
     const progress=working?meta.progress||{}:{};
-    let reportLink=null;
+    let reportLink=null,graphLink=null;
     try{if(statSync(path.join(job.dir,'report.html')).isFile())reportLink='/runs/'+encodeURIComponent(job.id)+'/report.html';}catch{/* no readable report */}
+    try{if(meta.graph?.available!==false&&statSync(path.join(job.dir,'graph.html')).isFile()&&statSync(path.join(job.dir,'graph.json')).isFile())graphLink='/runs/'+encodeURIComponent(job.id)+'/graph.html';}catch{/* no exported graph */}
     return redact({id:job.id,asset:meta.asset||job.asset||'',limitMode:meta.limitMode||job.limitMode||'default',
       budgets:meta.budgets||job.budgets||{},status:working?(job.stopRequested?'stopping':worker.ownerConfirmed?(meta.status||'running'):'starting'):
         interrupted?'partial':meta.status||job.failure?.status||'failed',
@@ -106,7 +107,7 @@ export function createControlPanel({outputRoot=path.join(PROJECT_ROOT,'output-ru
       startedAt:meta.startedAt||job.startedAt,finishedAt:meta.finishedAt,counts:{...(meta.counts||{}),...progress},
       pending:meta.pending||{actions:progress.pendingActions||0},logs:job.logs,outputDir:job.dir,
       active:working,canResume:!active&&(terminalStatuses.has(meta.status)||interrupted)&&existsSync(path.join(job.dir,'private','config.json')),
-      report:reportLink});
+      report:reportLink,graph:graphLink});
   };
   const getJob=id=>{const job=jobs.get(id);if(!job)throw new HttpError(404,'任务不存在');return job;};
   const writeStop=(job,note)=>{writeFileSync(path.join(job.dir,'STOP'),note,{mode:0o600});};

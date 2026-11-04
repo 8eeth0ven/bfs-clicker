@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "search_with_flags",
+  "name": "按文字和开关筛选",
+  "effect": "read",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {"type": "string", "minLength": 1, "maxLength": 80},
+      "archived": {"type": "boolean"},
+      "active": {"type": "boolean"}
+    },
+    "required": ["query", "archived", "active"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {"kind": "check", "selector": {"accessibilityId": "IncludeArchived"}, "input": "archived"},
+    {"kind": "check", "selector": {"accessibilityId": "OnlyActive"}, "input": "active"},
+    {"kind": "type", "selector": {"accessibilityId": "QueryText"}, "input": "query", "replace": true},
+    {"kind": "click", "selector": {"accessibilityId": "Search"}},
+    {"kind": "assert", "selector": {"accessibilityId": "Results"}, "expect": {"containsInput": "query", "changed": true}},
+    {"kind": "assert", "selector": {"accessibilityId": "Results"}, "expect": {"containsInput": "archived"}},
+    {"kind": "assert", "selector": {"accessibilityId": "Results"}, "expect": {"containsInput": "active"}},
+    {"kind": "extract", "selector": {"accessibilityId": "Results"}, "output": "results", "valueType": "string"}
+  ]
+}

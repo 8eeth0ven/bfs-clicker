@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "search_items",
+  "name": "查询项目",
+  "effect": "read",
+  "networkEvidence": "required",
+  "inputSchema": {
+    "type": "object",
+    "properties": {"query": {"type": "string", "minLength": 2, "maxLength": 80}},
+    "required": ["query"],
+    "additionalProperties": false
+  },
+  "entry": {"url": "https://app.example.test/search", "anchors": [{"selector": "#query", "tag": "input"}, {"selector": "#search", "tag": "button"}]},
+  "steps": [{"kind": "fill", "selector": "#query", "param": "query"}, {"kind": "click", "selector": "#search"}],
+  "assertions": [{"selector": "#results", "textIncludesParam": "query"}],
+  "extract": [{"name": "results", "selector": "#results", "kind": "text"}],
+  "samples": [{"query": "alpha"}, {"query": "beta"}]
+}

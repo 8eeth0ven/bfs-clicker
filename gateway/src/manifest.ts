@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
 import { Ajv2020 } from 'ajv/dist/2020.js';
+import {queryRules} from './query-serialization.js';
+import {formRules} from './form-serialization.js';
+import {multipartRules} from './multipart-serialization.js';
 import path from 'node:path';
 import { checkedPath, isDirectory, readJsonLimited, readJsonWithDigest, within } from './files.js';
 import { GatewayError, METHODS, SOURCE_KINDS, EXTRACTION_SOURCES, type AppMetadata, type SourceKind, type Endpoint, type GatewayConfig, type Method, type Operation, type Schema, type SourceBinding, type SourceSnapshot } from './types.js';
@@ -125,9 +128,14 @@ function isAllowed(config: GatewayConfig, source: string, id: string, method: Me
   return method === 'GET' || (config.methods.allow_non_get && config.methods.allow.some(x => x.source === source && x.endpoint_id === id && x.method === method));
 }
 function bodyEncoding(raw: any, binding: SourceBinding): Operation['body_encoding'] {
+  if(raw.multipart_serialization!==undefined){
+    const declared=[...Object.entries(raw.headers||{}),...Object.entries(binding.static_headers||{})].filter(([key])=>key.toLowerCase()==='content-type');
+    return declared.length&&declared.every(([,value])=>/^multipart\/form-data(?:\s*;|$)/i.test(String(value)))?'multipart':'unsupported';
+  }
   const entries = Object.entries({ ...(raw.headers || {}), ...(binding.static_headers || {}) });
   const content = String(entries.find(([k]) => k.toLowerCase() === 'content-type')?.[1] || '').toLowerCase();
-  if (content.includes('multipart/') || content.includes('octet-stream') || content.includes('protobuf')) return 'unsupported';
+  if (content.includes('multipart/')) return /^multipart\/form-data(?:\s*;|$)/.test(content)&&raw.multipart_serialization!==undefined?'multipart':'unsupported';
+  if (content.includes('octet-stream') || content.includes('protobuf')) return 'unsupported';
   if (content.includes('x-www-form-urlencoded')) return 'form';
   if (content.startsWith('text/')) return 'text';
   return 'json';
@@ -238,6 +246,9 @@ export async function loadManifest(binding: SourceBinding, config: GatewayConfig
       group.operations[method] = op; group.methods.push(method);
     }
     op.provenance = unique([...op.provenance, ...p]);
+    if(record.query_serialization!==undefined){const rules=queryRules(record.query_serialization);op.query_serialization??=Object.create(null);for(const [name,rule]of Object.entries(rules)){if(op.query_serialization![name]&&digest(op.query_serialization![name])!==digest(rule)){op.query_serialization_conflict=true;warnings.push('QUERY_SERIALIZATION_CONFLICT');}else op.query_serialization![name]=rule;}}
+    if(record.form_serialization!==undefined){if(encoding!=='form')throw new GatewayError('FORM_CONTRACT_INVALID','只有表单请求体可声明form_serialization');const rules=formRules(record.form_serialization);if(op.form_serialization&&digest(op.form_serialization)!==digest(rules)){op.form_serialization_conflict=true;warnings.push('FORM_SERIALIZATION_CONFLICT');}else op.form_serialization=rules;}
+    if(record.multipart_serialization!==undefined){if(encoding!=='multipart')throw new GatewayError('MULTIPART_CONTRACT_INVALID','只有multipart请求体可声明multipart_serialization');const rules=multipartRules(record.multipart_serialization);if(op.multipart_serialization&&digest(op.multipart_serialization)!==digest(rules)){op.multipart_serialization_conflict=true;warnings.push('MULTIPART_SERIALIZATION_CONFLICT');}else op.multipart_serialization=rules;}
     op.categories = unique([...op.categories, ...(Array.isArray(record.categories) ? record.categories.filter((x: any) => typeof x === 'string').map((x: string) => x.slice(0, 128)) : [])]);
     const channels=Array.isArray(record.extraction_sources)?record.extraction_sources.filter((x:any)=>(EXTRACTION_SOURCES as readonly string[]).includes(x)):[];
     const locations=Array.isArray(record.locations)?record.locations.filter((x:any)=>typeof x==='string').map((x:string)=>cap(x)):[];
@@ -296,9 +307,9 @@ export async function loadManifest(binding: SourceBinding, config: GatewayConfig
         if (section?.properties) for (const [name, spec] of Object.entries(section.properties)) op.parameter_summary.push({in: place, name, type: (spec as any).type || 'union', required: !!section.required?.includes(name)});
         else if (section && place === 'body') op.parameter_summary.push({in: 'body', name: '$', type: section.type || 'json', required: !!op.params_schema.required?.includes('body')});
       }
-      op.allowed = isAllowed(config, binding.id, ep.id, method, op.body_encoding) && (!binding.allowed_origins || binding.allowed_origins.includes(ep.origin));
-      if (!op.allowed) op.blocked_reason = op.body_encoding === 'unsupported' ? 'UNSUPPORTED_BODY_ENCODING' : binding.allowed_origins && !binding.allowed_origins.includes(ep.origin) ? 'ORIGIN_BLOCKED' : 'METHOD_BLOCKED';
-      op.contract_revision = digest([kind, app, ep.origin, ep.path, method, op.params_schema, op.body_encoding, binding.defaults?.[ep.id], binding.static_headers, binding.credential_origins]);
+      op.allowed = !op.form_serialization_conflict && !op.query_serialization_conflict && !op.multipart_serialization_conflict && isAllowed(config, binding.id, ep.id, method, op.body_encoding) && (!binding.allowed_origins || binding.allowed_origins.includes(ep.origin));
+      if (!op.allowed) op.blocked_reason = op.multipart_serialization_conflict ? 'MULTIPART_SERIALIZATION_CONFLICT' : op.form_serialization_conflict ? 'FORM_SERIALIZATION_CONFLICT' : op.query_serialization_conflict ? 'QUERY_SERIALIZATION_CONFLICT' : op.body_encoding === 'unsupported' ? 'UNSUPPORTED_BODY_ENCODING' : binding.allowed_origins && !binding.allowed_origins.includes(ep.origin) ? 'ORIGIN_BLOCKED' : 'METHOD_BLOCKED';
+      op.contract_revision = digest([kind, app, ep.origin, ep.path, method, op.params_schema, op.body_encoding, op.query_serialization, op.query_serialization_conflict, op.form_serialization, op.form_serialization_conflict, binding.defaults?.[ep.id], binding.static_headers, binding.credential_origins,...(op.multipart_serialization||op.multipart_serialization_conflict?[op.multipart_serialization,op.multipart_serialization_conflict]:[])]);
     }
   }
   // Fingerprint the trusted invocation contract as well as discovery metadata. Never include credential-file values.

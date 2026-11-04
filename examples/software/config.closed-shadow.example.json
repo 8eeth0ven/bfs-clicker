@@ -1,0 +1,14 @@
+{
+  "outputRoot": "./software-output",
+  "webConfig": {
+    "closedShadowRoots": [
+      {"id": "search", "hosts": ["#search-widget"], "maxNodes": 64}
+    ],
+    "actionProfile": "forms",
+    "fillText": true,
+    "formValues": {"closed::search::#query": "alpha"},
+    "actionAllowlist": ["closed::search::#query", "closed::search::#search"],
+    "requestAllowlist": [{"method": "POST", "url": "http://127.0.0.1:8080/api/search"}],
+    "maxRetries": 0
+  }
+}

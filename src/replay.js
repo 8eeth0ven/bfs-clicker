@@ -1,9 +1,19 @@
 // Every replay/fallback repeats the live policy check on the exact DOM target.
 import { collectInteractives, locate, checkLiveAction, frameFor } from './discover.js';
 import { fillValueFor, isDropdownTrigger, isFormAction, pickOpenOption, prepareForm } from './formfill.js';
+import {exploreVirtualChoice} from './aria-virtual.js';
+import {virtualPolicyFor} from './aria-virtual-policy.js';
+import {resetClosedShadow} from './closed-shadow.js';
+import {beginTextReceipt,isTextPreparation} from './input-prefix.js';
 export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={}) {
   config._runtime?.budget?.check();
+  if(opts.liveElement&&el.closedShadow)throw Object.assign(new Error('live_state_unavailable'),{name:'PolicyError',reason:'live_state_unavailable'});
   if(el.skipped || el.excluded)throw Object.assign(new Error(el.skipReason||'excluded_action'),{name:'PolicyError'});
+  if(opts.inputReceipt&&(!isTextPreparation(el)||el.role==='combobox'&&virtualPolicyFor(config,el)))throw Object.assign(new Error('input_prefix_primitive_unsupported'),{name:'PolicyError',reason:'input_prefix_primitive_unsupported'});
+  dialogs.invalidate?.();
+  if((el.kind==null||el.kind==='click')&&el.role==='combobox'&&virtualPolicyFor(config,el)){
+    await dialogs.handle();await exploreVirtualChoice(page,dialogs,el,config);return;
+  }
   if(el.kind==='scroll'){
     await frameFor(page,el).evaluate(step=>{
       const candidates=[document.scrollingElement,...document.querySelectorAll('[data-bfs-scroll],[role="list"],[role="listbox"]')].filter(Boolean);
@@ -13,17 +23,22 @@ export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={})
   }
   await dialogs.handle();
   let target=el;
-  let loc=locate(page,target);
+  let loc=locate(page,target,config);
   if(await loc.count()!==1){
+    if(el.closedShadow||el.selector?.startsWith('closed::'))throw Object.assign(new Error('closed target changed'),{code:'CLOSED_SHADOW_LOCATOR_CHANGED'});
+    if(opts.inputReceipt||opts.liveElement)throw Object.assign(new Error('input_prefix_target_changed'),{name:'PolicyError',reason:'input_prefix_target_changed'});
     const items=await collectInteractives(page,config);
     target=items.find(v=>!v.skipped&&v.label===el.label&&JSON.stringify(v.framePath)===JSON.stringify(el.framePath))||null;
     if(!target)throw new Error('找不到唯一元素: '+el.label);
-    loc=locate(page,target);
+    loc=locate(page,target,config);
     if(await loc.count()!==1)throw new Error('重定位结果不唯一: '+el.label);
   }
   loc=await checkLiveAction(page,target,config);
+  if(opts.liveElement){if(!await loc.evaluate((node,pin)=>node===pin,opts.liveElement))throw Object.assign(new Error('live_state_unavailable'),{name:'PolicyError',reason:'live_state_unavailable'});loc=opts.liveElement;}
+  if(opts.inputReceipt&&!isTextPreparation(target))throw Object.assign(new Error('input_prefix_target_changed'),{name:'PolicyError',reason:'input_prefix_target_changed'});
   const timeout=Math.max(1,Math.min(config.actionTimeoutMs||4000,config._runtime?.budget?.remainingMs??Infinity));
   if(config.formExplore && isFormAction(target))await prepareForm(page,config,log);
+  let receipt;
   if(el.kind==='hover')await loc.hover({timeout});
   else if(target.type==='checkbox')await loc.setChecked(el.checkedValue??true,{timeout});
   else if(target.type==='radio')await loc.check({timeout});
@@ -33,28 +48,33 @@ export async function clickElement(page,dialogs,el,config={},log=()=>{},opts={})
     else if(options.length)await loc.selectOption(options[0].value,{timeout});
     else if(await loc.locator('option').count()>1)await loc.selectOption({index:1},{timeout});
   }else if(target.type==='text'){
-    if(!config.fillText&&!config.formExplore)return;
+    if(!config.fillText&&!config.formExplore)throw Object.assign(new Error('form_fill_disabled'),{name:'PolicyError',reason:'form_fill_disabled'});
     const value=config.formValues?.[target.selector]??fillValueFor(target,config);
-    if(value!=null)await loc.fill(value,{timeout});
+    if(value==null)throw Object.assign(new Error('form_value_unavailable'),{name:'PolicyError',reason:'form_value_unavailable'});
+    if(opts.inputReceipt)receipt=await beginTextReceipt(page,target,locate(page,target,config),config,value);
+    try{await loc.fill(value,{timeout});}catch(error){await receipt?.dispose();throw error;}
   }else{
     try{await loc.click({timeout});}
     catch(error){
-      if(config.jsClickFallback!==true)throw error;
+      if(config.jsClickFallback!==true||target.closedShadow||opts.liveElement)throw error;
       // JS fallback only uses the same uniquely located, newly checked element.
       loc=await checkLiveAction(page,target,config);await loc.evaluate(element=>element.click());
     }
   }
   if(config.formExplore && isDropdownTrigger(target))await pickOpenOption(page,log,config);
-  await dialogs.handle();await dialogs.stabilize(opts.short);
+  try{await dialogs.handle();await dialogs.stabilize(opts.short);if(receipt)await receipt.verify();}
+  catch(error){await receipt?.dispose();throw error;}
+  return receipt;
 }
 export async function replayPath(page,dialogs,steps,config,log=()=>{},opts={}) {
   for(const step of steps){
-    if(step.safeReplay===false)throw Object.assign(new Error('unsafe_replay_requires_manual_state'),{name:'PolicyError'});
+    if(step.safeReplay===false||isTextPreparation(step))throw Object.assign(new Error('unsafe_replay_requires_manual_state'),{name:'PolicyError'});
     if(step.gotoUrl)await gotoStep(page,dialogs,step.gotoUrl,config,log,opts);
     else await clickElement(page,dialogs,step,config,log,opts);
   }
 }
 export async function gotoWithRetry(page,url,config,log=()=>{},label='') {
+  await resetClosedShadow(page);
   const decision=config._policy?.navigation(url);
   if(decision&&!decision.allow)throw Object.assign(new Error(decision.reason),{name:'PolicyError',reason:decision.reason});
   const retries=config.maxRetries??config.gotoRetries??1;
@@ -72,5 +92,6 @@ export async function gotoWithRetry(page,url,config,log=()=>{},label='') {
   }
 }
 export async function gotoStep(page,dialogs,url,config,log=()=>{},opts={}) {
+  dialogs.invalidate?.();
   await gotoWithRetry(page,url,config,log);await dialogs.handle();await dialogs.stabilize(opts.short);
 }

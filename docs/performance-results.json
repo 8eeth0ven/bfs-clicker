@@ -1,0 +1,2404 @@
+{
+  "baseline": "f085111e2f1f353e77a8f6ad8f2b7040f36232f1",
+  "environment": {
+    "date": "2026-10-27T06:49:44.833Z",
+    "node": "v26.8.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 10,
+    "playwright": "1.64.1",
+    "baselineModule": "output-performance-review/baseline-f085111/src/runner.js",
+    "repeats": 3,
+    "sourceDigests": {
+      "optimized": {
+        "asset.js": "fbb927d39b44ed419b32b385452e9ed45682e9c5c96e120d47c8e71c5b87d5a0",
+        "auth.js": "d7bdbdd8fa8042d9b65ba880f1f036d8f632904c49a1d93e4b8d72bb8a797cee",
+        "browser.js": "e08fc14461f7f310296f336369af48047818fc6536a5f5669a3f0315c4e8606c",
+        "budget.js": "5feccad96fef5ffc7a1f027d0a55ac322f8429b1a86319acb0f7c32488d67c8e",
+        "cdpnet.js": "7c48e7634f70d4f067bb3aee238d399a5f01c12048c773388e29ba2ca96f0a2b",
+        "checkpoint.js": "e11040d439d4eedcf5bf54307d97564fc1bf570640d3023002eb047672938db0",
+        "cli.js": "8cc9ea13b868e819c8dd1fae76778907027e76c25d18128146cb3e5e5b27ea83",
+        "config.js": "1383f332f42c2ca9610b5b21b2184cec44099ca8e1ccd4b4ae1dcc249aa40053",
+        "crawler.js": "9a4f003d57a5fb7c8e179c7664775486cfeb59110659aa3cfe42ec7f603667d0",
+        "dialogs.js": "82e02193eddda24be88257fa5c90b303df62cfe6dc077a1c7e3d844b53c2d07d",
+        "discover.js": "dd29a5e639953e94fdad4249de4f03ad059d2ae4646602006bedc616f63a2135",
+        "doctor.js": "4d9d3cbe986671d280a8c6c27530730a6ad9b3d194b4dd612225b5d33aa2bd1d",
+        "evidence.js": "335f7aba79b4e9f37546e6533b076886175d9fbe301e57a3ddabb8341c1319b8",
+        "formfill.js": "9f6e5bb3acd81d19b67493d2ed7f940495ba9632b09985957a51473ba3e8cac8",
+        "graph-export.js": "b9093f59afcc011d9986b6066b23bbd3879ebe51d7fe783e1bd7d2810e1ea261",
+        "graph-run.js": "c70959cd5b3d8002e01b36e00657c624da6b524ef5a1f37902f09cf1ec934b0e",
+        "graph.js": "391346f1ed0a53c21472a2dbd2d1d5cfe3fcf40cf0bede323c8e98c0fd6019f8",
+        "har.js": "15d285323d5939c5a4d6f83ee8371c59ee9c5bd1d8605614ec6f5bfcb7d3264f",
+        "index.js": "606a0bb1b31171ef6829714bbace884b04e42f922c8e1ee337f6f8cab7a54561",
+        "initiator.js": "4a3b48a7c17b644649913f40e2648399a8f85305479cd3e4dac9ab07058e919c",
+        "login.js": "2f215fc4bece7900249b5cad4799587f122a0dae3dc7f4c870fd39d90554015b",
+        "mcp-graph.js": "5c9b073f4b20830c54f34f557830ec2828403dcd05f3af5e92cc6b51523eefe6",
+        "mcp-jobs.js": "01506dc648dfc4119bd16e59bcb2bff85e1ef607d8892fac35f69848518ca516",
+        "mcp-server.js": "fb6927ca6b8935b6c024db31392fd619d52718c4daa5439be17e9249a81fce8a",
+        "mcp.js": "edd7a44ee75219eb128b9d7b0bb3c95b46c095fd1b1357a6545c4b254dea5c6b",
+        "memguard.js": "cdf7b3bca153cf5b40c3cac9021ed5b8d2c420b5d7feb0be437908f3a5dc7e2f",
+        "policy.js": "8d094375c9e6742bd2a58e178f16a366f397ff48e8e643bc2adbb2f824f1cf8a",
+        "redact.js": "ae1a23140dddadd5d3e67de5474824a20667d572bbd40c1f8b14e1deda9d2d16",
+        "replay.js": "9e9609ad8964c902f8e574263ce5691c584a1d13a1e64306878e2b85416383a8",
+        "report.js": "a763e87770ec7186f971739f9bcc22f0278404135b1378c01990729b3b9410c2",
+        "routeguard.js": "ea4d8fbc463d125faa5f5b4a2fb32700d2816bf36653b28abcb0ea4e5cd5b1cd",
+        "runner.js": "160c9d62431b1bf115fd3b22a4e0a4f2a4cde77906e10ba0bef9777b5cad9cb2",
+        "skipwords.js": "7c46cc76e0b839b95a61c9dc03f72c37496548b5ed1efd4bf68c0779671d1a62",
+        "state.js": "bb1d4d3870ad25f2ea9ebea3291217e5e3cdfd712c4ec684f8a8fffd242c3a58",
+        "store.js": "b1282b8f2c7d881fa0653756887451736c337bae3a0a7a29df7d0e4284ee9760",
+        "traffic.js": "9c1a397329a79efd327c59afbf23e723a451109b5e2d0059018c0d42c1c72aa0",
+        "urlshape.js": "3b04c84c27edbaed8ab90bb2293f3bff3406ce211018b8a3f769e50787b5634b",
+        "worker-parent.js": "7cafbe4d64f4610686dd72088c156c1d9fa2b5f54eb86a60f6c7354230c46cea"
+      },
+      "baseline": {
+        "asset.js": "4136c80ac520bc28701096e7f10ac439424ae3409d425fe11958a247d0bb5372",
+        "auth.js": "d7bdbdd8fa8042d9b65ba880f1f036d8f632904c49a1d93e4b8d72bb8a797cee",
+        "browser.js": "9b513548bd044979b3cbb6e16a9ef8268b1710a23f34f4718cf8a043516f897e",
+        "budget.js": "e238a66e0d3cff743a719d41bbc1fa509126a8928d5125e03bed1c225d547f57",
+        "cdpnet.js": "1b95428cc11dbc54b1c00ebf2c5f567e0d4bd16772be93dfcb836fa8863f169b",
+        "cli.js": "8cc9ea13b868e819c8dd1fae76778907027e76c25d18128146cb3e5e5b27ea83",
+        "config.js": "1383f332f42c2ca9610b5b21b2184cec44099ca8e1ccd4b4ae1dcc249aa40053",
+        "crawler.js": "9a4f003d57a5fb7c8e179c7664775486cfeb59110659aa3cfe42ec7f603667d0",
+        "dialogs.js": "5e6849394341772967cc2cbcf60b6f01722f40860bd79c928a1fd2a60352a7a9",
+        "discover.js": "dd29a5e639953e94fdad4249de4f03ad059d2ae4646602006bedc616f63a2135",
+        "doctor.js": "4d9d3cbe986671d280a8c6c27530730a6ad9b3d194b4dd612225b5d33aa2bd1d",
+        "evidence.js": "69a9e3d4a65dad5a345ca871130f66fc3b2c8c8bc5cbe85b038602397e6afbf8",
+        "formfill.js": "9f6e5bb3acd81d19b67493d2ed7f940495ba9632b09985957a51473ba3e8cac8",
+        "har.js": "11a2f1d2d72402b8c462943533f1b6137eec79203d22ab848ab4bcee64b8a303",
+        "index.js": "728ceada4a425545d577e837073e4bd409a0185f8516de89260fe94e310b7ea4",
+        "login.js": "2f215fc4bece7900249b5cad4799587f122a0dae3dc7f4c870fd39d90554015b",
+        "memguard.js": "cdf7b3bca153cf5b40c3cac9021ed5b8d2c420b5d7feb0be437908f3a5dc7e2f",
+        "policy.js": "2cb5a29fa5dc57b2c36711f77e16c45e3fda5ea90a1585c35cb7c17907a6f09e",
+        "redact.js": "dd67030e49962b6a2b8f9bf1b80d046d1ebc0e4a8eef51e8ae9ef0c20cfa2c19",
+        "replay.js": "9893fafa1d52768d49daeea709c80d9de083279daacde44e3a6e1ef0c0c63d46",
+        "report.js": "abf24d084db1c62f00056109f700860c7c1d8c8989143ff51d6f2dbbced7c488",
+        "routeguard.js": "ea4d8fbc463d125faa5f5b4a2fb32700d2816bf36653b28abcb0ea4e5cd5b1cd",
+        "runner.js": "41e164f3eabd7f553c468d45a7d7880aa6ca92a247caebd948dd205c451fe50f",
+        "skipwords.js": "7c46cc76e0b839b95a61c9dc03f72c37496548b5ed1efd4bf68c0779671d1a62",
+        "state.js": "bb1d4d3870ad25f2ea9ebea3291217e5e3cdfd712c4ec684f8a8fffd242c3a58",
+        "store.js": "b24013500335edd02460139e794d5c39f4b3d32b0f4e98193966bb6282573aa2",
+        "traffic.js": "9c1a397329a79efd327c59afbf23e723a451109b5e2d0059018c0d42c1c72aa0",
+        "urlshape.js": "3b04c84c27edbaed8ab90bb2293f3bff3406ce211018b8a3f769e50787b5634b"
+      }
+    },
+    "options": "Default screenshot PNG, requestDelayMs=50, safe profile and guards enabled for both; includes browser startup/finalize",
+    "chromium": "156.0.8078.4"
+  },
+  "summary": [
+    {
+      "suite": "tree",
+      "coverageMatches": true,
+      "baselineMs": 12118.153624999999,
+      "optimizedMs": 11159.451416666669,
+      "speedup": 1.0859094387831203
+    },
+    {
+      "suite": "chain",
+      "coverageMatches": true,
+      "baselineMs": 11715.471638333336,
+      "optimizedMs": 3423.112236333332,
+      "speedup": 3.422462025633833
+    },
+    {
+      "suite": "delayed",
+      "coverageMatches": true,
+      "baselineMs": 3278.541986333335,
+      "optimizedMs": 2723.772694666666,
+      "speedup": 1.2036767945992501
+    }
+  ],
+  "runs": [
+    {
+      "repeat": 1,
+      "suite": "tree",
+      "implementation": "baseline",
+      "elapsedMs": 12682.1895,
+      "states": 7,
+      "statesPerSecond": 0.5519551651550388,
+      "requests": 56,
+      "serverRequests": 56,
+      "actions": 18,
+      "replays": 9,
+      "succeeded": 9,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/tree/",
+          "fp": "e9df7403f6072d3386dbad537f2e7e1c"
+        },
+        {
+          "url": "/tree/detail/1",
+          "fp": "5a4d5a959a11c6001dfb1ad0a0b5945d"
+        },
+        {
+          "url": "/tree/detail/2",
+          "fp": "d3563a933c372b3848cf01f06ddb761b"
+        },
+        {
+          "url": "/tree/detail/3",
+          "fp": "42bb80f89c1a644c06b8328deac9dae6"
+        },
+        {
+          "url": "/tree/group/1",
+          "fp": "cd5f9296424cec27ef3b79c7a23ac09b"
+        },
+        {
+          "url": "/tree/group/2",
+          "fp": "546b37450d31d6bd640c78f2df0da5dd"
+        },
+        {
+          "url": "/tree/group/3",
+          "fp": "a6500bc18afec5a790ea5f6ea28fe558"
+        }
+      ],
+      "observedApis": [
+        "/api/tree/",
+        "/api/tree/detail/1",
+        "/api/tree/detail/2",
+        "/api/tree/detail/3",
+        "/api/tree/group/1",
+        "/api/tree/group/2",
+        "/api/tree/group/3"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 1,
+      "suite": "tree",
+      "implementation": "optimized",
+      "elapsedMs": 11127.348791999999,
+      "states": 7,
+      "statesPerSecond": 0.6290806669988314,
+      "requests": 54,
+      "serverRequests": 54,
+      "actions": 18,
+      "replays": 9,
+      "succeeded": 9,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/tree/",
+          "fp": "e9df7403f6072d3386dbad537f2e7e1c"
+        },
+        {
+          "url": "/tree/detail/1",
+          "fp": "5a4d5a959a11c6001dfb1ad0a0b5945d"
+        },
+        {
+          "url": "/tree/detail/2",
+          "fp": "d3563a933c372b3848cf01f06ddb761b"
+        },
+        {
+          "url": "/tree/detail/3",
+          "fp": "42bb80f89c1a644c06b8328deac9dae6"
+        },
+        {
+          "url": "/tree/group/1",
+          "fp": "cd5f9296424cec27ef3b79c7a23ac09b"
+        },
+        {
+          "url": "/tree/group/2",
+          "fp": "546b37450d31d6bd640c78f2df0da5dd"
+        },
+        {
+          "url": "/tree/group/3",
+          "fp": "a6500bc18afec5a790ea5f6ea28fe558"
+        }
+      ],
+      "observedApis": [
+        "/api/tree/",
+        "/api/tree/detail/1",
+        "/api/tree/detail/2",
+        "/api/tree/detail/3",
+        "/api/tree/group/1",
+        "/api/tree/group/2",
+        "/api/tree/group/3"
+      ],
+      "performance": {
+        "stateReuses": 1,
+        "replayActions": 9,
+        "checkpoints": 9,
+        "journalWrites": 42,
+        "persistenceMs": 478.41633299999376,
+        "fingerprints": 19,
+        "fingerprintMs": 60.47108199998365,
+        "graphMs": 42.56379200000083
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 53,
+        "edges": 91,
+        "states": 7,
+        "observedApis": [
+          "/api/tree/",
+          "/api/tree/detail/1",
+          "/api/tree/detail/2",
+          "/api/tree/detail/3",
+          "/api/tree/group/1",
+          "/api/tree/group/2",
+          "/api/tree/group/3"
+        ]
+      }
+    },
+    {
+      "repeat": 1,
+      "suite": "chain",
+      "implementation": "baseline",
+      "elapsedMs": 11368.451666,
+      "states": 7,
+      "statesPerSecond": 0.615739082652313,
+      "requests": 56,
+      "serverRequests": 56,
+      "actions": 21,
+      "replays": 15,
+      "succeeded": 6,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/chain/",
+          "fp": "287a189f61e5d9637d4599d08bd98a7a"
+        },
+        {
+          "url": "/chain/1",
+          "fp": "e2fde95da337405374ef7c4acfa5682d"
+        },
+        {
+          "url": "/chain/2",
+          "fp": "51b59a72fc3bf6dad4a01938c2bf8a8a"
+        },
+        {
+          "url": "/chain/3",
+          "fp": "bc3bb5b07d661a6f3920ef5b66d15d61"
+        },
+        {
+          "url": "/chain/4",
+          "fp": "da416d72c39707b4c7493c298649904f"
+        },
+        {
+          "url": "/chain/5",
+          "fp": "77dec5084fec0542df3732b4529958ae"
+        },
+        {
+          "url": "/chain/6",
+          "fp": "0069142d4629724049ff01f4c0ef4ffd"
+        }
+      ],
+      "observedApis": [
+        "/api/chain/0",
+        "/api/chain/1",
+        "/api/chain/2",
+        "/api/chain/3",
+        "/api/chain/4",
+        "/api/chain/5",
+        "/api/chain/6"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 1,
+      "suite": "chain",
+      "implementation": "optimized",
+      "elapsedMs": 3362.1786250000005,
+      "states": 7,
+      "statesPerSecond": 2.081983374693544,
+      "requests": 14,
+      "serverRequests": 14,
+      "actions": 6,
+      "replays": 0,
+      "succeeded": 6,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/chain/",
+          "fp": "287a189f61e5d9637d4599d08bd98a7a"
+        },
+        {
+          "url": "/chain/1",
+          "fp": "e2fde95da337405374ef7c4acfa5682d"
+        },
+        {
+          "url": "/chain/2",
+          "fp": "51b59a72fc3bf6dad4a01938c2bf8a8a"
+        },
+        {
+          "url": "/chain/3",
+          "fp": "bc3bb5b07d661a6f3920ef5b66d15d61"
+        },
+        {
+          "url": "/chain/4",
+          "fp": "da416d72c39707b4c7493c298649904f"
+        },
+        {
+          "url": "/chain/5",
+          "fp": "77dec5084fec0542df3732b4529958ae"
+        },
+        {
+          "url": "/chain/6",
+          "fp": "0069142d4629724049ff01f4c0ef4ffd"
+        }
+      ],
+      "observedApis": [
+        "/api/chain/0",
+        "/api/chain/1",
+        "/api/chain/2",
+        "/api/chain/3",
+        "/api/chain/4",
+        "/api/chain/5",
+        "/api/chain/6"
+      ],
+      "performance": {
+        "stateReuses": 6,
+        "replayActions": 0,
+        "checkpoints": 4,
+        "journalWrites": 26,
+        "persistenceMs": 180.92870800000674,
+        "fingerprints": 13,
+        "fingerprintMs": 29.81166699998721,
+        "graphMs": 9.129124999999476
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 49,
+        "edges": 66,
+        "states": 7,
+        "observedApis": [
+          "/api/chain/0",
+          "/api/chain/1",
+          "/api/chain/2",
+          "/api/chain/3",
+          "/api/chain/4",
+          "/api/chain/5",
+          "/api/chain/6"
+        ]
+      }
+    },
+    {
+      "repeat": 1,
+      "suite": "delayed",
+      "implementation": "baseline",
+      "elapsedMs": 3234.785708999996,
+      "states": 3,
+      "statesPerSecond": 0.9274184659754238,
+      "requests": 10,
+      "serverRequests": 10,
+      "actions": 5,
+      "replays": 2,
+      "succeeded": 3,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/delayed/",
+          "fp": "58c76b4658ef843a06a9a2438162d9bd"
+        },
+        {
+          "url": "/delayed/",
+          "fp": "630fed5ac32099228ee3b26e6c55fa90"
+        },
+        {
+          "url": "/delayed/detail",
+          "fp": "0cd5d6b6a5f37a3607676499c233ea11"
+        }
+      ],
+      "observedApis": [
+        "/api/delayed/detail",
+        "/api/delayed/root"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 1,
+      "suite": "delayed",
+      "implementation": "optimized",
+      "elapsedMs": 2710.4541670000035,
+      "states": 3,
+      "statesPerSecond": 1.1068255779880878,
+      "requests": 6,
+      "serverRequests": 6,
+      "actions": 4,
+      "replays": 1,
+      "succeeded": 3,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/delayed/",
+          "fp": "58c76b4658ef843a06a9a2438162d9bd"
+        },
+        {
+          "url": "/delayed/",
+          "fp": "630fed5ac32099228ee3b26e6c55fa90"
+        },
+        {
+          "url": "/delayed/detail",
+          "fp": "0cd5d6b6a5f37a3607676499c233ea11"
+        }
+      ],
+      "observedApis": [
+        "/api/delayed/detail",
+        "/api/delayed/root"
+      ],
+      "performance": {
+        "stateReuses": 2,
+        "replayActions": 1,
+        "checkpoints": 3,
+        "journalWrites": 13,
+        "persistenceMs": 105.67850099998759,
+        "fingerprints": 7,
+        "fingerprintMs": 17.16958500000328,
+        "graphMs": 4.834040999994613
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 17,
+        "edges": 23,
+        "states": 3,
+        "observedApis": [
+          "/api/delayed/detail",
+          "/api/delayed/root"
+        ]
+      }
+    },
+    {
+      "repeat": 2,
+      "suite": "tree",
+      "implementation": "optimized",
+      "elapsedMs": 11432.989208000006,
+      "states": 7,
+      "statesPerSecond": 0.6122633261213865,
+      "requests": 54,
+      "serverRequests": 54,
+      "actions": 18,
+      "replays": 9,
+      "succeeded": 9,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/tree/",
+          "fp": "e9df7403f6072d3386dbad537f2e7e1c"
+        },
+        {
+          "url": "/tree/detail/1",
+          "fp": "5a4d5a959a11c6001dfb1ad0a0b5945d"
+        },
+        {
+          "url": "/tree/detail/2",
+          "fp": "d3563a933c372b3848cf01f06ddb761b"
+        },
+        {
+          "url": "/tree/detail/3",
+          "fp": "42bb80f89c1a644c06b8328deac9dae6"
+        },
+        {
+          "url": "/tree/group/1",
+          "fp": "cd5f9296424cec27ef3b79c7a23ac09b"
+        },
+        {
+          "url": "/tree/group/2",
+          "fp": "546b37450d31d6bd640c78f2df0da5dd"
+        },
+        {
+          "url": "/tree/group/3",
+          "fp": "a6500bc18afec5a790ea5f6ea28fe558"
+        }
+      ],
+      "observedApis": [
+        "/api/tree/",
+        "/api/tree/detail/1",
+        "/api/tree/detail/2",
+        "/api/tree/detail/3",
+        "/api/tree/group/1",
+        "/api/tree/group/2",
+        "/api/tree/group/3"
+      ],
+      "performance": {
+        "stateReuses": 1,
+        "replayActions": 9,
+        "checkpoints": 9,
+        "journalWrites": 42,
+        "persistenceMs": 420.16321199997765,
+        "fingerprints": 19,
+        "fingerprintMs": 70.61862400001701,
+        "graphMs": 17.37945800000307
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 53,
+        "edges": 92,
+        "states": 7,
+        "observedApis": [
+          "/api/tree/",
+          "/api/tree/detail/1",
+          "/api/tree/detail/2",
+          "/api/tree/detail/3",
+          "/api/tree/group/1",
+          "/api/tree/group/2",
+          "/api/tree/group/3"
+        ]
+      }
+    },
+    {
+      "repeat": 2,
+      "suite": "tree",
+      "implementation": "baseline",
+      "elapsedMs": 11777.228417000006,
+      "states": 7,
+      "statesPerSecond": 0.594367346216683,
+      "requests": 56,
+      "serverRequests": 56,
+      "actions": 18,
+      "replays": 9,
+      "succeeded": 9,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/tree/",
+          "fp": "e9df7403f6072d3386dbad537f2e7e1c"
+        },
+        {
+          "url": "/tree/detail/1",
+          "fp": "5a4d5a959a11c6001dfb1ad0a0b5945d"
+        },
+        {
+          "url": "/tree/detail/2",
+          "fp": "d3563a933c372b3848cf01f06ddb761b"
+        },
+        {
+          "url": "/tree/detail/3",
+          "fp": "42bb80f89c1a644c06b8328deac9dae6"
+        },
+        {
+          "url": "/tree/group/1",
+          "fp": "cd5f9296424cec27ef3b79c7a23ac09b"
+        },
+        {
+          "url": "/tree/group/2",
+          "fp": "546b37450d31d6bd640c78f2df0da5dd"
+        },
+        {
+          "url": "/tree/group/3",
+          "fp": "a6500bc18afec5a790ea5f6ea28fe558"
+        }
+      ],
+      "observedApis": [
+        "/api/tree/",
+        "/api/tree/detail/1",
+        "/api/tree/detail/2",
+        "/api/tree/detail/3",
+        "/api/tree/group/1",
+        "/api/tree/group/2",
+        "/api/tree/group/3"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 2,
+      "suite": "chain",
+      "implementation": "optimized",
+      "elapsedMs": 3308.295417000001,
+      "states": 7,
+      "statesPerSecond": 2.1158932675811877,
+      "requests": 14,
+      "serverRequests": 14,
+      "actions": 6,
+      "replays": 0,
+      "succeeded": 6,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/chain/",
+          "fp": "287a189f61e5d9637d4599d08bd98a7a"
+        },
+        {
+          "url": "/chain/1",
+          "fp": "e2fde95da337405374ef7c4acfa5682d"
+        },
+        {
+          "url": "/chain/2",
+          "fp": "51b59a72fc3bf6dad4a01938c2bf8a8a"
+        },
+        {
+          "url": "/chain/3",
+          "fp": "bc3bb5b07d661a6f3920ef5b66d15d61"
+        },
+        {
+          "url": "/chain/4",
+          "fp": "da416d72c39707b4c7493c298649904f"
+        },
+        {
+          "url": "/chain/5",
+          "fp": "77dec5084fec0542df3732b4529958ae"
+        },
+        {
+          "url": "/chain/6",
+          "fp": "0069142d4629724049ff01f4c0ef4ffd"
+        }
+      ],
+      "observedApis": [
+        "/api/chain/0",
+        "/api/chain/1",
+        "/api/chain/2",
+        "/api/chain/3",
+        "/api/chain/4",
+        "/api/chain/5",
+        "/api/chain/6"
+      ],
+      "performance": {
+        "stateReuses": 6,
+        "replayActions": 0,
+        "checkpoints": 4,
+        "journalWrites": 26,
+        "persistenceMs": 181.3277099999832,
+        "fingerprints": 13,
+        "fingerprintMs": 33.137669000032474,
+        "graphMs": 11.984542000005604
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 49,
+        "edges": 66,
+        "states": 7,
+        "observedApis": [
+          "/api/chain/0",
+          "/api/chain/1",
+          "/api/chain/2",
+          "/api/chain/3",
+          "/api/chain/4",
+          "/api/chain/5",
+          "/api/chain/6"
+        ]
+      }
+    },
+    {
+      "repeat": 2,
+      "suite": "chain",
+      "implementation": "baseline",
+      "elapsedMs": 11640.651041000005,
+      "states": 7,
+      "statesPerSecond": 0.6013409366318961,
+      "requests": 56,
+      "serverRequests": 56,
+      "actions": 21,
+      "replays": 15,
+      "succeeded": 6,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/chain/",
+          "fp": "287a189f61e5d9637d4599d08bd98a7a"
+        },
+        {
+          "url": "/chain/1",
+          "fp": "e2fde95da337405374ef7c4acfa5682d"
+        },
+        {
+          "url": "/chain/2",
+          "fp": "51b59a72fc3bf6dad4a01938c2bf8a8a"
+        },
+        {
+          "url": "/chain/3",
+          "fp": "bc3bb5b07d661a6f3920ef5b66d15d61"
+        },
+        {
+          "url": "/chain/4",
+          "fp": "da416d72c39707b4c7493c298649904f"
+        },
+        {
+          "url": "/chain/5",
+          "fp": "77dec5084fec0542df3732b4529958ae"
+        },
+        {
+          "url": "/chain/6",
+          "fp": "0069142d4629724049ff01f4c0ef4ffd"
+        }
+      ],
+      "observedApis": [
+        "/api/chain/0",
+        "/api/chain/1",
+        "/api/chain/2",
+        "/api/chain/3",
+        "/api/chain/4",
+        "/api/chain/5",
+        "/api/chain/6"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 2,
+      "suite": "delayed",
+      "implementation": "optimized",
+      "elapsedMs": 2701.1519169999956,
+      "states": 3,
+      "statesPerSecond": 1.1106372733496295,
+      "requests": 6,
+      "serverRequests": 6,
+      "actions": 4,
+      "replays": 1,
+      "succeeded": 3,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/delayed/",
+          "fp": "58c76b4658ef843a06a9a2438162d9bd"
+        },
+        {
+          "url": "/delayed/",
+          "fp": "630fed5ac32099228ee3b26e6c55fa90"
+        },
+        {
+          "url": "/delayed/detail",
+          "fp": "0cd5d6b6a5f37a3607676499c233ea11"
+        }
+      ],
+      "observedApis": [
+        "/api/delayed/detail",
+        "/api/delayed/root"
+      ],
+      "performance": {
+        "stateReuses": 2,
+        "replayActions": 1,
+        "checkpoints": 3,
+        "journalWrites": 13,
+        "persistenceMs": 96.91362600000866,
+        "fingerprints": 7,
+        "fingerprintMs": 17.31016599998111,
+        "graphMs": 6.302541000011843
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 17,
+        "edges": 23,
+        "states": 3,
+        "observedApis": [
+          "/api/delayed/detail",
+          "/api/delayed/root"
+        ]
+      }
+    },
+    {
+      "repeat": 2,
+      "suite": "delayed",
+      "implementation": "baseline",
+      "elapsedMs": 3306.295834000004,
+      "states": 3,
+      "statesPerSecond": 0.9073598221761532,
+      "requests": 10,
+      "serverRequests": 10,
+      "actions": 5,
+      "replays": 2,
+      "succeeded": 3,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/delayed/",
+          "fp": "58c76b4658ef843a06a9a2438162d9bd"
+        },
+        {
+          "url": "/delayed/",
+          "fp": "630fed5ac32099228ee3b26e6c55fa90"
+        },
+        {
+          "url": "/delayed/detail",
+          "fp": "0cd5d6b6a5f37a3607676499c233ea11"
+        }
+      ],
+      "observedApis": [
+        "/api/delayed/detail",
+        "/api/delayed/root"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 3,
+      "suite": "tree",
+      "implementation": "baseline",
+      "elapsedMs": 11895.04295799999,
+      "states": 7,
+      "statesPerSecond": 0.5884804304378036,
+      "requests": 56,
+      "serverRequests": 56,
+      "actions": 18,
+      "replays": 9,
+      "succeeded": 9,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/tree/",
+          "fp": "e9df7403f6072d3386dbad537f2e7e1c"
+        },
+        {
+          "url": "/tree/detail/1",
+          "fp": "5a4d5a959a11c6001dfb1ad0a0b5945d"
+        },
+        {
+          "url": "/tree/detail/2",
+          "fp": "d3563a933c372b3848cf01f06ddb761b"
+        },
+        {
+          "url": "/tree/detail/3",
+          "fp": "42bb80f89c1a644c06b8328deac9dae6"
+        },
+        {
+          "url": "/tree/group/1",
+          "fp": "cd5f9296424cec27ef3b79c7a23ac09b"
+        },
+        {
+          "url": "/tree/group/2",
+          "fp": "546b37450d31d6bd640c78f2df0da5dd"
+        },
+        {
+          "url": "/tree/group/3",
+          "fp": "a6500bc18afec5a790ea5f6ea28fe558"
+        }
+      ],
+      "observedApis": [
+        "/api/tree/",
+        "/api/tree/detail/1",
+        "/api/tree/detail/2",
+        "/api/tree/detail/3",
+        "/api/tree/group/1",
+        "/api/tree/group/2",
+        "/api/tree/group/3"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 3,
+      "suite": "tree",
+      "implementation": "optimized",
+      "elapsedMs": 10918.01625,
+      "states": 7,
+      "statesPerSecond": 0.641142112240399,
+      "requests": 54,
+      "serverRequests": 54,
+      "actions": 18,
+      "replays": 9,
+      "succeeded": 9,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/tree/",
+          "fp": "e9df7403f6072d3386dbad537f2e7e1c"
+        },
+        {
+          "url": "/tree/detail/1",
+          "fp": "5a4d5a959a11c6001dfb1ad0a0b5945d"
+        },
+        {
+          "url": "/tree/detail/2",
+          "fp": "d3563a933c372b3848cf01f06ddb761b"
+        },
+        {
+          "url": "/tree/detail/3",
+          "fp": "42bb80f89c1a644c06b8328deac9dae6"
+        },
+        {
+          "url": "/tree/group/1",
+          "fp": "cd5f9296424cec27ef3b79c7a23ac09b"
+        },
+        {
+          "url": "/tree/group/2",
+          "fp": "546b37450d31d6bd640c78f2df0da5dd"
+        },
+        {
+          "url": "/tree/group/3",
+          "fp": "a6500bc18afec5a790ea5f6ea28fe558"
+        }
+      ],
+      "observedApis": [
+        "/api/tree/",
+        "/api/tree/detail/1",
+        "/api/tree/detail/2",
+        "/api/tree/detail/3",
+        "/api/tree/group/1",
+        "/api/tree/group/2",
+        "/api/tree/group/3"
+      ],
+      "performance": {
+        "stateReuses": 1,
+        "replayActions": 9,
+        "checkpoints": 10,
+        "journalWrites": 42,
+        "persistenceMs": 676.4843330000003,
+        "fingerprints": 19,
+        "fingerprintMs": 62.643748999980744,
+        "graphMs": 18.480999999999767
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 53,
+        "edges": 91,
+        "states": 7,
+        "observedApis": [
+          "/api/tree/",
+          "/api/tree/detail/1",
+          "/api/tree/detail/2",
+          "/api/tree/detail/3",
+          "/api/tree/group/1",
+          "/api/tree/group/2",
+          "/api/tree/group/3"
+        ]
+      }
+    },
+    {
+      "repeat": 3,
+      "suite": "chain",
+      "implementation": "baseline",
+      "elapsedMs": 12137.312208000003,
+      "states": 7,
+      "statesPerSecond": 0.5767339490028218,
+      "requests": 56,
+      "serverRequests": 56,
+      "actions": 21,
+      "replays": 15,
+      "succeeded": 6,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/chain/",
+          "fp": "287a189f61e5d9637d4599d08bd98a7a"
+        },
+        {
+          "url": "/chain/1",
+          "fp": "e2fde95da337405374ef7c4acfa5682d"
+        },
+        {
+          "url": "/chain/2",
+          "fp": "51b59a72fc3bf6dad4a01938c2bf8a8a"
+        },
+        {
+          "url": "/chain/3",
+          "fp": "bc3bb5b07d661a6f3920ef5b66d15d61"
+        },
+        {
+          "url": "/chain/4",
+          "fp": "da416d72c39707b4c7493c298649904f"
+        },
+        {
+          "url": "/chain/5",
+          "fp": "77dec5084fec0542df3732b4529958ae"
+        },
+        {
+          "url": "/chain/6",
+          "fp": "0069142d4629724049ff01f4c0ef4ffd"
+        }
+      ],
+      "observedApis": [
+        "/api/chain/0",
+        "/api/chain/1",
+        "/api/chain/2",
+        "/api/chain/3",
+        "/api/chain/4",
+        "/api/chain/5",
+        "/api/chain/6"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 3,
+      "suite": "chain",
+      "implementation": "optimized",
+      "elapsedMs": 3598.862666999994,
+      "states": 7,
+      "statesPerSecond": 1.945058938810574,
+      "requests": 14,
+      "serverRequests": 14,
+      "actions": 6,
+      "replays": 0,
+      "succeeded": 6,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/chain/",
+          "fp": "287a189f61e5d9637d4599d08bd98a7a"
+        },
+        {
+          "url": "/chain/1",
+          "fp": "e2fde95da337405374ef7c4acfa5682d"
+        },
+        {
+          "url": "/chain/2",
+          "fp": "51b59a72fc3bf6dad4a01938c2bf8a8a"
+        },
+        {
+          "url": "/chain/3",
+          "fp": "bc3bb5b07d661a6f3920ef5b66d15d61"
+        },
+        {
+          "url": "/chain/4",
+          "fp": "da416d72c39707b4c7493c298649904f"
+        },
+        {
+          "url": "/chain/5",
+          "fp": "77dec5084fec0542df3732b4529958ae"
+        },
+        {
+          "url": "/chain/6",
+          "fp": "0069142d4629724049ff01f4c0ef4ffd"
+        }
+      ],
+      "observedApis": [
+        "/api/chain/0",
+        "/api/chain/1",
+        "/api/chain/2",
+        "/api/chain/3",
+        "/api/chain/4",
+        "/api/chain/5",
+        "/api/chain/6"
+      ],
+      "performance": {
+        "stateReuses": 6,
+        "replayActions": 0,
+        "checkpoints": 4,
+        "journalWrites": 26,
+        "persistenceMs": 196.36058400008187,
+        "fingerprints": 13,
+        "fingerprintMs": 36.48441700001422,
+        "graphMs": 11.377124999999069
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 49,
+        "edges": 66,
+        "states": 7,
+        "observedApis": [
+          "/api/chain/0",
+          "/api/chain/1",
+          "/api/chain/2",
+          "/api/chain/3",
+          "/api/chain/4",
+          "/api/chain/5",
+          "/api/chain/6"
+        ]
+      }
+    },
+    {
+      "repeat": 3,
+      "suite": "delayed",
+      "implementation": "baseline",
+      "elapsedMs": 3294.5444160000043,
+      "states": 3,
+      "statesPerSecond": 0.9105963135389692,
+      "requests": 10,
+      "serverRequests": 10,
+      "actions": 5,
+      "replays": 2,
+      "succeeded": 3,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/delayed/",
+          "fp": "58c76b4658ef843a06a9a2438162d9bd"
+        },
+        {
+          "url": "/delayed/",
+          "fp": "630fed5ac32099228ee3b26e6c55fa90"
+        },
+        {
+          "url": "/delayed/detail",
+          "fp": "0cd5d6b6a5f37a3607676499c233ea11"
+        }
+      ],
+      "observedApis": [
+        "/api/delayed/detail",
+        "/api/delayed/root"
+      ],
+      "performance": null,
+      "graph": null
+    },
+    {
+      "repeat": 3,
+      "suite": "delayed",
+      "implementation": "optimized",
+      "elapsedMs": 2759.7119999999995,
+      "states": 3,
+      "statesPerSecond": 1.0870699551257523,
+      "requests": 6,
+      "serverRequests": 6,
+      "actions": 4,
+      "replays": 1,
+      "succeeded": 3,
+      "status": "completed",
+      "stopReason": "frontier_exhausted",
+      "coverage": [
+        {
+          "url": "/delayed/",
+          "fp": "58c76b4658ef843a06a9a2438162d9bd"
+        },
+        {
+          "url": "/delayed/",
+          "fp": "630fed5ac32099228ee3b26e6c55fa90"
+        },
+        {
+          "url": "/delayed/detail",
+          "fp": "0cd5d6b6a5f37a3607676499c233ea11"
+        }
+      ],
+      "observedApis": [
+        "/api/delayed/detail",
+        "/api/delayed/root"
+      ],
+      "performance": {
+        "stateReuses": 2,
+        "replayActions": 1,
+        "checkpoints": 3,
+        "journalWrites": 13,
+        "persistenceMs": 106.85020899999654,
+        "fingerprints": 7,
+        "fingerprintMs": 14.098791000025813,
+        "graphMs": 9.562458000000333
+      },
+      "graph": {
+        "status": "completed",
+        "nodes": 17,
+        "edges": 23,
+        "states": 3,
+        "observedApis": [
+          "/api/delayed/detail",
+          "/api/delayed/root"
+        ]
+      }
+    }
+  ],
+  "storage": {
+    "date": "2026-10-27T03:00:12.921Z",
+    "node": "v26.8.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "fixture": {
+      "states": 1000,
+      "actionsPerState": 50,
+      "totalActions": 50000,
+      "updates": 50,
+      "changedStatePerUpdate": 1
+    },
+    "methodology": {
+      "initialOpenAndCompactExcluded": true,
+      "initialGraphGenerationExcluded": true,
+      "finalCompactIncluded": true,
+      "repetitions": 1,
+      "order": [
+        "journal_then_final_compact",
+        "full_compact_each_update"
+      ],
+      "scope": "本机临时目录，纯存储，无浏览器/网络；单次运行，不是整站吞吐结果",
+      "equivalence": "两组每次变化先写相同的journal+fsync；对照组每次额外全量compact，优化组最后统一compact。两组恢复验证相同。",
+      "byteAccounting": "成功writeFileSync/appendFileSync内容字节+copyFileSync源文件字节；包括私有latest/previous、公有latest/previous、journal追加及rotation；属于逻辑写入量，不是SSD实际物理写放大。",
+      "fsyncAccounting": "包装Node fs.fsyncSync逐次计数，fstat区分文件与目录；public atomicJson沿用无fsync，private/journal文件fsync；POSIX目录fsync。",
+      "caveats": [
+        "synthetic graph rows是固定简化结构，实际图字段、文件系统和负载会改变耗时",
+        "两组复用同一Node进程，采用顺序运行；没有冷热缓存控制或统计置信区间",
+        "不能将存储局部比值当作states/s或真实目标提速倍数"
+      ]
+    },
+    "results": [
+      {
+        "mode": "journal_then_final_compact",
+        "initialPrivateSnapshotBytes": 13117068,
+        "mutationMs": 148.563,
+        "mutationIO": {
+          "writeCalls": 50,
+          "copyCalls": 0,
+          "logicalBytesWritten": 423405,
+          "fileFsyncCalls": 50,
+          "directoryFsyncCalls": 0
+        },
+        "finalCompactMs": 285.225,
+        "finalCompactIO": {
+          "writeCalls": 4,
+          "copyCalls": 1,
+          "logicalBytesWritten": 52891887,
+          "fileFsyncCalls": 3,
+          "directoryFsyncCalls": 3
+        },
+        "totalMs": 433.788,
+        "totalIO": {
+          "writeCalls": 54,
+          "copyCalls": 1,
+          "logicalBytesWritten": 53315292,
+          "fileFsyncCalls": 53,
+          "directoryFsyncCalls": 3
+        },
+        "recoveryVerified": true
+      },
+      {
+        "mode": "full_compact_each_update",
+        "initialPrivateSnapshotBytes": 13117068,
+        "mutationMs": 14817.297,
+        "mutationIO": {
+          "writeCalls": 250,
+          "copyCalls": 50,
+          "logicalBytesWritten": 2624271020,
+          "fileFsyncCalls": 200,
+          "directoryFsyncCalls": 150
+        },
+        "finalCompactMs": 0.002,
+        "finalCompactIO": {
+          "writeCalls": 0,
+          "copyCalls": 0,
+          "logicalBytesWritten": 0,
+          "fileFsyncCalls": 0,
+          "directoryFsyncCalls": 0
+        },
+        "totalMs": 14817.299,
+        "totalIO": {
+          "writeCalls": 250,
+          "copyCalls": 50,
+          "logicalBytesWritten": 2624271020,
+          "fileFsyncCalls": 200,
+          "directoryFsyncCalls": 150
+        },
+        "recoveryVerified": true
+      }
+    ]
+  },
+  "graphScale": {
+    "date": "2026-10-27T03:45:48.396Z",
+    "node": "v26.8.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "exposedGc": true,
+    "fixture": {
+      "states": 3,
+      "actions": 20,
+      "apis": 20,
+      "requestCounts": [
+        1000,
+        10000,
+        50000
+      ],
+      "eventsPerRequest": 3,
+      "trafficRecordsPerRequest": 1
+    },
+    "methodology": {
+      "scope": "本机纯日志图构建，无浏览器/网络；只测buildSiteGraph，输入生成/写盘/显式GC/JSON导出不计入elapsedMs",
+      "format": "每个请求含request、response、response_body事件及相同response evidenceId的traffic记录；重复来源应合并为一个请求实例",
+      "sampling": "1000请求预热后，1k/10k/50k按顺序各测1次；未做置信区间和冷热页缓存控制",
+      "heap": "heapBefore在显式GC后采样（若--expose-gc可用）；heapAfterBeforeGc在返回后立即取值；heapAfterGc仍保留图但回收临时索引。前后值不是峰值/硬内存上限，GC时机和进程负载会引入误差",
+      "memoryLimit": "输出证据样本上限12，内部请求/去重索引仍随日志请求量增长；不宣称固定内存或无限日志大小",
+      "correctness": "每组验证43nodes/42edges、20已响应API、captured/responded及edge count总和恰等于输入请求量；请求边evidenceOmitted精确等于唯一request/response/body证据总数减12"
+    },
+    "warmup": {
+      "requests": 1000,
+      "warmup": true,
+      "eventsBytes": 1109189,
+      "trafficBytes": 700152,
+      "inputBytes": 1809341,
+      "elapsedMs": 40.786,
+      "heapBeforeBytes": 4888112,
+      "heapAfterBeforeGcBytes": 10797088,
+      "heapAfterGcBytes": 5667744,
+      "heapDeltaBeforeGcBytes": 5908976,
+      "rssBeforeBytes": 52477952,
+      "rssAfterBytes": 62783488,
+      "nodes": 43,
+      "edges": 42,
+      "outputBytes": 41437,
+      "capturedRequests": 1000,
+      "respondedRequests": 1000,
+      "observedApis": 20,
+      "sumRequestEdgeCounts": 1000,
+      "maxNodeEvidence": 12,
+      "maxEdgeEvidence": 12,
+      "minRequestEdgeEvidenceOmitted": 138,
+      "duplicateEvents": 0,
+      "duplicateTraffic": 0,
+      "coverageGaps": [],
+      "checksPassed": true
+    },
+    "results": [
+      {
+        "requests": 1000,
+        "warmup": false,
+        "eventsBytes": 1109189,
+        "trafficBytes": 700152,
+        "inputBytes": 1809341,
+        "elapsedMs": 35.932,
+        "heapBeforeBytes": 5563920,
+        "heapAfterBeforeGcBytes": 10369792,
+        "heapAfterGcBytes": 5656056,
+        "heapDeltaBeforeGcBytes": 4805872,
+        "rssBeforeBytes": 63045632,
+        "rssAfterBytes": 65847296,
+        "nodes": 43,
+        "edges": 42,
+        "outputBytes": 41437,
+        "capturedRequests": 1000,
+        "respondedRequests": 1000,
+        "observedApis": 20,
+        "sumRequestEdgeCounts": 1000,
+        "maxNodeEvidence": 12,
+        "maxEdgeEvidence": 12,
+        "minRequestEdgeEvidenceOmitted": 138,
+        "duplicateEvents": 0,
+        "duplicateTraffic": 0,
+        "coverageGaps": [],
+        "checksPassed": true
+      },
+      {
+        "requests": 10000,
+        "warmup": false,
+        "eventsBytes": 11143692,
+        "trafficBytes": 7031486,
+        "inputBytes": 18175178,
+        "elapsedMs": 320.039,
+        "heapBeforeBytes": 5658168,
+        "heapAfterBeforeGcBytes": 30159840,
+        "heapAfterGcBytes": 5900496,
+        "heapDeltaBeforeGcBytes": 24501672,
+        "rssBeforeBytes": 73285632,
+        "rssAfterBytes": 110002176,
+        "nodes": 43,
+        "edges": 42,
+        "outputBytes": 41526,
+        "capturedRequests": 10000,
+        "respondedRequests": 10000,
+        "observedApis": 20,
+        "sumRequestEdgeCounts": 10000,
+        "maxNodeEvidence": 12,
+        "maxEdgeEvidence": 12,
+        "minRequestEdgeEvidenceOmitted": 1488,
+        "duplicateEvents": 0,
+        "duplicateTraffic": 0,
+        "coverageGaps": [],
+        "checksPassed": true
+      },
+      {
+        "requests": 50000,
+        "warmup": false,
+        "eventsBytes": 55943694,
+        "trafficBytes": 35264820,
+        "inputBytes": 91208514,
+        "elapsedMs": 1344.342,
+        "heapBeforeBytes": 5865032,
+        "heapAfterBeforeGcBytes": 93775464,
+        "heapAfterGcBytes": 6013400,
+        "heapDeltaBeforeGcBytes": 87910432,
+        "rssBeforeBytes": 106397696,
+        "rssAfterBytes": 218300416,
+        "nodes": 43,
+        "edges": 42,
+        "outputBytes": 41568,
+        "capturedRequests": 50000,
+        "respondedRequests": 50000,
+        "observedApis": 20,
+        "sumRequestEdgeCounts": 50000,
+        "maxNodeEvidence": 12,
+        "maxEdgeEvidence": 12,
+        "minRequestEdgeEvidenceOmitted": 7488,
+        "duplicateEvents": 0,
+        "duplicateTraffic": 0,
+        "coverageGaps": [],
+        "checksPassed": true
+      }
+    ]
+  },
+  "previousPhase": {
+    "environment": {
+      "date": "2026-10-27T03:54:31.710Z",
+      "node": "v26.8.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "cpus": 10,
+      "playwright": "1.64.1",
+      "repeats": 3,
+      "sourceDigests": {
+        "optimized": {
+          "asset.js": "fbb927d39b44ed419b32b385452e9ed45682e9c5c96e120d47c8e71c5b87d5a0",
+          "auth.js": "d7bdbdd8fa8042d9b65ba880f1f036d8f632904c49a1d93e4b8d72bb8a797cee",
+          "browser.js": "e08fc14461f7f310296f336369af48047818fc6536a5f5669a3f0315c4e8606c",
+          "budget.js": "e238a66e0d3cff743a719d41bbc1fa509126a8928d5125e03bed1c225d547f57",
+          "cdpnet.js": "7c48e7634f70d4f067bb3aee238d399a5f01c12048c773388e29ba2ca96f0a2b",
+          "checkpoint.js": "e11040d439d4eedcf5bf54307d97564fc1bf570640d3023002eb047672938db0",
+          "cli.js": "8cc9ea13b868e819c8dd1fae76778907027e76c25d18128146cb3e5e5b27ea83",
+          "config.js": "1383f332f42c2ca9610b5b21b2184cec44099ca8e1ccd4b4ae1dcc249aa40053",
+          "crawler.js": "9a4f003d57a5fb7c8e179c7664775486cfeb59110659aa3cfe42ec7f603667d0",
+          "dialogs.js": "82e02193eddda24be88257fa5c90b303df62cfe6dc077a1c7e3d844b53c2d07d",
+          "discover.js": "dd29a5e639953e94fdad4249de4f03ad059d2ae4646602006bedc616f63a2135",
+          "doctor.js": "4d9d3cbe986671d280a8c6c27530730a6ad9b3d194b4dd612225b5d33aa2bd1d",
+          "evidence.js": "335f7aba79b4e9f37546e6533b076886175d9fbe301e57a3ddabb8341c1319b8",
+          "formfill.js": "9f6e5bb3acd81d19b67493d2ed7f940495ba9632b09985957a51473ba3e8cac8",
+          "graph-export.js": "b9093f59afcc011d9986b6066b23bbd3879ebe51d7fe783e1bd7d2810e1ea261",
+          "graph-run.js": "c70959cd5b3d8002e01b36e00657c624da6b524ef5a1f37902f09cf1ec934b0e",
+          "graph.js": "391346f1ed0a53c21472a2dbd2d1d5cfe3fcf40cf0bede323c8e98c0fd6019f8",
+          "har.js": "15d285323d5939c5a4d6f83ee8371c59ee9c5bd1d8605614ec6f5bfcb7d3264f",
+          "index.js": "728ceada4a425545d577e837073e4bd409a0185f8516de89260fe94e310b7ea4",
+          "initiator.js": "4a3b48a7c17b644649913f40e2648399a8f85305479cd3e4dac9ab07058e919c",
+          "login.js": "2f215fc4bece7900249b5cad4799587f122a0dae3dc7f4c870fd39d90554015b",
+          "memguard.js": "cdf7b3bca153cf5b40c3cac9021ed5b8d2c420b5d7feb0be437908f3a5dc7e2f",
+          "policy.js": "8d094375c9e6742bd2a58e178f16a366f397ff48e8e643bc2adbb2f824f1cf8a",
+          "redact.js": "ae1a23140dddadd5d3e67de5474824a20667d572bbd40c1f8b14e1deda9d2d16",
+          "replay.js": "9e9609ad8964c902f8e574263ce5691c584a1d13a1e64306878e2b85416383a8",
+          "report.js": "a763e87770ec7186f971739f9bcc22f0278404135b1378c01990729b3b9410c2",
+          "routeguard.js": "ea4d8fbc463d125faa5f5b4a2fb32700d2816bf36653b28abcb0ea4e5cd5b1cd",
+          "runner.js": "160c9d62431b1bf115fd3b22a4e0a4f2a4cde77906e10ba0bef9777b5cad9cb2",
+          "skipwords.js": "7c46cc76e0b839b95a61c9dc03f72c37496548b5ed1efd4bf68c0779671d1a62",
+          "state.js": "bb1d4d3870ad25f2ea9ebea3291217e5e3cdfd712c4ec684f8a8fffd242c3a58",
+          "store.js": "b1282b8f2c7d881fa0653756887451736c337bae3a0a7a29df7d0e4284ee9760",
+          "traffic.js": "9c1a397329a79efd327c59afbf23e723a451109b5e2d0059018c0d42c1c72aa0",
+          "urlshape.js": "3b04c84c27edbaed8ab90bb2293f3bff3406ce211018b8a3f769e50787b5634b"
+        },
+        "baseline": {
+          "asset.js": "4136c80ac520bc28701096e7f10ac439424ae3409d425fe11958a247d0bb5372",
+          "auth.js": "d7bdbdd8fa8042d9b65ba880f1f036d8f632904c49a1d93e4b8d72bb8a797cee",
+          "browser.js": "9b513548bd044979b3cbb6e16a9ef8268b1710a23f34f4718cf8a043516f897e",
+          "budget.js": "e238a66e0d3cff743a719d41bbc1fa509126a8928d5125e03bed1c225d547f57",
+          "cdpnet.js": "1b95428cc11dbc54b1c00ebf2c5f567e0d4bd16772be93dfcb836fa8863f169b",
+          "cli.js": "8cc9ea13b868e819c8dd1fae76778907027e76c25d18128146cb3e5e5b27ea83",
+          "config.js": "1383f332f42c2ca9610b5b21b2184cec44099ca8e1ccd4b4ae1dcc249aa40053",
+          "crawler.js": "9a4f003d57a5fb7c8e179c7664775486cfeb59110659aa3cfe42ec7f603667d0",
+          "dialogs.js": "5e6849394341772967cc2cbcf60b6f01722f40860bd79c928a1fd2a60352a7a9",
+          "discover.js": "dd29a5e639953e94fdad4249de4f03ad059d2ae4646602006bedc616f63a2135",
+          "doctor.js": "4d9d3cbe986671d280a8c6c27530730a6ad9b3d194b4dd612225b5d33aa2bd1d",
+          "evidence.js": "69a9e3d4a65dad5a345ca871130f66fc3b2c8c8bc5cbe85b038602397e6afbf8",
+          "formfill.js": "9f6e5bb3acd81d19b67493d2ed7f940495ba9632b09985957a51473ba3e8cac8",
+          "har.js": "11a2f1d2d72402b8c462943533f1b6137eec79203d22ab848ab4bcee64b8a303",
+          "index.js": "728ceada4a425545d577e837073e4bd409a0185f8516de89260fe94e310b7ea4",
+          "login.js": "2f215fc4bece7900249b5cad4799587f122a0dae3dc7f4c870fd39d90554015b",
+          "memguard.js": "cdf7b3bca153cf5b40c3cac9021ed5b8d2c420b5d7feb0be437908f3a5dc7e2f",
+          "policy.js": "2cb5a29fa5dc57b2c36711f77e16c45e3fda5ea90a1585c35cb7c17907a6f09e",
+          "redact.js": "dd67030e49962b6a2b8f9bf1b80d046d1ebc0e4a8eef51e8ae9ef0c20cfa2c19",
+          "replay.js": "9893fafa1d52768d49daeea709c80d9de083279daacde44e3a6e1ef0c0c63d46",
+          "report.js": "abf24d084db1c62f00056109f700860c7c1d8c8989143ff51d6f2dbbced7c488",
+          "routeguard.js": "ea4d8fbc463d125faa5f5b4a2fb32700d2816bf36653b28abcb0ea4e5cd5b1cd",
+          "runner.js": "41e164f3eabd7f553c468d45a7d7880aa6ca92a247caebd948dd205c451fe50f",
+          "skipwords.js": "7c46cc76e0b839b95a61c9dc03f72c37496548b5ed1efd4bf68c0779671d1a62",
+          "state.js": "bb1d4d3870ad25f2ea9ebea3291217e5e3cdfd712c4ec684f8a8fffd242c3a58",
+          "store.js": "b24013500335edd02460139e794d5c39f4b3d32b0f4e98193966bb6282573aa2",
+          "traffic.js": "9c1a397329a79efd327c59afbf23e723a451109b5e2d0059018c0d42c1c72aa0",
+          "urlshape.js": "3b04c84c27edbaed8ab90bb2293f3bff3406ce211018b8a3f769e50787b5634b"
+        }
+      },
+      "options": "Default screenshot PNG, requestDelayMs=50, safe profile and guards enabled for both; includes browser startup/finalize",
+      "chromium": "156.0.8078.4"
+    },
+    "summary": [
+      {
+        "suite": "tree",
+        "coverageMatches": true,
+        "baselineMs": 12318.920847000001,
+        "optimizedMs": 10047.697111000001,
+        "speedup": 1.2260442080318597
+      },
+      {
+        "suite": "chain",
+        "coverageMatches": true,
+        "baselineMs": 11536.394125,
+        "optimizedMs": 3225.8700693333376,
+        "speedup": 3.5762116505157713
+      },
+      {
+        "suite": "delayed",
+        "coverageMatches": true,
+        "baselineMs": 3318.9568609999938,
+        "optimizedMs": 2662.502652666672,
+        "speedup": 1.246555325560273
+      }
+    ]
+  },
+  "viewerV2": {
+    "node": "v26.8.1",
+    "platform": "darwin",
+    "browser": "156.0.8078.4",
+    "fixture": {
+      "nodes": 5000,
+      "edges": 8198,
+      "flows": 1000
+    },
+    "rounds": 5,
+    "measurement": "Synchronous UI event + forced geometry/layout read; 35 alternating node selections and 12 observed-filter toggles per case. Warm filter excludes first two toggles. Five rounds alternate baseline/optimized order. Same graph, but new connected ordering renders relationships on page 1; baseline exports states only there.",
+    "baselineAssets": "output-performance-review/graph-v2/baseline-assets",
+    "baselineHashes": {
+      "view/graph.html": "316d16ffa313fac39218bf05bc6fd6f72690fd9a5c24613ddcf26fc15d4385cf",
+      "view/graph.js": "ff845d30ec12849d9f68f65f42531c6a3177c0139635cdf951136cd80bb256e5",
+      "view/graph.css": "0ca2ab3f384fa0fea8e018820830964a1bcd6922a03a987eeebab2ad90781f96",
+      "test/graph-browser.test.mjs": "c5c86b3cea7e4e83243fb6a748908794af43abd31081a9541baec193734d14d8"
+    },
+    "optimizedHashes": {
+      "graph.html": "316d16ffa313fac39218bf05bc6fd6f72690fd9a5c24613ddcf26fc15d4385cf",
+      "graph.js": "758132cd353a4916cf1ef7f7bef79a2dd9bd066d9df7c75b37cb5a69c53d2c4f",
+      "graph.css": "1f32d6313d70ea786de5b446aca6bf54ca5fcb4729f3e24e93125e2f62c859a0"
+    },
+    "summaries": {
+      "baseline": {
+        "selectionMedianMs": 7.400000095367432,
+        "filterWarmMedianMs": 4.799999952316284,
+        "nodeReused": false,
+        "renderedNodes": 120,
+        "renderedEdges": 0
+      },
+      "optimized": {
+        "selectionMedianMs": 0.5999999046325684,
+        "filterWarmMedianMs": 3.0999999046325684,
+        "nodeReused": true,
+        "renderedNodes": 120,
+        "renderedEdges": 137
+      }
+    },
+    "speedRatios": {
+      "selection": 12.333335452609928,
+      "filterWarm": 1.5483871290264477
+    },
+    "rows": [
+      {
+        "version": "baseline",
+        "round": 1,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 0,
+        "nodeReused": false,
+        "selection": {
+          "samples": [
+            12.5,
+            8.899999976158142,
+            7.200000047683716,
+            9.199999928474426,
+            7.399999976158142,
+            6.600000023841858,
+            8,
+            6.799999952316284,
+            6.5,
+            7.5,
+            8.200000047683716,
+            9.700000047683716,
+            6.399999976158142,
+            6.699999928474426,
+            7.899999976158142,
+            6.400000095367432,
+            6.100000023841858,
+            6.300000071525574,
+            6.599999904632568,
+            6.400000095367432,
+            7.599999904632568,
+            9.100000023841858,
+            8.799999952316284,
+            11.100000023841858,
+            12.200000047683716,
+            10.699999928474426,
+            10.399999976158142,
+            10.200000047683716,
+            21.200000047683716,
+            12.5,
+            15.899999976158142,
+            17,
+            13.800000071525574,
+            14.299999952316284,
+            11.800000071525574
+          ],
+          "medianMs": 8.799999952316284,
+          "totalMs": 337.90000009536743
+        },
+        "filterColdMs": [
+          4.899999976158142,
+          5.399999976158142
+        ],
+        "filterWarm": {
+          "samples": [
+            1.899999976158142,
+            8.800000071525574,
+            1.1999999284744263,
+            7.200000047683716,
+            1.2999999523162842,
+            5,
+            1.100000023841858,
+            8.299999952316284,
+            2.4000000953674316,
+            9.299999952316284
+          ],
+          "medianMs": 5,
+          "totalMs": 46.5
+        }
+      },
+      {
+        "version": "optimized",
+        "round": 1,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 137,
+        "nodeReused": true,
+        "selection": {
+          "samples": [
+            6.900000095367432,
+            2.4000000953674316,
+            1.0999999046325684,
+            0.8000000715255737,
+            1.1999999284744263,
+            2.399999976158142,
+            2.600000023841858,
+            1.2000000476837158,
+            0.7999999523162842,
+            0.6000000238418579,
+            0.5,
+            0.6000000238418579,
+            0.5999999046325684,
+            0.6000000238418579,
+            0.2999999523162842,
+            0.5,
+            0.7000000476837158,
+            0.6000000238418579,
+            0.5,
+            0.8999999761581421,
+            1.7000000476837158,
+            1.5,
+            1.9000000953674316,
+            1.399999976158142,
+            2.100000023841858,
+            1.1999999284744263,
+            0.8999999761581421,
+            2.700000047683716,
+            2.100000023841858,
+            1.1999999284744263,
+            1.100000023841858,
+            0.6000000238418579,
+            0.6000000238418579,
+            0.5,
+            0.6000000238418579
+          ],
+          "medianMs": 0.8999999761581421,
+          "totalMs": 45.90000021457672
+        },
+        "filterColdMs": [
+          4.699999928474426,
+          4
+        ],
+        "filterWarm": {
+          "samples": [
+            1,
+            5.100000023841858,
+            1,
+            4.399999976158142,
+            1.2000000476837158,
+            8.100000023841858,
+            0.8999999761581421,
+            3.100000023841858,
+            0.5,
+            3.399999976158142
+          ],
+          "medianMs": 3.100000023841858,
+          "totalMs": 28.700000047683716
+        }
+      },
+      {
+        "version": "optimized",
+        "round": 2,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 137,
+        "nodeReused": true,
+        "selection": {
+          "samples": [
+            6.300000071525574,
+            1.2999999523162842,
+            0.6999999284744263,
+            0.8000000715255737,
+            0.5,
+            0.6000000238418579,
+            0.5999999046325684,
+            0.5,
+            0.40000009536743164,
+            0.3999999761581421,
+            0.3999999761581421,
+            0.3999999761581421,
+            0.5,
+            0.6000000238418579,
+            0.5,
+            0.3999999761581421,
+            0.7000000476837158,
+            1,
+            0.6000000238418579,
+            0.5999999046325684,
+            0.8000000715255737,
+            0.7999999523162842,
+            0.6000000238418579,
+            0.3999999761581421,
+            0.5,
+            0.5,
+            0.5,
+            0.7000000476837158,
+            0.5,
+            0.5,
+            0.3999999761581421,
+            0.6999999284744263,
+            1,
+            0.7000000476837158,
+            0.6999999284744263
+          ],
+          "medianMs": 0.5999999046325684,
+          "totalMs": 27.09999990463257
+        },
+        "filterColdMs": [
+          3.200000047683716,
+          3
+        ],
+        "filterWarm": {
+          "samples": [
+            0.6000000238418579,
+            2.799999952316284,
+            0.7000000476837158,
+            2.899999976158142,
+            0.7999999523162842,
+            3.4000000953674316,
+            0.5999999046325684,
+            2.8000000715255737,
+            0.5,
+            2.6999999284744263
+          ],
+          "medianMs": 2.6999999284744263,
+          "totalMs": 17.799999952316284
+        }
+      },
+      {
+        "version": "baseline",
+        "round": 2,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 0,
+        "nodeReused": false,
+        "selection": {
+          "samples": [
+            12.300000071525574,
+            7.799999952316284,
+            8.899999976158142,
+            7.400000095367432,
+            8.599999904632568,
+            8.200000047683716,
+            8.100000023841858,
+            6.599999904632568,
+            8.200000047683716,
+            7,
+            6.699999928474426,
+            6.700000047683716,
+            6.399999976158142,
+            7,
+            7.099999904632568,
+            6.700000047683716,
+            6.5,
+            6.399999976158142,
+            7.300000071525574,
+            5.699999928474426,
+            6.100000023841858,
+            6,
+            5.200000047683716,
+            18.59999990463257,
+            8.300000071525574,
+            7.799999952316284,
+            10.300000071525574,
+            8.699999928474426,
+            8,
+            12.399999976158142,
+            7.300000071525574,
+            8.899999976158142,
+            8.699999928474426,
+            6.600000023841858,
+            13.399999976158142
+          ],
+          "medianMs": 7.400000095367432,
+          "totalMs": 285.89999985694885
+        },
+        "filterColdMs": [
+          3.399999976158142,
+          5.899999976158142
+        ],
+        "filterWarm": {
+          "samples": [
+            1.399999976158142,
+            6.100000023841858,
+            1.100000023841858,
+            4.799999952316284,
+            1,
+            6.5,
+            1.2000000476837158,
+            5.100000023841858,
+            1,
+            5
+          ],
+          "medianMs": 4.799999952316284,
+          "totalMs": 33.200000047683716
+        }
+      },
+      {
+        "version": "baseline",
+        "round": 3,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 0,
+        "nodeReused": false,
+        "selection": {
+          "samples": [
+            14.800000071525574,
+            7,
+            6.799999952316284,
+            7.700000047683716,
+            7.199999928474426,
+            7.5,
+            7,
+            6.700000047683716,
+            6.599999904632568,
+            5.900000095367432,
+            5.599999904632568,
+            6.300000071525574,
+            6.199999928474426,
+            6.300000071525574,
+            5.900000095367432,
+            7.600000023841858,
+            6.100000023841858,
+            6.299999952316284,
+            6.100000023841858,
+            5.600000023841858,
+            5.899999976158142,
+            6.100000023841858,
+            6,
+            6.399999976158142,
+            7.899999976158142,
+            7,
+            8.799999952316284,
+            8.5,
+            9,
+            8.100000023841858,
+            7.199999928474426,
+            6.600000023841858,
+            9.700000047683716,
+            6.100000023841858,
+            5.899999976158142
+          ],
+          "medianMs": 6.600000023841858,
+          "totalMs": 248.40000009536743
+        },
+        "filterColdMs": [
+          3.5,
+          5.100000023841858
+        ],
+        "filterWarm": {
+          "samples": [
+            2.600000023841858,
+            5,
+            0.8999999761581421,
+            4.899999976158142,
+            0.7999999523162842,
+            5.600000023841858,
+            1.100000023841858,
+            4.600000023841858,
+            0.8999999761581421,
+            4.600000023841858
+          ],
+          "medianMs": 4.600000023841858,
+          "totalMs": 31
+        }
+      },
+      {
+        "version": "optimized",
+        "round": 3,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 137,
+        "nodeReused": true,
+        "selection": {
+          "samples": [
+            8.199999928474426,
+            1.5,
+            0.8000000715255737,
+            0.5999999046325684,
+            0.7000000476837158,
+            0.6999999284744263,
+            0.9000000953674316,
+            0.6999999284744263,
+            0.3999999761581421,
+            0.5,
+            0.5,
+            0.5,
+            1,
+            0.8000000715255737,
+            0.3999999761581421,
+            0.5,
+            0.3999999761581421,
+            0.3999999761581421,
+            0.40000009536743164,
+            0.5,
+            0.7999999523162842,
+            0.5,
+            0.3999999761581421,
+            0.3999999761581421,
+            0.40000009536743164,
+            0.5,
+            0.5,
+            0.5999999046325684,
+            0.40000009536743164,
+            0.5999999046325684,
+            0.40000009536743164,
+            0.5,
+            0.5,
+            0.5,
+            0.3999999761581421
+          ],
+          "medianMs": 0.5,
+          "totalMs": 27.799999952316284
+        },
+        "filterColdMs": [
+          3.1999999284744263,
+          3.100000023841858
+        ],
+        "filterWarm": {
+          "samples": [
+            0.6000000238418579,
+            2.899999976158142,
+            0.7000000476837158,
+            2.899999976158142,
+            0.5,
+            3,
+            0.5,
+            2.899999976158142,
+            0.3999999761581421,
+            2.8000000715255737
+          ],
+          "medianMs": 2.8000000715255737,
+          "totalMs": 17.200000047683716
+        }
+      },
+      {
+        "version": "optimized",
+        "round": 4,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 137,
+        "nodeReused": true,
+        "selection": {
+          "samples": [
+            6.300000071525574,
+            1.1999999284744263,
+            0.7000000476837158,
+            0.8999999761581421,
+            0.6000000238418579,
+            0.7000000476837158,
+            0.5999999046325684,
+            0.5,
+            0.40000009536743164,
+            0.3999999761581421,
+            0.5,
+            0.5,
+            0.5,
+            0.6000000238418579,
+            0.5999999046325684,
+            0.5,
+            0.40000009536743164,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.3999999761581421,
+            0.2999999523162842,
+            0.3999999761581421,
+            0.40000009536743164,
+            0.3999999761581421,
+            0.3999999761581421,
+            0.6000000238418579,
+            0.2999999523162842,
+            0.30000007152557373,
+            0.3999999761581421,
+            0.3999999761581421,
+            0.3999999761581421,
+            0.5,
+            0.3999999761581421
+          ],
+          "medianMs": 0.5,
+          "totalMs": 23.5
+        },
+        "filterColdMs": [
+          4,
+          3.700000047683716
+        ],
+        "filterWarm": {
+          "samples": [
+            0.7000000476837158,
+            3.0999999046325684,
+            0.8000000715255737,
+            3.600000023841858,
+            0.7999999523162842,
+            3.899999976158142,
+            1,
+            3.600000023841858,
+            0.8999999761581421,
+            3.200000047683716
+          ],
+          "medianMs": 3.0999999046325684,
+          "totalMs": 21.600000023841858
+        }
+      },
+      {
+        "version": "baseline",
+        "round": 4,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 0,
+        "nodeReused": false,
+        "selection": {
+          "samples": [
+            11.099999904632568,
+            6.600000023841858,
+            6.899999976158142,
+            7.5,
+            7.200000047683716,
+            6.700000047683716,
+            6.800000071525574,
+            7.5,
+            6.5,
+            6.299999952316284,
+            6.299999952316284,
+            8.200000047683716,
+            6.600000023841858,
+            6.600000023841858,
+            7.099999904632568,
+            7.5,
+            7.700000047683716,
+            7.199999928474426,
+            7.700000047683716,
+            6.600000023841858,
+            8,
+            6.5,
+            5.799999952316284,
+            8.300000071525574,
+            9,
+            8.299999952316284,
+            7.700000047683716,
+            7.399999976158142,
+            7.5,
+            7.799999952316284,
+            14.800000071525574,
+            7.099999904632568,
+            5.800000071525574,
+            6,
+            5.399999976158142
+          ],
+          "medianMs": 7.199999928474426,
+          "totalMs": 260
+        },
+        "filterColdMs": [
+          3.399999976158142,
+          5.5
+        ],
+        "filterWarm": {
+          "samples": [
+            1.2999999523162842,
+            5.100000023841858,
+            1,
+            4.5,
+            0.8999999761581421,
+            6,
+            1.2000000476837158,
+            4.600000023841858,
+            0.7999999523162842,
+            4.200000047683716
+          ],
+          "medianMs": 4.200000047683716,
+          "totalMs": 29.600000023841858
+        }
+      },
+      {
+        "version": "baseline",
+        "round": 5,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 0,
+        "nodeReused": false,
+        "selection": {
+          "samples": [
+            17.300000071525574,
+            7.600000023841858,
+            8.899999976158142,
+            8.199999928474426,
+            7.200000047683716,
+            8.299999952316284,
+            6.600000023841858,
+            6.299999952316284,
+            8.5,
+            6.100000023841858,
+            6.700000047683716,
+            7.899999976158142,
+            8.899999976158142,
+            6.5,
+            6.300000071525574,
+            7.699999928474426,
+            5.799999952316284,
+            6.800000071525574,
+            6.799999952316284,
+            5.899999976158142,
+            6.700000047683716,
+            7.200000047683716,
+            7.699999928474426,
+            8.399999976158142,
+            17.5,
+            8.800000071525574,
+            7.799999952316284,
+            10.299999952316284,
+            17.800000071525574,
+            11.899999976158142,
+            8.200000047683716,
+            6.799999952316284,
+            6.5,
+            9,
+            6.5
+          ],
+          "medianMs": 7.699999928474426,
+          "totalMs": 295.39999997615814
+        },
+        "filterColdMs": [
+          3.1999999284744263,
+          5.300000071525574
+        ],
+        "filterWarm": {
+          "samples": [
+            0.8999999761581421,
+            5.799999952316284,
+            1.100000023841858,
+            5.700000047683716,
+            0.8999999761581421,
+            4.799999952316284,
+            1.3000000715255737,
+            5.299999952316284,
+            1.2000000476837158,
+            5.600000023841858
+          ],
+          "medianMs": 4.799999952316284,
+          "totalMs": 32.60000002384186
+        }
+      },
+      {
+        "version": "optimized",
+        "round": 5,
+        "chosenIds": [
+          "s-0",
+          "s-1",
+          "s-3",
+          "s-7",
+          "s-15",
+          "s-31",
+          "s-63"
+        ],
+        "renderedNodes": 120,
+        "renderedEdges": 137,
+        "nodeReused": true,
+        "selection": {
+          "samples": [
+            10.299999952316284,
+            2.200000047683716,
+            0.8999999761581421,
+            0.6999999284744263,
+            0.7000000476837158,
+            0.6000000238418579,
+            0.5999999046325684,
+            0.5,
+            1.100000023841858,
+            0.6000000238418579,
+            0.3999999761581421,
+            0.7000000476837158,
+            0.7999999523162842,
+            0.7000000476837158,
+            0.5,
+            0.3999999761581421,
+            0.5,
+            0.3999999761581421,
+            0.5,
+            0.5,
+            0.6000000238418579,
+            1.2999999523162842,
+            0.6000000238418579,
+            0.5,
+            0.6000000238418579,
+            0.6999999284744263,
+            1.100000023841858,
+            1.100000023841858,
+            1,
+            0.6000000238418579,
+            0.5,
+            1.0999999046325684,
+            1.100000023841858,
+            0.6000000238418579,
+            0.6000000238418579
+          ],
+          "medianMs": 0.6000000238418579,
+          "totalMs": 35.59999990463257
+        },
+        "filterColdMs": [
+          3.899999976158142,
+          4.299999952316284
+        ],
+        "filterWarm": {
+          "samples": [
+            1.600000023841858,
+            5.899999976158142,
+            0.8000000715255737,
+            5.5,
+            1.899999976158142,
+            4.100000023841858,
+            2,
+            3.5,
+            2.100000023841858,
+            6.199999928474426
+          ],
+          "medianMs": 3.5,
+          "totalMs": 33.60000002384186
+        }
+      }
+    ]
+  },
+  "mcpGraphQuery": {
+    "date": "2026-10-27T06:48:36.583Z",
+    "node": "v26.8.1",
+    "nodes": 12000,
+    "edges": 11999,
+    "fileBytes": 3763357,
+    "coldMs": 174.10808300000008,
+    "warmPageMs": [
+      1.3326670000001286,
+      6.2466249999999945,
+      1.1924169999999776,
+      1.3760839999999916,
+      1.3481249999999818,
+      0.9668750000000728,
+      0.8855419999999867,
+      0.820540999999821,
+      0.7003750000001219,
+      0.798082999999906,
+      0.6938750000001619,
+      0.6624170000000049,
+      0.6892920000000231,
+      0.7309999999999945,
+      0.8338330000001406,
+      0.9480829999999969,
+      0.8172500000000582,
+      0.7674590000001444,
+      0.7418750000001637,
+      0.6985409999999774,
+      0.6962919999998576,
+      0.857834000000139,
+      0.7245829999999387,
+      0.6855419999999413,
+      2.862833000000137,
+      0.8487910000001193,
+      0.7245410000000447,
+      0.636792000000014,
+      0.669208000000026,
+      0.650333000000046
+    ],
+    "warmMedianMs": 0.798082999999906,
+    "stats": {
+      "loads": 1,
+      "cacheHits": 31,
+      "cacheMisses": 1,
+      "evictions": 0,
+      "cachedEntries": 1,
+      "pendingLoads": 0
+    },
+    "responseByteLimit": 131072
+  },
+  "verification": {
+    "command": "npm test",
+    "passed": 183,
+    "failed": 0,
+    "suites": {
+      "unit": 88,
+      "integration": 26,
+      "e2e": 18,
+      "mcp": 51
+    },
+    "benchmarkRuns": 18,
+    "coverageMatches": true,
+    "sourceHashesVerified": true,
+    "platform": "darwin",
+    "node": "v26.8.1"
+  }
+}

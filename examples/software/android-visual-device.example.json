@@ -1,0 +1,22 @@
+{
+  "source": {"id": "apk_com_example_target", "kind": "apk"},
+  "backend": {
+    "type": "adb",
+    "deviceId": "REPLACE_WITH_DEVICE_SERIAL",
+    "appId": "com.example.target"
+  },
+  "expectedArtifact": {
+    "kind": "apk",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "limits": {"maxActions": 10, "maxDepth": 0, "maxDurationMs": 120000},
+  "actionAllowlist": [],
+  "nativeVisualWorkflow": {
+    "enabled": true,
+    "node": "/absolute/path/node",
+    "helperJar": "/absolute/path/targettap.jar",
+    "helperSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "allowedWorkflows": ["choose"],
+    "approvedDefinitions": {"choose": "/absolute/path/approved-definition.json"}
+  }
+}

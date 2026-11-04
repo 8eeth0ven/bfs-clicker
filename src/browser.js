@@ -5,6 +5,7 @@ import path from 'node:path';
 import WebSocket from 'ws';
 import { acquireLock } from './store.js';
 import { readSession } from './asset.js';
+import { initiatorRecord } from './initiator.js';
 
 // Chromium Fetch is installed with auto-attach before a target runs. This also
 // guards the first popup document and redirect hops, which context.route alone
@@ -37,12 +38,23 @@ async function installProtocolGuard(endpoint,config,policy,budget,store,onFatal,
       }
       try {
         if(['page','iframe','webview'].includes(type)) await send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*',requestStage:'Response'}]},sessionId);
+        if(config.captureInitiators&&['page','iframe','webview','worker'].includes(type)){
+          try{await send('Network.enable',{maxTotalBufferSize:1048576,maxResourceBufferSize:65536},sessionId)}
+          catch(error){store.emit('coverage_gap',{reason:'initiator_capture_unavailable',targetType:type,message:String(error.message).slice(0,200)});}
+        }
         // Dedicated worker requests are paused by their parent page's Fetch domain.
         // The worker target has no Fetch domain; continue only after its parent is armed.
         await send('Target.setAutoAttach',{autoAttach:true,waitForDebuggerOnStart:true,flatten:true},sessionId);
         await send('Runtime.runIfWaitingForDebugger',{},sessionId);
         store.emit('guard_ready',{targetType:type});
       } catch(e) {onFatal(new Error(`关键请求守卫安装失败 (${type}): ${e.message}`));}
+    } else if(m.method==='Network.requestWillBeSent'&&config.captureInitiators){
+      const record=initiatorRecord(m.params,m.sessionId,config._runtime);
+      if(record){
+        store.emit('network_initiator',record);
+        const redirect=m.params.redirectResponse;
+        if(redirect)store.emit('network_redirect',{networkId:record.networkId,fromUrl:redirect.url,toUrl:record.url,status:redirect.status,source:record.source,confidence:'observed'});
+      }
     } else if(m.method==='Fetch.requestPaused') {
       const e=m.params;const request=e.request;
       if (e.responseStatusCode != null || e.responseErrorReason) {

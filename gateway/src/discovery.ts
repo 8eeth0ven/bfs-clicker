@@ -33,6 +33,8 @@ export class Discovery {
         extraction_sources:op.extraction_sources,locations:op.locations,
         allowed:op.allowed,blocked_reason:op.blocked_reason || null,
         parameter_summary:op.parameter_summary,health,
+        ...(op.query_serialization ? {query_serialization:op.query_serialization} : {}),
+        ...(op.form_serialization ? {form_serialization:op.form_serialization} : {}),
         quality_label:health.state==='http_verified'?'HTTP 已验证':health.state==='not_found_suspected'?'连续未找到，疑似失效':op.provenance.includes('observed')?'已实抓，尚未复验':'未验证',
         ...(includeSchema ? {params_schema:op.params_schema} : {})
       };

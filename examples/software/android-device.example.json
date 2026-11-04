@@ -1,0 +1,12 @@
+{
+  "backend": {
+    "type": "adb",
+    "deviceId": "REPLACE_WITH_DEVICE_SERIAL"
+  },
+  "limits": {
+    "maxActions": 30,
+    "maxDepth": 4,
+    "maxDurationMs": 60000
+  },
+  "actionAllowlist": []
+}

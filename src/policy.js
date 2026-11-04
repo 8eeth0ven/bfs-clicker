@@ -65,9 +65,11 @@ export function createPolicy(config, emit = () => {}) {
     if (el.excluded) return {allow:false,reason:'excluded_selector'};
     const text=[el.text,el.label,el.aria,el.title,el.href,el.formAction,el.contextText].filter(Boolean).join(' ');
     if ([...DEFAULT_SKIP_TEXT_PATTERNS,...config.skipTextPatterns].some(p => text.toLowerCase().includes(p.toLowerCase())) || LOGOUT_RE.test(text)) return {allow:false,reason:'dangerous_action'};
+    if (config.writeActionAllowlist?.includes(el.selector) && !(config._runtime?.workflowActive===true && config._runtime?.workflowEffect==='write')) return {allow:false,reason:'write_workflow_required'};
     if (WRITE_RE.test(text)) {
       const formAllowed=config.actionProfile==='forms' && config.actionAllowlist.includes(el.selector) && el.formAction && allowRule((el.formMethod||'GET').toUpperCase(),el.formAction,null);
-      if (!formAllowed) return {allow:false,reason:'unsafe_action'};
+      const configuredWrite=config.actionProfile==='forms' && config._runtime?.workflowActive===true && config._runtime?.workflowEffect==='write' && config.actionAllowlist.includes(el.selector) && config.writeActionAllowlist?.includes(el.selector) && config.requestAllowlist.length>0;
+      if (!formAllowed && !configuredWrite) return {allow:false,reason:'unsafe_action'};
     }
     if (el.href) { const d=navigation(el.href); if (!d.allow && el.href!=='#') return d; }
     if (el.kind==='scroll') return {allow:config.exploreScroll,reason:'bounded_scroll'};
@@ -84,7 +86,7 @@ export function createPolicy(config, emit = () => {}) {
   return {navigation,request,headers,action,allowRule,record:(info,decision)=>{
     const actionId=config._runtime?.currentActionId||null;
     if(actionId&&!decision.allow)config._runtime.blockedRequests?.push({url:info.url,reason:decision.reason,navigation:info.navigation});
-    return emit('policy',{...info,...decision,actionId});
+    return emit('policy',{...info,...decision,actionId,stateId:config._runtime?.currentStateId??null,executionId:config._runtime?.currentExecutionId||null});
   }};
 }
 function decodeURIComponentSafe(value) { try { return decodeURIComponent(value); } catch { return value; } }

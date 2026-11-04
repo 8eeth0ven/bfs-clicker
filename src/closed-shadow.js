@@ -1,0 +1,369 @@
+// Explicit local Chromium-only author-closed roots. Never changes attachShadow,
+// exposes a root to page globals, visits UA roots, or uses JS click/value setters.
+import {createHash,randomUUID} from 'node:crypto';
+const fail=code=>{throw Object.assign(new Error(code+'：closed Shadow 契约未验证'),{code})};
+const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v)&&[Object.prototype,null].includes(Object.getPrototypeOf(v));
+const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
+const backends=new WeakMap(),bindings=new WeakMap();
+const planningDocuments=new WeakMap();
+const css=v=>typeof v==='string'&&v.length>0&&v.length<=512&&!/[\x00-\x1f\x7f]/.test(v)&&!v.includes('>>');
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+async function boundedCleanup(promise){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('cleanup timeout')),250)})])}finally{clearTimeout(timer)}}
+export const closedSelector=(id,selector)=>'closed::'+id+'::'+selector;
+export function normalizeClosedShadowRoots(input=[]){
+ if(!Array.isArray(input)||input.length>4)fail('CLOSED_SHADOW_CONFIG_INVALID');const ids=new Set(),chains=new Set();
+ return Array.from(input,row=>{if(!plain(row)||Object.keys(row).some(k=>!['id','hosts','maxNodes'].includes(k))||typeof row.id!=='string'||!/^[-A-Za-z0-9_]{1,64}$/.test(row.id)||ids.has(row.id)||!Array.isArray(row.hosts)||!row.hosts.length||row.hosts.length>4||Array.from(row.hosts).some(s=>!css(s))||!Number.isSafeInteger(row.maxNodes??128)||(row.maxNodes??128)<1||(row.maxNodes??128)>256||chains.has(JSON.stringify(row.hosts)))fail('CLOSED_SHADOW_CONFIG_INVALID');ids.add(row.id);chains.add(JSON.stringify(row.hosts));return{id:row.id,hosts:[...row.hosts],maxNodes:row.maxNodes??128};});
+}
+export function closedTarget(target,config){
+ if(target.closedShadow===undefined){if(target.selector?.startsWith('closed::'))fail('CLOSED_SHADOW_METADATA_REQUIRED');return null}
+ const meta=target.closedShadow;
+ if(!plain(meta)||Object.keys(meta).sort().join(',')!=='hosts,policyId,schemaVersion,selector'||meta.schemaVersion!==1||!css(meta.selector)||!Array.isArray(meta.hosts)||!Array.isArray(target.framePath)||target.framePath.length!==0)fail('CLOSED_SHADOW_TARGET_INVALID');
+ const policy=normalizeClosedShadowRoots(config?.closedShadowRoots).find(p=>p.id===meta.policyId);
+ if(!policy||!same(policy.hosts,meta.hosts)||target.selector!==closedSelector(meta.policyId,meta.selector))fail('CLOSED_SHADOW_NOT_APPROVED');
+ return {meta:{schemaVersion:1,policyId:policy.id,hosts:[...policy.hosts],selector:meta.selector},policy};
+}
+export const closedKey=target=>target.closedShadow?JSON.stringify(target.closedShadow):null;
+export function closedDescriptor(policy,selector){return{selector:closedSelector(policy.id,selector),framePath:[],closedShadow:{schemaVersion:1,policyId:policy.id,hosts:[...policy.hosts],selector}}}
+export function bindClosedShadow(page,config){bindings.set(page,config)}
+export async function resetClosedShadow(page){const previous=backends.get(page);if(previous){try{const b=await boundedCleanup(previous);if(b.explorationCleanupFailed)fail('CLOSED_SHADOW_CLEANUP_FAILED');b.dead=true;await boundedCleanup(b.session.detach());backends.delete(page)}catch{fail('CLOSED_SHADOW_CLEANUP_FAILED')}}}
+
+// Only the explorer calls this after a fully returned primitive. The candidate
+// can read a new semantic generation but cannot dispatch UI. Default workflows
+// retain their lifetime pins; explicit workflow stages use a separate receipt.
+export async function beginClosedExplorationGeneration(page,config){return beginClosedGeneration(page,config,'closed_shadow_exploration_generation')}
+async function beginClosedGeneration(page,config,eventName){
+ if(!config.closedShadowRoots?.length)return {async commit(){},async dispose(){}};
+ checkAction(config);
+ const previous=backends.get(page),old=previous?await previous:null;
+ backends.delete(page);let candidate,done=false;
+ try{if(old?.dead)fail('CLOSED_SHADOW_GENERATION_EXPIRED');candidate=await backend(page,config);candidate.readOnly=true;}
+ catch(error){if(previous)backends.set(page,previous);throw error;}
+ const poison=()=>{candidate.dead=true;candidate.explorationCleanupFailed=true;if(old){old.dead=true;old.explorationCleanupFailed=true;}backends.set(page,previous||Promise.resolve(candidate));};
+ return {async commit(){
+  if(done)fail('CLOSED_SHADOW_GENERATION_EXPIRED');checkAction(config);
+  if(old){old.dead=true;try{await boundedCleanup(old.session.detach())}catch{poison();await boundedCleanup(candidate.session.detach()).catch(()=>{});done=true;fail('CLOSED_SHADOW_CLEANUP_FAILED')}}
+  candidate.readOnly=false;done=true;
+  config._runtime?.emit?.(eventName,{previousCalls:old?.calls||0,candidateCalls:candidate.calls,callLimit:4096});
+ },async dispose(){
+  if(done)return;done=true;candidate.dead=true;
+  // Failed read-only observations still consume the original CDP call budget.
+  if(old)old.calls+=candidate.calls;
+  try{await boundedCleanup(candidate.session.detach())}catch{poison();fail('CLOSED_SHADOW_CLEANUP_FAILED')}
+  if(previous)backends.set(page,previous);else backends.delete(page);
+ }};
+}
+
+// Fixed DOM semantics exclude mutable input values and result text. All reads
+// execute on isolated-world wrappers, not page-modifiable DOM prototypes.
+function targetSemantics(e){return{tag:e.tagName,type:e.type||'',attributes:['id','name','role','aria-label','aria-disabled','aria-readonly','aria-hidden','title','placeholder','required','readonly','disabled','min','max','step','minlength','maxlength','pattern','formaction','formmethod','contenteditable'].map(k=>[k,e.getAttribute(k)]),buttonText:e.tagName==='BUTTON'?String(e.textContent||'').slice(0,4096):null}}
+function hostSemantics(node){return{visible:!!node.checkVisibility?.({checkOpacity:true,checkVisibilityCSS:true}),tag:node.tagName,id:node.id,role:node.getAttribute('role'),name:node.getAttribute('name'),aria:node.getAttribute('aria-label'),class:node.getAttribute('class')}}
+function checkAction(config){config?._runtime?.budget?.check();const action=config?._closedAction;if(action&&(action.expired||Date.now()>=action.deadline))fail('CLOSED_SHADOW_TIMEOUT')}
+function actionTimeout(config,options){return Math.max(1,Math.min(config?.actionTimeoutMs??4000,config?._runtime?.budget?.remainingMs??4000,Number.isFinite(options?.timeout)&&options.timeout>0?options.timeout:Infinity))}
+
+// Read-only geometry across every host boundary. Full containment is required;
+// offscreen, transforms, clipping, transparent/hidden ancestors stay unsupported.
+function geometry(element){
+ if(!element.isConnected)return null;const b=element.getBoundingClientRect();if(!b.width||!b.height||b.x<0||b.y<0||b.right>innerWidth||b.bottom>innerHeight)return null;
+ for(let cur=element;cur;cur=cur.parentElement||cur.getRootNode()?.host||null){const s=getComputedStyle(cur),r=cur.getBoundingClientRect();if(s.display==='none'||s.visibility!=='visible'||Number(s.opacity)===0||s.transform!=='none'||s.clipPath!=='none'||s.maskImage!=='none'||cur.hidden)return null;
+  if(cur!==element){const x=['hidden','clip','scroll','auto'].includes(s.overflowX),y=['hidden','clip','scroll','auto'].includes(s.overflowY);if(x&&(b.left<r.left+cur.clientLeft||b.right>r.left+cur.clientLeft+cur.clientWidth)||y&&(b.top<r.top+cur.clientTop||b.bottom>r.top+cur.clientTop+cur.clientHeight))return null;}}
+ return{x:b.x,y:b.y,width:b.width,height:b.height};
+}
+class Backend{
+ constructor(page,session){this.page=page;this.session=session;this.doc=null;this.world=null;this.leases=new Map();this.calls=0;this.dead=false;}
+ async send(method,params,config){
+  checkAction(config);if(this.dead||++this.calls>4096)fail('CLOSED_SHADOW_LIMIT');
+  const timeout=Math.max(1,Math.min(config?.actionTimeoutMs??4000,config?._runtime?.budget?.remainingMs??4000,config?._closedAction?config._closedAction.deadline-Date.now():Infinity));let timer;
+  try{const value=await Promise.race([this.session.send(method,params),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Object.assign(new Error('timeout'),{code:'CLOSED_SHADOW_TIMEOUT'})),timeout)})]);if(Buffer.byteLength(JSON.stringify(value))>262144)fail('CLOSED_SHADOW_LIMIT');checkAction(config);return value;}
+  catch(e){if(e.code==='CLOSED_SHADOW_TIMEOUT')this.dead=true;if(e.code?.startsWith('CLOSED_SHADOW_'))throw e;fail('CLOSED_SHADOW_BACKEND_REJECTED');}finally{clearTimeout(timer)}
+ }
+ async call(objectId,fn,arg,group,config,byValue=true){const r=await this.send('Runtime.callFunctionOn',{objectId,functionDeclaration:'function(arg){return ('+fn.toString()+')(this,arg)}',...(arg===undefined?{}:{arguments:[{value:arg}]}),returnByValue:byValue,objectGroup:group},config);if(r.exceptionDetails)fail('CLOSED_SHADOW_EVALUATION_REJECTED');return byValue?r.result.value:r.result;}
+ async resolveObject(backendNodeId,group,config){return(await this.send('DOM.resolveNode',{backendNodeId,objectGroup:group,executionContextId:this.world},config)).object.objectId;}
+ async root(target,config,group){
+  let url;try{url=new URL(this.page.url())}catch{fail('CLOSED_SHADOW_SCOPE_NOT_APPROVED')}
+  if(!['http:','https:'].includes(url.protocol)||url.username||url.password||!config.navigationOrigins?.includes(url.origin)||config._policy&&!config._policy.navigation(url.href).allow)fail('CLOSED_SHADOW_SCOPE_NOT_APPROVED');
+  const {policy,meta}=closedTarget(target,config),document=(await this.send('DOM.getDocument',{depth:0,pierce:false},config)).root;
+  if(this.doc!==null&&this.doc!==document.backendNodeId)fail('CLOSED_SHADOW_DOCUMENT_REBUILT');this.doc=document.backendNodeId;
+  if(this.world===null){const tree=await this.send('Page.getFrameTree',{},config);this.world=(await this.send('Page.createIsolatedWorld',{frameId:tree.frameTree.frame.id,worldName:'bfs-closed-readonly-'+randomUUID()},config)).executionContextId;}
+  let objectId=await this.resolveObject(document.backendNodeId,group,config);const documentId=objectId,chain=[],semantics=[],hostIds=[],rootIds=[];
+  for(const selector of policy.hosts){
+   const n=await this.call(objectId,(root,selector)=>root.querySelectorAll(selector).length,selector,group,config);
+   if(n===0){if(this.leases.has(policy.id))fail('CLOSED_SHADOW_ROOT_REBUILT');return null}if(n!==1)fail('CLOSED_SHADOW_HOST_AMBIGUOUS');
+   const host=await this.call(objectId,(root,selector)=>root.querySelector(selector),selector,group,config,false);
+   const info=await this.call(host.objectId,hostSemantics,undefined,group,config);
+   if(!info.visible)fail('CLOSED_SHADOW_HIDDEN');
+   const node=(await this.send('DOM.describeNode',{objectId:host.objectId,depth:0,pierce:false},config)).node;
+   const roots=(node.shadowRoots||[]).filter(r=>r.shadowRootType==='closed');if(roots.length!==1)fail('CLOSED_SHADOW_MODE_CHANGED');
+   chain.push([node.backendNodeId,roots[0].backendNodeId]);semantics.push(info);hostIds.push(host.objectId);objectId=await this.resolveObject(roots[0].backendNodeId,group,config);rootIds.push(objectId);
+  }
+  const previous=this.leases.get(policy.id);if(previous&&!same(previous.chain,chain))fail('CLOSED_SHADOW_ROOT_REBUILT');
+  if(previous&&!same(previous.semantics,semantics))fail('CLOSED_SHADOW_HOST_CHANGED');
+  if(previous)for(const pin of previous.targets.values()){const nodeId=await this.resolveObject(pin.id,group,config),snapshot=await this.send('Runtime.callFunctionOn',{objectId:nodeId,functionDeclaration:'function(root){return{connected:this.isConnected&&this.getRootNode()===root,semantic:('+targetSemantics.toString()+')(this)}}',arguments:[{objectId}],returnByValue:true},config);if(snapshot.exceptionDetails||!snapshot.result.value?.connected)fail('CLOSED_SHADOW_TARGET_REBUILT');if(!same(snapshot.result.value.semantic,pin.semantic))fail('CLOSED_SHADOW_TARGET_CHANGED');}
+  const lease=previous||{chain,semantics,targets:new Map()};this.leases.set(policy.id,lease);return{objectId,documentId,hostIds,rootIds,lease,semantics,policy,meta};
+ }
+ async scope(target,config,fn,{rootOnly=false}={}){
+  const group='bfs-closed-'+randomUUID();let primary;try{const root=await this.root(target,config,group);if(!root)return await fn(null,group);
+   if(rootOnly)return await fn(root,group);
+   const count=await this.call(root.objectId,(root,selector)=>root.querySelectorAll(selector).length,root.meta.selector,group,config);if(count>root.policy.maxNodes)fail('CLOSED_SHADOW_LIMIT');if(count!==1)return await fn({...root,count},group);
+   const node=await this.call(root.objectId,(root,selector)=>root.querySelector(selector),root.meta.selector,group,config,false),description=(await this.send('DOM.describeNode',{objectId:node.objectId,depth:0,pierce:false},config)).node;
+   const contained=await this.send('Runtime.callFunctionOn',{objectId:node.objectId,functionDeclaration:'function(root){return this.getRootNode()===root}',arguments:[{objectId:root.objectId}],returnByValue:true},config);if(contained.exceptionDetails||contained.result.value!==true)fail('CLOSED_SHADOW_SCOPE_CHANGED');
+   const id=description.backendNodeId,semantic=await this.call(node.objectId,targetSemantics,undefined,group,config),previous=root.lease.targets.get(root.meta.selector);if(previous&&previous.id!==id)fail('CLOSED_SHADOW_TARGET_REBUILT');if(previous&&!same(previous.semantic,semantic))fail('CLOSED_SHADOW_TARGET_CHANGED');if(!previous&&root.lease.targets.size>=root.policy.maxNodes)fail('CLOSED_SHADOW_LIMIT');root.lease.targets.set(root.meta.selector,{id,semantic});
+   return await fn({...root,count:1,nodeId:node.objectId,backendNodeId:id,semantic},group);
+  }catch(e){primary=e;throw e}finally{try{await boundedCleanup(this.session.send('Runtime.releaseObjectGroup',{objectGroup:group}))}catch{this.dead=true;await boundedCleanup(this.session.detach()).catch(()=>{});if(!primary)fail('CLOSED_SHADOW_CLEANUP_FAILED')}}
+ }
+ async elementIds(root,group,config){
+  const count=await this.call(root.objectId,r=>r.querySelectorAll('*').length,undefined,group,config);
+  if(!Number.isSafeInteger(count)||count<0||count>root.policy.maxNodes)fail('CLOSED_SHADOW_LIMIT');
+  // querySelectorAll does not cross a nested shadow boundary: these elements
+  // have this nearest root as owner, including a nested root's host itself.
+  const list=await this.call(root.objectId,r=>Array.from(r.querySelectorAll('*')),undefined,group,config,false);
+  const properties=await this.send('Runtime.getProperties',{objectId:list.objectId,ownProperties:true},config),rows=properties.result.filter(row=>/^(0|[1-9][0-9]*)$/.test(row.name));
+  if(rows.length!==count||rows.some((row,index)=>row.name!==String(index)||!row.value?.objectId))fail('CLOSED_SHADOW_STAGE_CHANGED_DURING_ADMISSION');
+  const ids=[];
+  for(const row of rows){
+   const node=(await this.send('DOM.describeNode',{objectId:row.value.objectId,depth:0,pierce:false},config)).node;
+   const member=await this.send('Runtime.callFunctionOn',{objectId:row.value.objectId,functionDeclaration:'function(root){return this.isConnected&&this.getRootNode()===root}',arguments:[{objectId:root.objectId}],returnByValue:true},config);
+   if(node.nodeType!==1||!Number.isSafeInteger(node.backendNodeId)||member.exceptionDetails||member.result.value!==true)fail('CLOSED_SHADOW_STAGE_CHANGED_DURING_ADMISSION');ids.push(node.backendNodeId);
+  }
+  if(new Set(ids).size!==count||await this.call(root.objectId,r=>r.querySelectorAll('*').length,undefined,group,config)!==count)fail('CLOSED_SHADOW_STAGE_CHANGED_DURING_ADMISSION');
+  return ids;
+ }
+}
+async function backend(page,config){checkAction(config);if(!backends.has(page)){let expired=false,timer;const pending=page.context().newCDPSession(page),timeout=Math.max(1,Math.min(actionTimeout(config),config?._closedAction?config._closedAction.deadline-Date.now():Infinity));
+ const result=Promise.race([pending.then(session=>new Backend(page,session)),new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(Object.assign(new Error('closed backend timeout'),{code:'CLOSED_SHADOW_TIMEOUT'}))},timeout)})]).finally(()=>clearTimeout(timer));
+ pending.then(session=>{if(expired)boundedCleanup(session.detach()).catch(()=>{})}).catch(()=>{});backends.set(page,result);
+ }let timer;try{const pending=backends.get(page),timeout=config?._closedAction?Math.max(1,config._closedAction.deadline-Date.now()):actionTimeout(config);const value=await Promise.race([pending,new Promise((_,reject)=>{timer=setTimeout(()=>{pending.then(b=>{b.dead=true;boundedCleanup(b.session.detach()).catch(()=>{})}).catch(()=>{});reject(Object.assign(new Error('closed backend deadline'),{code:'CLOSED_SHADOW_TIMEOUT'}))},timeout)})]);checkAction(config);if(value.explorationCleanupFailed)fail('CLOSED_SHADOW_CLEANUP_FAILED');return value}finally{clearTimeout(timer)}}
+export class ClosedLocator{
+ constructor(page,target,config){this.page=page;this.target=target;this.config=config||bindings.get(page);closedTarget(target,this.config);}
+ async use(fn,options){const config=options?{...this.config,_closedAction:{deadline:Math.min(Date.now()+actionTimeout(this.config,options),this.config._closedAction?.deadline??Infinity),expired:false}}:this.config;const b=await backend(this.page,config);return b.scope(this.target,config,(ref,group)=>fn(b,ref,group,config));}
+ async count(options){return this.use((b,r)=>r?.count??0,options)}
+ async evaluate(fn,arg,options){return this.use((b,r,g,config)=>{if(r?.count!==1)fail('CLOSED_SHADOW_LOCATOR_CHANGED');return b.call(r.nodeId,fn,arg,g,config)},options)}
+ async identity(){return this.use((b,r)=>{if(r?.count!==1)fail('CLOSED_SHADOW_LOCATOR_CHANGED');return{...r.meta,mode:'closed',hostsContract:r.semantics}})}
+ async isVisible(options){return this.evaluate(geometry,undefined,options).then(Boolean)}
+ async innerText(options){return this.evaluate(e=>String(e.innerText||'').slice(0,32768),undefined,options)}
+ async inputValue(options){return this.evaluate(e=>String(e.value||'').slice(0,4096),undefined,options)}
+ async getAttribute(name,options){return this.evaluate((e,name)=>e.getAttribute(name)?.slice(0,4096)??null,name,options)}
+ async ui(fn,options){
+  const action={deadline:Date.now()+actionTimeout(this.config,options),expired:false},local=new ClosedLocator(this.page,this.target,{...this.config,_closedAction:action});let timer;
+  try{return await Promise.race([Promise.resolve().then(async()=>{if((await backend(this.page,local.config)).readOnly)fail('CLOSED_SHADOW_READ_ONLY_GENERATION');return fn(local)}),new Promise((_,reject)=>{timer=setTimeout(()=>{action.expired=true;const pending=backends.get(this.page);pending?.then(b=>{b.dead=true}).catch(()=>{});boundedCleanup(this.page.close({runBeforeUnload:false})).catch(()=>{});reject(Object.assign(new Error('closed action timeout'),{code:'CLOSED_SHADOW_TIMEOUT'}))},Math.max(1,action.deadline-Date.now()))})]);}
+  catch(error){if(error.code==='CLOSED_SHADOW_TIMEOUT'){action.expired=true;backends.get(this.page)?.then(b=>{b.dead=true}).catch(()=>{});boundedCleanup(this.page.close({runBeforeUnload:false})).catch(()=>{});}throw error}
+  finally{clearTimeout(timer);action.expired=true;}
+ }
+ async point(dispatch){return this.use(async(b,r,g)=>{
+  if(r?.count!==1)fail('CLOSED_SHADOW_LOCATOR_CHANGED');const before=await b.call(r.nodeId,geometry,undefined,g,this.config);if(!before)fail('CLOSED_SHADOW_NOT_ACTIONABLE');
+  const disabled=await b.call(r.nodeId,e=>!!e.disabled||e.getAttribute('aria-disabled')==='true',undefined,g,this.config);if(disabled)fail('CLOSED_SHADOW_NOT_ACTIONABLE');
+  for(const rx of [.25,.5,.75])for(const ry of [.25,.5,.75]){const x=Math.floor(before.x+before.width*rx),y=Math.floor(before.y+before.height*ry),hit=await b.send('DOM.getNodeForLocation',{x,y,includeUserAgentShadowDOM:false,ignorePointerEventsNone:false},this.config);
+   const objectId=await b.resolveObject(hit.backendNodeId,g,this.config),reply=await b.send('Runtime.callFunctionOn',{objectId:r.nodeId,functionDeclaration:'function(hit){return this===hit||this.contains(hit)}',arguments:[{objectId}],returnByValue:true},this.config);if(reply.exceptionDetails||reply.result.value!==true)fail('CLOSED_SHADOW_OCCLUDED');}
+  // One final read checks the very wrappers used by this primitive. It cannot
+  // make browser input atomic, but no locator re-resolution occurs after it.
+  const pins=[...r.lease.targets.values()],pinIds=await Promise.all(pins.map(pin=>pin.id===r.backendNodeId?r.nodeId:b.resolveObject(pin.id,g,this.config)));
+  const declaration='function(root,document,exclusions,...nodes){const n='+r.hostIds.length+',hosts=nodes.slice(0,n),roots=nodes.slice(n,2*n),pins=nodes.slice(2*n);let excluded=false;for(let e=this;e;e=e.parentElement||e.getRootNode()?.host||null)if(exclusions.some(s=>e.matches(s)||e.closest(s)))excluded=true;return{connected:this.isConnected&&this.getRootNode()===root&&hosts.every((h,i)=>h.isConnected&&h.getRootNode()===(i?roots[i-1]:document)&&roots[i].host===h),excluded,pins:pins.map(e=>({connected:e.isConnected&&e.getRootNode()===root,semantic:('+targetSemantics.toString()+')(e)})),focused:this.getRootNode().activeElement===this&&!this.disabled&&!this.readOnly,geometry:('+geometry.toString()+')(this),semantic:('+targetSemantics.toString()+')(this),hosts:hosts.map('+hostSemantics.toString()+')}}';
+  const final=await b.send('Runtime.callFunctionOn',{objectId:r.nodeId,functionDeclaration:declaration,arguments:[{objectId:r.objectId},{objectId:r.documentId},{value:this.config.excludeSelectors||[]},...[...r.hostIds,...r.rootIds,...pinIds].map(objectId=>({objectId}))],returnByValue:true},this.config);if(final.exceptionDetails||!final.result.value?.connected)fail('CLOSED_SHADOW_TARGET_REBUILT');const after=final.result.value;if(after.excluded)fail('CLOSED_SHADOW_EXCLUDED');if(after.pins.some((pin,i)=>!pin.connected||!same(pin.semantic,pins[i].semantic)))fail('CLOSED_SHADOW_TARGET_CHANGED');if(!same(before,after.geometry))fail('CLOSED_SHADOW_GEOMETRY_CHANGED');if(!same(after.semantic,r.semantic))fail('CLOSED_SHADOW_TARGET_CHANGED');if(!same(after.hosts,r.semantics))fail('CLOSED_SHADOW_HOST_CHANGED');
+  const point={x:Math.floor(before.x+before.width/2),y:Math.floor(before.y+before.height/2)};checkAction(this.config);return dispatch?dispatch(point,{b,r,g,snapshot:after}):point;
+ })}
+ async click(options){return this.ui(local=>local.point(point=>{checkAction(local.config);return this.page.mouse.click(point.x,point.y)}),options)}
+ // Only a fully returned physical click can return this private, one-use
+ // transition receipt. A timed-out/late click never authorizes a generation.
+ async clickForWorkflowStage(options){
+  let receipt,returned=false;
+  try{await this.ui(async local=>{const captured=await captureWorkflowStage(this.page,local.config,this.config);try{await local.point(point=>{checkAction(local.config);return this.page.mouse.click(point.x,point.y)});checkAction(local.config);receipt=captured;}catch(error){await captured.dispose();throw error;}},options);returned=true;return receipt;}
+  finally{if(!returned)await receipt?.dispose();}
+ }
+ async hover(options){return this.ui(local=>local.point(point=>{checkAction(local.config);return this.page.mouse.move(point.x,point.y)}),options)}
+ async fill(value,options){
+  if(typeof value!=='string'||Buffer.byteLength(value)>4096||/[\x00-\x1f\x7f]/.test(value))fail('CLOSED_SHADOW_INPUT_UNSUPPORTED');
+  return this.ui(async local=>{const type=await local.evaluate(e=>({tag:e.tagName,type:e.type,readonly:e.readOnly,disabled:e.disabled}));if(!['INPUT','TEXTAREA'].includes(type.tag)||type.tag==='INPUT'&&!['text','search'].includes(type.type)||type.readonly||type.disabled)fail('CLOSED_SHADOW_INPUT_UNSUPPORTED');
+   await local.point(point=>{checkAction(local.config);return this.page.mouse.click(point.x,point.y)});
+   const edit=async action=>local.point(async(_,{snapshot})=>{if(!snapshot.focused)fail('CLOSED_SHADOW_FOCUS_CHANGED');checkAction(local.config);await action()});
+   for(const key of ['ControlOrMeta+A','Backspace'])await edit(()=>this.page.keyboard.press(key));
+   await edit(()=>this.page.keyboard.insertText(value));if(await local.inputValue()!==value)fail('CLOSED_SHADOW_INPUT_NOT_VERIFIED');
+  },options);
+ }
+}
+export const closedLocator=(page,target,config)=>new ClosedLocator(page,target,config);
+
+function planningConfig(config){
+ const row=config.closedStagePlanning;
+ if(!plain(row)||Object.keys(row).join(',')!=='workflowId'||typeof row.workflowId!=='string'||! /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(row.workflowId)||['__proto__','constructor','prototype'].includes(row.workflowId))fail('CLOSED_STAGE_PLANNING_NOT_CONFIGURED');
+ return row;
+}
+
+// Read-only provenance for an actually observed transition. The reference is
+// process-local and opaque; only initial/same/new enters planning evidence.
+export async function captureClosedStagePlanningDocument(page,config){
+ planningConfig(config);const b=await backend(page,config),doc=(await b.send('DOM.getDocument',{depth:0,pierce:false},config)).root.backendNodeId;
+ if(b.doc!==null&&b.doc!==doc)fail('CLOSED_SHADOW_DOCUMENT_REBUILT');
+ const reference={};planningDocuments.set(reference,{page,doc});return reference;
+}
+
+export async function collectClosedStagePlanningEvidence(page,config,{beforeDocument,sensitiveValues=[]}={}){
+ const planning=planningConfig(config),previous=beforeDocument&&planningDocuments.get(beforeDocument);
+ if(beforeDocument&&(!previous||previous.page!==page))fail('CLOSED_STAGE_DOCUMENT_UNPROVEN');
+ if(!Array.isArray(sensitiveValues)||sensitiveValues.length>1024||sensitiveValues.some(v=>typeof v!=='string'||v.length>8192))fail('CLOSED_SHADOW_LIMIT');
+ sensitiveValues=[...new Set(sensitiveValues.flatMap(value=>{const bare=value.replace(/^(?:Bearer|Basic)\s+/i,'');return[value,bare,value.replace(/\s+/g,' ').trim(),bare.replace(/\s+/g,' ').trim()];}).filter(Boolean))];
+ if(sensitiveValues.length>1024)fail('CLOSED_SHADOW_LIMIT');
+ const b=await backend(page,config),before=await closedFingerprint(page,config),anchors=[],outputs=[],gaps=new Set();let ordinaryRead=false;
+ for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+  const rows=await b.scope(closedDescriptor(policy,':scope'),config,async(r,g)=>{
+   if(!r)return null;
+   return b.call(r.objectId,(root,{max,exclusions,secrets,ordinary})=>{
+    if(root.querySelectorAll('*').length>max)return{limit:true};
+    const excluded=e=>{for(let n=e;n;n=n.parentElement||n.getRootNode()?.host||null)if(exclusions.some(s=>n.matches(s)||n.closest(s)))return true;return false;};
+    const visible=e=>{if(!e.isConnected||!e.checkVisibility?.({checkOpacity:true,checkVisibilityCSS:true}))return false;const r=e.getBoundingClientRect();if(!r.width||!r.height||r.x<0||r.y<0||r.right>innerWidth||r.bottom>innerHeight)return false;for(let n=e;n;n=n.parentElement||n.getRootNode()?.host||null){const s=getComputedStyle(n),b=n.getBoundingClientRect();if(s.display==='none'||s.visibility!=='visible'||Number(s.opacity)===0||s.transform!=='none'||s.clipPath!=='none'||s.maskImage!=='none'||n.hidden)return false;if(n!==e){const x=['hidden','clip','scroll','auto'].includes(s.overflowX),y=['hidden','clip','scroll','auto'].includes(s.overflowY);if(x&&(r.left<b.left+n.clientLeft||r.right>b.left+n.clientLeft+n.clientWidth)||y&&(r.top<b.top+n.clientTop||r.bottom>b.top+n.clientTop+n.clientHeight))return false;}}return true;};
+    const safe=v=>typeof v==='string'&&!/[\x00-\x1f\x7f]/.test(v)&&!secrets.some(s=>s&&v.includes(s))&&!/password|passwd|secret|token|authorization|credential|api[-_]?key|验证码|密码|口令|令牌|密钥/i.test(v);
+    const locator=(e,scope)=>e.id&&e.id.length<=128&&safe(e.id)&&scope.querySelectorAll('#'+CSS.escape(e.id)).length===1?'#'+CSS.escape(e.id):null;
+    // Never derive a parent string by silently subtracting excluded/editable
+    // children. Omit the entire semantic anchor/output instead.
+    const blockedChildren=e=>Array.from(e.querySelectorAll('*')).some(n=>excluded(n)||n.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(n.tagName)||n.hasAttribute('contenteditable'));
+    const isText=e=>!e.isContentEditable&&!e.closest('input,textarea,select,[contenteditable]')&&!excluded(e)&&visible(e)&&!blockedChildren(e);
+    const a=[],o=[];let omitted=0,excludedContent=0;
+    for(const e of root.querySelectorAll('h1,h2,h3,h4,legend,[role="heading"]')){
+     if(!excluded(e)&&visible(e)&&blockedChildren(e)){excludedContent++;continue;}
+     if(!isText(e))continue;const selector=locator(e,root),text=String(e.innerText||e.textContent||'').replace(/\s+/g,' ').trim();
+     if(!selector||!text||text.length>160||!safe(text)){omitted++;continue;}
+     if(a.length>=8){omitted++;continue;}a.push({selector,tag:e.tagName.toLowerCase(),text});
+    }
+    const add=(scope,closed)=>{const nodes=scope.querySelectorAll('output,[role="status"],[aria-live]');if(nodes.length>32)return false;
+     for(const e of nodes){if(!isText(e)||['INPUT','TEXTAREA','SELECT','BUTTON','TABLE','CANVAS','IFRAME'].includes(e.tagName))continue;const selector=locator(e,scope);if(!selector)continue;const aria=e.getAttribute('aria-label'),title=e.getAttribute('title'),label=aria||title||'';if(label.length>120||!safe(label))continue;
+      if(o.length>=12)return false;o.push({selector,tag:e.tagName.toLowerCase(),role:e.getAttribute('role')||'',closed,...(label?{label,labelSource:aria?'aria':'title'}:{})});
+     }return true;
+    };
+    const complete=add(root,true)&&(!ordinary||add(root.ownerDocument,false));return{anchors:a,outputs:o,omitted,excludedContent,complete};
+   },{max:policy.maxNodes,exclusions:config.excludeSelectors||[],secrets:sensitiveValues,ordinary:!ordinaryRead},g,config);
+  },{rootOnly:true});
+  if(!rows){gaps.add('closed_stage_root_not_observed');continue;}ordinaryRead=true;if(rows.limit)fail('CLOSED_SHADOW_LIMIT');
+  if(rows.omitted)gaps.add('closed_stage_anchor_not_fixed_or_sensitive');if(!rows.complete)gaps.add('closed_stage_output_inventory_limit');
+  if(rows.excludedContent)gaps.add('closed_stage_anchor_contains_excluded_or_editable_descendant');
+  // The root-only callback proved unique selector + complete ancestor geometry.
+  // Observation must not add headings to long-lived action target leases.
+  for(const row of rows.anchors)anchors.push({...closedDescriptor(policy,row.selector),tag:row.tag,text:row.text});
+  for(const row of rows.outputs){const {closed,...metadata}=row;outputs.push({...metadata,...(closed?closedDescriptor(policy,row.selector):{selector:row.selector,framePath:[]})});}
+ }
+ const after=await closedFingerprint(page,config);if(!same(before,after))fail('CLOSED_STAGE_OBSERVATION_CHANGED');
+ const uniqueOutputs=[...new Map(outputs.map(row=>[JSON.stringify([row.framePath,row.selector,row.closedShadow||null]),row])).values()];
+ if(anchors.length>32||uniqueOutputs.length>24)fail('CLOSED_SHADOW_LIMIT');
+ if(!anchors.length)gaps.add('closed_stage_anchor_not_observed');
+ return {schemaVersion:1,workflowId:planning.workflowId,documentRelation:previous?(previous.doc===b.doc?'same':'new'):'initial',closedFingerprintDigest:hash(after.map(r=>r.policyId+':'+r.sha256)),anchors,outputs:uniqueOutputs,gaps:[...gaps]};
+}
+
+function workflowOriginsFor(b,roots,config,previous=b.workflowOrigins){
+ if(previous&&previous.document!==b.doc)fail('CLOSED_SHADOW_GENERATION_EXPIRED');
+ const nodes=new Map(previous?.nodes),aliases=new Map();
+ for(const [id,row]of roots){const rootId=row.chain.at(-1)[1];if(!aliases.has(rootId))aliases.set(rootId,new Set());aliases.get(rootId).add(id);}
+ for(const [id,row]of roots)for(const node of row.nodes){
+  const known=nodes.get(node);if(known&&!known.has(id))fail('CLOSED_SHADOW_STAGE_OWNER_CHANGED');
+  if(!known)nodes.set(node,new Set(aliases.get(row.chain.at(-1)[1])));
+ }
+ // At most 30 click boundaries: entry + pre-click + admitted post-state = 61
+ // complete inventories. Retain disconnected nodes for this document so an
+ // earlier observed foreign control cannot be laundered through a container.
+ const limit=61*normalizeClosedShadowRoots(config.closedShadowRoots).reduce((n,p)=>n+p.maxNodes,0);
+ if(nodes.size>limit)fail('CLOSED_SHADOW_LIMIT');return{document:b.doc,nodes};
+}
+
+// Explicit workflow stage entry only. It is called before any initial-stage UI,
+// never by old workflows/exploration and never to renew an expired generation.
+export async function pinClosedWorkflowStage(page,config){
+ const b=await backend(page,config),roots=new Map();
+ for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+  const row=await b.scope(closedDescriptor(policy,':scope'),config,async(r,g)=>r?{chain:r.lease.chain.map(pair=>[...pair]),nodes:await b.elementIds(r,g,config)}:null,{rootOnly:true});
+  if(!row)fail('CLOSED_SHADOW_STAGE_ROOT_MISSING');roots.set(policy.id,row);
+ }
+ b.workflowOrigins=workflowOriginsFor(b,roots,config);
+}
+
+// Workflow stage authority is separate from exploration. The receipt owns old
+// isolated-world wrappers until the post-click admission decision. None of its
+// ids, snapshots or hashes are serialized into a recipe, event or checkpoint.
+async function captureWorkflowStage(page,actionConfig,config){
+ const old=await backend(page,actionConfig),group='bfs-workflow-stage-'+randomUUID(),roots=new Map(),before=await closedFingerprint(page,actionConfig);let used=false,released=false;
+ const release=async()=>{if(released)return;released=true;try{await boundedCleanup(old.session.send('Runtime.releaseObjectGroup',{objectGroup:group}))}catch{old.dead=true;old.explorationCleanupFailed=true;fail('CLOSED_SHADOW_CLEANUP_FAILED')}};
+ try{
+  for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+   const ref=await old.root(closedDescriptor(policy,':scope'),actionConfig,group);
+   if(!ref)fail('CLOSED_SHADOW_STAGE_ROOT_MISSING');
+   const nodes=await old.elementIds(ref,group,actionConfig);
+   roots.set(policy.id,{chain:ref.lease.chain.map(row=>[...row]),semantics:ref.semantics,hostIds:ref.hostIds,nodes});
+  }
+  old.workflowOrigins=workflowOriginsFor(old,roots,actionConfig);
+  const document=old.doc;
+  return {async promote({document:documentMode,url},prove){
+   if(used)fail('CLOSED_SHADOW_GENERATION_EXPIRED');used=true;checkAction(config);
+   if(page.url()!==url)fail('CLOSED_SHADOW_STAGE_URL_CHANGED');
+   let candidate;
+   try{
+    candidate=await beginClosedGeneration(page,config,'closed_shadow_workflow_generation');
+    const next=await backend(page,config),nextRoots=new Map();
+    for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+     const ref=await next.scope(closedDescriptor(policy,':scope'),config,r=>r?{chain:r.lease.chain.map(row=>[...row]),semantics:r.semantics}:null,{rootOnly:true});
+     if(!ref)fail('CLOSED_SHADOW_STAGE_ROOT_MISSING');nextRoots.set(policy.id,ref);
+    }
+    if(documentMode==='same'?next.doc!==document:documentMode==='new'?next.doc===document:true)fail('CLOSED_SHADOW_STAGE_DOCUMENT_CHANGED');
+    if(next.doc===document){
+     for(const [id,a]of roots)for(const [otherId,b]of roots)if(a.chain.at(-1)[1]!==b.chain.at(-1)[1]&&nextRoots.get(id).chain.at(-1)[1]===nextRoots.get(otherId).chain.at(-1)[1])fail('CLOSED_SHADOW_STAGE_OWNER_CHANGED');
+     for(const [id,fresh]of nextRoots){const prior=roots.get(id);if(!same(prior.semantics,fresh.semantics))fail('CLOSED_SHADOW_HOST_CHANGED');
+      for(const [otherId,other]of roots)if(otherId!==id&&fresh.chain.some(pair=>other.chain.some(oldPair=>pair.some(node=>oldPair.includes(node)&&!prior.chain.some(ownPair=>ownPair.includes(node))))))fail('CLOSED_SHADOW_STAGE_OWNER_CHANGED');
+      for(let i=0;i<prior.chain.length;i++)if(!same(prior.chain[i],fresh.chain[i])){
+       if(prior.chain[i][0]===fresh.chain[i][0]||await old.call(prior.hostIds[i],host=>host.isConnected,undefined,group,config)!==false)fail('CLOSED_SHADOW_STAGE_OWNER_CHANGED');
+      }
+     }
+    }
+    const after=await closedFingerprint(page,config);if(same(before,after))fail('CLOSED_SHADOW_STAGE_UNCHANGED');
+    await prove();checkAction(config);if(page.url()!==url)fail('CLOSED_SHADOW_STAGE_URL_CHANGED');
+    // Re-read all newly pinned targets after the admission callback. A late
+    // root/control replacement is a failure, never another candidate attempt.
+    for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots))await next.scope(closedDescriptor(policy,':scope'),config,async(r,g)=>{if(!r)fail('CLOSED_SHADOW_STAGE_ROOT_MISSING');nextRoots.get(policy.id).nodes=await next.elementIds(r,g,config);}, {rootOnly:true});
+    next.workflowOrigins=workflowOriginsFor(next,nextRoots,config,next.doc===document?old.workflowOrigins:undefined);
+    if(!same(after,await closedFingerprint(page,config)))fail('CLOSED_SHADOW_STAGE_CHANGED_DURING_ADMISSION');
+    await release();await candidate.commit();
+   }catch(error){await candidate?.dispose();throw error;}
+   finally{await release();}
+  },async dispose(){if(!used)used=true;await release();}};
+ }catch(error){await release();throw error;}
+}
+
+// Internal exploration comparison. Node ids never enter descriptors/events.
+// Unlike identity(), the private closure distinguishes two generations that
+// happen to reuse the same CSS selector and label.
+export async function closedExplorationIdentity(page,target,config){
+ const locator=closedLocator(page,target,config);
+ return locator.use((backend,ref)=>{
+  if(ref?.count!==1)fail('CLOSED_SHADOW_LOCATOR_CHANGED');
+  const document=backend.doc,id=ref.backendNodeId,chain=JSON.stringify(ref.lease.chain),semantic=JSON.stringify(ref.semantic);
+  return next=>closedLocator(page,next,config).use((current,value)=>!!value&&value.count===1&&current.doc===document&&value.backendNodeId===id&&JSON.stringify(value.lease.chain)===chain&&JSON.stringify(value.semantic)===semantic);
+ });
+}
+
+export async function collectClosedInteractives(page,config,selector){
+ if(!config.closedShadowRoots?.length)return[];bindClosedShadow(page,config);const result=[];
+ for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+  const remaining=Math.max(0,(config.maxInteractives??300)-result.length);if(!remaining)break;
+  const target=closedDescriptor(policy,':scope'),b=await backend(page,config);
+  const rows=await b.scope(target,config,async(r,g)=>{if(!r)return[];return b.call(r.objectId,(root,{selector,max,maxNodes,exclusions})=>{
+   const all=root.querySelectorAll('*');if(all.length>maxNodes)return{limit:true};
+   const clean=s=>String(s||'').replace(/\s+/g,' ').trim().slice(0,180);
+   const css=e=>e.id&&root.querySelectorAll('#'+CSS.escape(e.id)).length===1?'#'+CSS.escape(e.id):(()=>{const a=[];for(let n=e;n&&n.nodeType===1;n=n.parentElement){let i=1;for(let p=n.previousElementSibling;p;p=p.previousElementSibling)if(p.tagName===n.tagName)i++;a.unshift(n.tagName.toLowerCase()+':nth-of-type('+i+')')}return a.join(' > ')})();
+   const excluded=e=>{for(let n=e;n;n=n.parentElement||n.getRootNode()?.host||null)if(exclusions.some(s=>n.matches(s)||n.closest(s)))return true;return false};
+   return Array.from(root.querySelectorAll(selector)).filter(e=>['BUTTON','TEXTAREA'].includes(e.tagName)||e.tagName==='INPUT'&&['text','search','button','submit'].includes(e.type)).filter(e=>e.checkVisibility?.({checkOpacity:true,checkVisibilityCSS:true})&&!e.disabled&&!excluded(e)).slice(0,max).map(e=>{
+    const tag=e.tagName.toLowerCase(),form=e.form||e.closest('form'),group=form||e.closest('[role="search"],[data-filter]'),region=form?.parentElement||group||e.parentElement;
+    const outputs=['button','input'].includes(tag)?[...new Set([...(e.getAttribute('aria-controls')||'').split(/\s+/).filter(Boolean).map(id=>root.getElementById(id)),...Array.from(region?.querySelectorAll('[role="status"],[aria-live],output,[data-results]')||[])])].filter(n=>n&&!excluded(n)).slice(0,6).map(n=>({selector:css(n),tag:n.tagName.toLowerCase(),role:n.getAttribute('role')||'',label:clean(n.getAttribute('aria-label')||n.id),labelSource:n.hasAttribute('aria-label')?'aria':'id'})):[];
+    let submission={action:e.getAttribute('formaction'),method:e.getAttribute('formmethod'),enctype:e.getAttribute('formenctype'),target:e.getAttribute('formtarget'),noValidate:e.hasAttribute('formnovalidate')};
+    if(Object.values(submission).some(value=>typeof value==='string'&&value.length>1024))submission=null;
+    return{selector:css(e),tag,htmlType:(e.type||'').toLowerCase(),submission,role:e.getAttribute('role')||'',text:tag==='input'||tag==='textarea'?'':clean(e.innerText||e.textContent),aria:clean(e.getAttribute('aria-label')),placeholder:clean(e.getAttribute('placeholder')),title:clean(e.title),name:e.name||'',associatedLabel:clean(Array.from(e.labels||[]).map(n=>n.textContent).join(' ')),formSelector:form?css(form):null,groupSelector:group?css(group):null,formAction:form?.action||null,formMethod:form?.method||null,filterContext:!!group,htmlConstraints:{required:e.required,readOnly:e.readOnly,minLength:e.getAttribute('minlength'),maxLength:e.getAttribute('maxlength'),pattern:e.getAttribute('pattern')},workflowOutputs:outputs};
+   });
+  },{selector,max:remaining,maxNodes:policy.maxNodes,exclusions:config.excludeSelectors||[]},g,config)},{rootOnly:true});
+  if(rows?.limit)fail('CLOSED_SHADOW_LIMIT');
+  for(const meta of rows){const descriptor={...meta,...closedDescriptor(policy,meta.selector),framePath:[],frameUrl:page.url(),structUnique:true,shadowPath:true};
+   descriptor.workflowOutputs=meta.workflowOutputs.map(output=>({...output,...closedDescriptor(policy,output.selector)}));for(const name of ['formSelector','groupSelector'])if(descriptor[name])descriptor[name]=closedSelector(policy.id,descriptor[name]);
+   const loc=closedLocator(page,descriptor,config);if(!await loc.isVisible())continue;await loc.point();result.push(descriptor);}
+ }
+ return result;
+}
+export async function closedFingerprint(page,config){
+ if(!config.closedShadowRoots?.length)return[];const result=[];
+ for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+  const b=await backend(page,config),sample=await b.scope(closedDescriptor(policy,':scope'),config,async(r,g)=>r?b.call(r.objectId,(root,max)=>{
+   const nodes=root.querySelectorAll('*');if(nodes.length>max)return{limit:true};const structure=[],text=[];let size=0;
+   for(const e of nodes){structure.push([e.tagName,e.id,e.getAttribute('role'),e.getAttribute('type'),e.getAttribute('name')]);if(e.closest('input,textarea,select,[contenteditable],script,style,noscript,[hidden]')||!e.checkVisibility?.({checkOpacity:true,checkVisibilityCSS:true}))continue;for(const n of e.childNodes)if(n.nodeType===3&&size<4096){const value=String(n.textContent||'').slice(0,4096-size);size+=value.length;text.push(value)}}return{structure,text};
+  },policy.maxNodes,g,config):null,{rootOnly:true});if(sample?.limit)fail('CLOSED_SHADOW_LIMIT');result.push({policyId:policy.id,sha256:hash(sample)});
+ }return result;
+}

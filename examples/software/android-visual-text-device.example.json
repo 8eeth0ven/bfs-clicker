@@ -1,0 +1,43 @@
+{
+  "source": {
+    "id": "apk_com_example_target",
+    "kind": "apk"
+  },
+  "backend": {
+    "type": "adb",
+    "deviceId": "REPLACE_WITH_DEVICE_SERIAL",
+    "appId": "com.example.target",
+    "unicodeInput": {
+      "component": "com.bfs.mcp.ime/.UnicodeIme",
+      "apkSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "expectedArtifact": {
+    "kind": "apk",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "limits": {
+    "maxActions": 12,
+    "maxDepth": 0,
+    "maxDurationMs": 280000
+  },
+  "actionAllowlist": [],
+  "nativeVisualWorkflow": {
+    "enabled": true,
+    "node": "/absolute/path/node",
+    "helperJar": "/absolute/path/targettap.jar",
+    "helperSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "allowedWorkflows": [
+      "search_text"
+    ],
+    "approvedDefinitions": {
+      "search_text": "/absolute/path/android-visual-text-workflow.example.json"
+    },
+    "ocr": {
+      "engine": {
+        "type": "tesseract"
+      },
+      "language": "eng"
+    }
+  }
+}
