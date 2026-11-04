@@ -226,6 +226,10 @@
     {
       "kind": "普通iOS第20轮",
       "status": "实际终态失败：CALIBRATION_SAMPLING_REQUEST_TIMEOUT；phase=keyboard_calibration。保留真实进度，不由准备或旧设备产物追认为成功。"
+    },
+    {
+      "kind": "普通iOS第21次验收（runtime compiler20）",
+      "status": "有界只读采样候选4/4通过完整校准，随后学习因WORKFLOW_NOT_VALIDATED：VISUAL_FRAME_CHANGED失败；两样本/ready/统一/生成均未通过。38个MCP键已派发，后续e未派发；旧20校准超时失败完整保留。"
     }
   ],
   "previousCompiler12FullRegression": {
@@ -2635,7 +2639,7 @@
     "scopeNote": "完整保留compiler19当时current、focused、package、device、release、limits和storage；不是compiler20重跑。"
   },
   "compilerVersion": "software-to-mcp-20",
-  "status": "full_regressions_and_installed_sdk_verified_with_explicit_current_device_scope_draft_checkpoint",
+  "status": "compiler20_runtime_baseline_with_scoped_harness_attempt21_learning_failure",
   "scope": "有限Web/APK/iOS契约与本地协议fixture；各source cohort和设备范围分列，非任意网站/App通用证明。",
   "asOf": "2026-11-04",
   "currentFullRegression": {
@@ -2961,6 +2965,90 @@
           "minSharedOpacity": 0.125,
           "visualEquivalenceOnly": true
         }
+      },
+      "latestCompletedAttempt": 21,
+      "attempt21": {
+        "schemaVersion": 1,
+        "compilerVersion": "software-to-mcp-20",
+        "attempt": 21,
+        "verificationAttempt": 21,
+        "status": "terminal_failed",
+        "phase": "learning",
+        "actualError": "VISUAL_FRAME_CHANGED",
+        "sourceFreezeSha256": "fa7d3b508cc272a433982bbad39981db28be6f252d4aeed21fb274a80c1fabd1",
+        "sourceManifestSha256": "88ea7f31a38d471c36e0f78371f87b74700a780918bf7d5c3ca05eeff4a46763",
+        "source": {
+          "copiedFiles": 516,
+          "gatewayDistFiles": 32,
+          "runtimeFiles": 121,
+          "publicCodeFiles": 449,
+          "pythonSourceFiles": 81,
+          "allBytesMatchedBefore": true,
+          "allBytesMatchedAfter": true,
+          "hostDependenciesShared": true,
+          "hermetic": false
+        },
+        "outcome": {
+          "discoveryStarted": true,
+          "learningStarted": true,
+          "twoSampleValidated": false,
+          "readyPublished": false,
+          "unifiedPassed": false,
+          "generatedPassed": false,
+          "mcpAcceptancePassed": false,
+          "calibrationSetupFocusActions": 1,
+          "mcpKeyboardActions": 38,
+          "businessSubmissions": null
+        },
+        "cleanup": {
+          "sixFlagsAllTrue": true,
+          "existingDeviceCount": 11,
+          "existingDevicesPreserved": true,
+          "ownedSimulatorAbsent": true,
+          "independentFreshHostAudit": true,
+          "ownedProcessesRemaining": 0,
+          "listeningOwnPorts": 0
+        },
+        "storage": {
+          "storageAbort": false,
+          "reserveMetAtEnd": true
+        },
+        "verificationScopes": {
+          "focusedSamplerTests": 32,
+          "currentPublic449FullSuitePassed": false,
+          "historicalCompiler20UnchangedScopes": [
+            "runtime121",
+            "python81",
+            "npm370"
+          ]
+        },
+        "cachedWda": {
+          "used": true,
+          "artifactByteCopyVerified": true,
+          "cached236BytesAndModesMatchedBeforeAfter": true,
+          "minOsRuntimeCompatible": null
+        },
+        "calibrationSampling": {
+          "attempted": true,
+          "status": "full_guard_passed_pending_final_deadline",
+          "errorCode": null,
+          "elapsedMs": 6261.633582999988,
+          "candidateCount": 4,
+          "acceptedCandidate": 4,
+          "strictEnvelopeReplayPassed": true,
+          "rawSourceAndPngPairsPinned": true,
+          "readonlyRequests": 36,
+          "sourceRequestLimitMs": 4000,
+          "otherAndParserLimitMs": 1500,
+          "uiActions": 0
+        },
+        "caretUnderlay": {
+          "mode": "paired_revealed_grayscale",
+          "maxUnderlayPixels": 16,
+          "minWhiteCoreFraction": 0.8,
+          "minSharedOpacity": 0.125,
+          "visualEquivalenceOnly": true
+        }
       }
     },
     "historicalPlatforms": "previousCompiler19.deviceEvidence及更早previousCompiler*完整保留；旧失败与其他平台历史不换绑当前20源码。"
@@ -2996,5 +3084,198 @@
     "既有自动closed-stage授权、closed DOM/new-document范围、HTTP/provider/OCR限制保留在previousCompiler19及更早历史，当前未增加通用覆盖承诺。",
     "字段分区研究仍未进入MCP/npm生产策略，空格OCR已知假接受历史不改写。"
   ],
-  "countingRule": "最终3套完整回归、focused、installed SDK与设备证据有交叠且来源范围不同；跳过不计为通过，不累加全球独立总数。"
+  "countingRule": "最终3套完整回归、focused、installed SDK与设备证据有交叠且来源范围不同；跳过不计为通过，不累加全球独立总数。",
+  "postCompiler20HarnessVerification": {
+    "schemaVersion": 1,
+    "compilerVersion": "software-to-mcp-20",
+    "verificationAttempt": 21,
+    "status": "focused32_passed_real_ios_calibration_passed_learning_failed",
+    "publishedBaselineCommit": "d42c502736a87de5509609fddddc1fd6797c25ac",
+    "changes": {
+      "trackedCodePaths": [
+        "test/ios-keyboard-calibration-sampling.mjs",
+        "test/ios-keyboard-calibration-sampling.test.mjs"
+      ],
+      "sourceTransportRequestCapMs": 4000,
+      "otherRequestAndParserCapMs": 1500,
+      "totalCompletedCalibrationBudgetMs": 12000,
+      "maximumCandidates": 6,
+      "readonlyIntervalMs": 125,
+      "fullEnvelopeAndCaretThresholdsUnchanged": true,
+      "businessRuntimeChanges": false,
+      "npmRuntimeChanges": false
+    },
+    "focusedTest": {
+      "command": "node --test --test-reporter=tap test/ios-keyboard-calibration-sampling.test.mjs",
+      "total": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "reportSha256": "d3408b4c6848d407d4b38ec56a3724fff1d54c0993df8beefc400d388d605468",
+      "scope": "实际集成两文件的目标套件，不与旧完整505或设备结果累加。"
+    },
+    "sourceScope": {
+      "runtimeCompilerVersion": "software-to-mcp-20",
+      "runtimeFiles": 121,
+      "pythonSourceFiles": 81,
+      "publicCodeFiles": 449,
+      "changedPublicCodeFiles": 2,
+      "runtimeAndPythonAndNpmMembershipUnchangedFromPublished20": true,
+      "currentPublic449FullSuitePassed": false,
+      "historicalFullAndSdkScope": "第20轮239/505/606及安装SDK保留其原始冻结范围；本轮不重pack/install/SDK，不将原449字节范围换贴为新全套通过。"
+    },
+    "deviceEvidence": {
+      "schemaVersion": 1,
+      "compilerVersion": "software-to-mcp-20",
+      "attempt": 21,
+      "verificationAttempt": 21,
+      "status": "terminal_failed",
+      "phase": "learning",
+      "actualError": "VISUAL_FRAME_CHANGED",
+      "sourceFreezeSha256": "fa7d3b508cc272a433982bbad39981db28be6f252d4aeed21fb274a80c1fabd1",
+      "sourceManifestSha256": "88ea7f31a38d471c36e0f78371f87b74700a780918bf7d5c3ca05eeff4a46763",
+      "source": {
+        "copiedFiles": 516,
+        "gatewayDistFiles": 32,
+        "runtimeFiles": 121,
+        "publicCodeFiles": 449,
+        "pythonSourceFiles": 81,
+        "allBytesMatchedBefore": true,
+        "allBytesMatchedAfter": true,
+        "hostDependenciesShared": true,
+        "hermetic": false
+      },
+      "outcome": {
+        "discoveryStarted": true,
+        "learningStarted": true,
+        "twoSampleValidated": false,
+        "readyPublished": false,
+        "unifiedPassed": false,
+        "generatedPassed": false,
+        "mcpAcceptancePassed": false,
+        "calibrationSetupFocusActions": 1,
+        "mcpKeyboardActions": 38,
+        "businessSubmissions": null
+      },
+      "cleanup": {
+        "sixFlagsAllTrue": true,
+        "existingDeviceCount": 11,
+        "existingDevicesPreserved": true,
+        "ownedSimulatorAbsent": true,
+        "independentFreshHostAudit": true,
+        "ownedProcessesRemaining": 0,
+        "listeningOwnPorts": 0
+      },
+      "storage": {
+        "storageAbort": false,
+        "reserveMetAtEnd": true
+      },
+      "verificationScopes": {
+        "focusedSamplerTests": 32,
+        "currentPublic449FullSuitePassed": false,
+        "historicalCompiler20UnchangedScopes": [
+          "runtime121",
+          "python81",
+          "npm370"
+        ]
+      },
+      "cachedWda": {
+        "used": true,
+        "artifactByteCopyVerified": true,
+        "cached236BytesAndModesMatchedBeforeAfter": true,
+        "minOsRuntimeCompatible": null
+      },
+      "calibrationSampling": {
+        "attempted": true,
+        "status": "full_guard_passed_pending_final_deadline",
+        "errorCode": null,
+        "elapsedMs": 6261.633582999988,
+        "candidateCount": 4,
+        "acceptedCandidate": 4,
+        "strictEnvelopeReplayPassed": true,
+        "rawSourceAndPngPairsPinned": true,
+        "readonlyRequests": 36,
+        "sourceRequestLimitMs": 4000,
+        "otherAndParserLimitMs": 1500,
+        "uiActions": 0
+      },
+      "caretUnderlay": {
+        "mode": "paired_revealed_grayscale",
+        "maxUnderlayPixels": 16,
+        "minWhiteCoreFraction": 0.8,
+        "minSharedOpacity": 0.125,
+        "visualEquivalenceOnly": true
+      }
+    },
+    "independentEvidence": {
+      "terminalSummarySha256": "168278df10029889d842a58322cb6081b0de7c6a92fa9a48385d88029e5855da",
+      "terminalAuditSha256": "a091eb56d1ef1428897007980ff2ff2ba27b8915bb76a5518bf86f52cbfe4604",
+      "samplingReadOnlyRequests": 36,
+      "samplingUiActions": 0,
+      "allSourceAndModesComparedBeforeAfter": true
+    },
+    "limits": [
+      "4秒是基于实际延迟选择的固定读取上限，不是尾延迟分位数或加速幅度。",
+      "本地请求取消不能证明远端WDA立即停止；实际终态另核自有资源清理。",
+      "校准通过未完成两样本、ready、统一或生成调用；第21次整体设备验收失败。",
+      "视觉等价权限不证明OS光标身份、隐藏输入缓冲区或任意App兼容性。"
+    ],
+    "learningBoundarySupplement": {
+      "reportSha256": "a804854d9c767c61811456f3b1b7d1d36748b13e6fccd72aef3c022175eb712f",
+      "evidence": {
+        "schemaVersion": 1,
+        "runtimeCompilerVersion": "software-to-mcp-20",
+        "verificationAttempt": 21,
+        "status": "learning_failed_after_one_completed_owned_fixture_sample",
+        "allChainPassed": false,
+        "confirmedOwnedFixtureSubmissions": 1,
+        "confirmedOwnedFixtureResultCounter": 1,
+        "firstSample": {
+          "index": 1,
+          "clearKeyDispatches": 16,
+          "typedKeyDispatches": 5,
+          "completedInputAndResultContract": true,
+          "submitActionDispatches": 1
+        },
+        "secondSample": {
+          "index": 2,
+          "clearKeyDispatches": 16,
+          "typedKeyDispatches": 1,
+          "pendingCharacterIndex": 2,
+          "pendingKeyStarted": false,
+          "pendingKeyDispatched": false,
+          "submitActionDispatches": 0
+        },
+        "dispatchCounts": {
+          "proxiedRpc": 1655,
+          "learningRpc": 1611,
+          "mcpPointerActions": 42,
+          "keyboardActions": 38,
+          "fingerActions": 4,
+          "startedKeyEvents": 38,
+          "finishedDispatchedKeyEvents": 38,
+          "unmatchedStartedKeyEvents": 0,
+          "keysRoutes": 0,
+          "mobileKeysRoutes": 0,
+          "rejectedKeyFreshnessTraces": 1,
+          "keyUiActionRetries": 0
+        },
+        "unknownOutcome": {
+          "operationFlag": "unknown",
+          "automaticRetry": false,
+          "pendingRejectedKeyDispatchProvenAbsent": true,
+          "doesNotImplySecondSubmit": true
+        },
+        "primaryProjectionBusinessSubmissionsRemainsNull": true,
+        "scope": "Owned native fixture counter and retained UI/driver evidence only; not physical/third-party business or hidden-buffer identity."
+      }
+    }
+  },
+  "currentFullRegressionScope": {
+    "evidenceCommit": "d42c502736a87de5509609fddddc1fd6797c25ac",
+    "originalSourceFreezeSha256": "17489903ad271f7b2e1cd587f5325d7fbc66046a2231b67ce31718e28843ee8b",
+    "runtime121AndPython81Unchanged": true,
+    "currentPublic449FullSuitePassed": false,
+    "followup": "postCompiler20HarnessVerification；新增32项只核当前两harness文件，不把旧505换算为新510全套。"
+  }
 }

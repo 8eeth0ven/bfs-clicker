@@ -1,3 +1,20 @@
+# 普通 iOS 第21次验收：校准通过，学习仍未完成
+
+本次只调整两份验收脚本，产品运行时仍为 `software-to-mcp-20`，基于已提交的 [d42c502](https://github.com/8eeth0ven/bfs-clicker/commit/d42c502736a87de5509609fddddc1fd6797c25ac)。产品运行时、Python源码及安装包业务代码没有变化。第20轮完整回归和SDK结果保留原始范围；当前449份公开代码中两份harness已改变，不将旧505项通过换贴为新510项全套。
+
+- 页面结构读取最多4秒；其他HTTP及解析仍最多1.5秒。至多6个候选、125毫秒间隔及12秒总完成预算不变，完整像素与caret守卫不变。4秒不是速度提升或延迟保证。
+- 当前两文件的目标测试实际为32/32，0失败、0跳过。它与旧完整套件及设备证据分列。
+- 新建的自有iOS模拟器在第4个候选通过完整键盘校准，耗时6261.63毫秒；36次只读采样请求、0采样UI动作。4份PNG及各自前后source原件已钉定，完整校准独立回放通过。
+- 后续学习实际以 `WORKFLOW_NOT_VALIDATED：VISUAL_FRAME_CHANGED` 停止。第二样本清空并输入`b`后，下一键`e`尚未派发；操作保留unknown/noRetry。两样本、ready、统一入口和生成入口均未完成，整体设备验收未通过。
+- setup focus为1，MCP键动作38。主投影的业务提交计数继续保留未知；另行独立核对自建fixture计数器、原始图像及唯一Search派发，确认第一样本提交恰1次、第二样本提交0次。该补充不从4次finger动作推算4次业务，也不扩大为第三方App业务或隐藏缓冲区证明。
+- 六项清理标志均为真；独立主机检查确认自有模拟器不存在、剩余自有进程和监听端口均为0，原有11台设备保留。516份副本及121运行时/449代码/81Python在本轮结束前后核对一致，缓存WDA组件只复用构建、不复用旧校准图。依赖共享，非hermetic。
+
+机器记录见[验证摘要](software-to-mcp-validation.json)的`postCompiler20HarnessVerification`。当前新增32项及本次实测不扩大为任意App或物理设备验证。下方第20轮和更早的结果保留为其原始检查点历史。
+
+---
+
+## 已发布的 compiler20 检查点原始记录
+
 # 软件转 MCP：能力与验证范围
 
 本页记录`software-to-mcp-20`的有限契约。分发为[草稿PR检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)，main未合并、npm未发布；[compiler19历史检查点](https://github.com/8eeth0ven/bfs-clicker/commit/d4b8c7e157e532fe107bd01ec0e3e014bd376a07)不是未来20提交声明。机器摘要见[公开验证结果](software-to-mcp-validation.json)。

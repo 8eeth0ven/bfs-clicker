@@ -7,7 +7,7 @@ import {setTimeout as sleep} from 'node:timers/promises';
 import {approvedKeyboardEnvelope} from './ios-keyboard-envelope.mjs';
 import {decodeBoundedPngSnapshot,visualCaretEquivalent,validateCaretPolicy} from '../src/visual-caret.js';
 
-export const CALIBRATION_SAMPLING=Object.freeze({maxCandidates:6,totalMs:12000,requestMs:1500,intervalMs:125,
+export const CALIBRATION_SAMPLING=Object.freeze({maxCandidates:6,totalMs:12000,requestMs:1500,sourceRequestMs:4000,intervalMs:125,
   sourceBytes:2*1024**2,pngBytes:16*1024**2,outputBytes:128*1024**2,reserveBytes:10*1024**3});
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const fail=code=>{throw Object.assign(Error(code),{code});};
@@ -38,7 +38,7 @@ export async function sampleOwnerKeyboardCalibration({beforePath,output,appId,ge
  const before=decodeBoundedPngSnapshot(beforePath),referenceSha=before.imageSha256;
  let bytesWritten=0,firstSource=null,firstContract=null,receiptError=null,primaryError=null;
  const receipt={schemaVersion:1,status:'sampling',maxCandidates:limits.maxCandidates,totalDeadlineMs:limits.totalMs,
-  perRequestLimitMs:limits.requestMs,intervalMs:limits.intervalMs,candidates:[],readonlyRequests:[],uiActions:0,acceptedCandidate:null,
+  perRequestLimitMs:limits.requestMs,sourceRequestLimitMs:limits.sourceRequestMs,intervalMs:limits.intervalMs,candidates:[],readonlyRequests:[],uiActions:0,acceptedCandidate:null,
   scope:'readonly fixture calibration; caret compatibility is not calibration or OS ownership'};
  function check(){
   if(signal?.aborted)fail('CALIBRATION_SAMPLING_CANCELLED');
@@ -56,7 +56,10 @@ export async function sampleOwnerKeyboardCalibration({beforePath,output,appId,ge
   bytesWritten+=data.length;return target;
  }
  async function bounded(label,fn){
-  check();const began=clock.now(),timeoutMs=Math.max(1,Math.min(limits.requestMs,Math.floor(deadline-began)));
+  // Only readonly WDA tree transport gets this cap; parsing and all other work
+  // retain requestMs, and every call still consumes the same total deadline.
+  check();const began=clock.now(),cap=label==='source'?limits.sourceRequestMs:limits.requestMs,
+   timeoutMs=Math.max(1,Math.min(cap,Math.floor(deadline-began)));
   const controller=new AbortController(),abort=()=>controller.abort(signal?.reason);
   signal?.addEventListener('abort',abort,{once:true});
   const timer=setTimeout(()=>controller.abort(Object.assign(Error('CALIBRATION_SAMPLING_REQUEST_TIMEOUT'),{code:'CALIBRATION_SAMPLING_REQUEST_TIMEOUT'})),timeoutMs);

@@ -40,7 +40,7 @@ function fixture(t,{frames=['bright','off'],mutateRead,mutateParse,beforeEdit,si
  let time=0,captures=0,sourceReads=0,parses=0;const calls=[];
  const read=async(kind,options)=>{
   assert(['app','window','orientation','source','screenshot'].includes(kind),'No action route available');
-  assert(options.timeoutMs>0&&options.timeoutMs<=1500);assert(options.signal instanceof AbortSignal);
+  assert(options.timeoutMs>0&&options.timeoutMs<=(kind==='source'?4000:1500));assert(options.signal instanceof AbortSignal);
   calls.push(kind);time+=1;let value;
   if(kind==='app')value={bundleId:appId};if(kind==='window')value={...geometry};if(kind==='orientation')value='PORTRAIT';
   if(kind==='source'){sourceReads++;value=source;}
@@ -161,7 +161,55 @@ test('actual strict parser enforces app, unique keyboard and every source window
 });
 
 test('readonly limits are fixed and not caller-expanded',()=>{
- assert(Object.isFrozen(CALIBRATION_SAMPLING));assert.deepEqual([CALIBRATION_SAMPLING.maxCandidates,CALIBRATION_SAMPLING.totalMs,CALIBRATION_SAMPLING.requestMs,CALIBRATION_SAMPLING.intervalMs],[6,12000,1500,125]);
+ assert(Object.isFrozen(CALIBRATION_SAMPLING));assert.deepEqual([CALIBRATION_SAMPLING.maxCandidates,CALIBRATION_SAMPLING.totalMs,CALIBRATION_SAMPLING.requestMs,CALIBRATION_SAMPLING.sourceRequestMs,CALIBRATION_SAMPLING.intervalMs],[6,12000,1500,4000,125]);
+});
+
+test('only readonly source transport may finish beyond1500ms within its4000ms cap',async t=>{
+ const f=fixture(t,{frames:['off'],mutateRead:({kind,value,options,advance})=>{
+  assert.equal(options.timeoutMs,kind==='source'?4000:1500);
+  if(kind==='source')advance(1999);return value;
+ }});
+ const result=await f.run();assert.equal(result.sampling.acceptedCandidate,1);assert.equal(f.sourceReads,2);assert.equal(f.captures,1);
+ assert.equal(result.sampling.uiActions,0);assert.equal(result.sampling.perRequestLimitMs,1500);assert.equal(result.sampling.sourceRequestLimitMs,4000);
+ assert(result.sampling.elapsedMs<12000);
+ for(const row of f.receipt().readonlyRequests)assert.equal(row.timeoutMs,row.kind==='source'?4000:1500);
+});
+
+test('source success exactly at4000ms is terminal and cannot open screenshot or another candidate',async t=>{
+ const f=fixture(t,{frames:['off'],mutateRead:({kind,value,options,advance})=>{
+  if(kind==='source'){assert.equal(options.timeoutMs,4000);advance(options.timeoutMs-1);}return value;
+ }});
+ await assert.rejects(f.run(),{code:'CALIBRATION_SAMPLING_REQUEST_TIMEOUT'});
+ assert.deepEqual(f.calls,['app','window','orientation','source']);assert.equal(f.captures,0);assert.equal(f.sourceReads,1);
+ const receipt=f.receipt();assert.equal(receipt.acceptedCandidate,null);assert.equal(receipt.candidates.length,1);assert.equal(receipt.uiActions,0);
+});
+
+test('source cap shrinks to remaining total budget and cannot accept an exact deadline reply',async t=>{
+ let remainingCap;
+ const f=fixture(t,{frames:['bright','off'],mutateRead:({kind,value,sourceReads,options,advance})=>{
+  if(kind==='source'&&sourceReads===3){remainingCap=options.timeoutMs;assert(remainingCap>0&&remainingCap<1500);advance(remainingCap-1);}
+  else advance(899);return value;
+ }});
+ await assert.rejects(f.run(),{code:'CALIBRATION_SAMPLING_DEADLINE'});
+ const receipt=f.receipt();assert.equal(receipt.elapsedMs,12000);assert.equal(receipt.acceptedCandidate,null);assert.equal(receipt.uiActions,0);
+ assert.equal(f.sourceReads,3);assert.equal(f.captures,1);assert.equal(receipt.candidates.length,2);
+ assert.equal(receipt.readonlyRequests.at(-1).kind,'source');assert.equal(receipt.readonlyRequests.at(-1).timeoutMs,remainingCap);
+});
+
+test('source cap never widens the1500ms strict parser budget',async t=>{
+ const f=fixture(t,{frames:['off'],mutateParse:({parsed,advance})=>{advance(1499);return parsed;}});
+ await assert.rejects(f.run(),{code:'CALIBRATION_SAMPLING_REQUEST_TIMEOUT'});
+ assert.deepEqual(f.calls,['app','window','orientation','source']);assert.equal(f.captures,0);assert.equal(f.sourceReads,1);
+ assert.equal(f.receipt().acceptedCandidate,null);assert.equal(f.receipt().uiActions,0);
+});
+
+test('cancellation during source aborts and does not retry or capture a screenshot',async t=>{
+ const controller=new AbortController();let childSignal;
+ const f=fixture(t,{signal:controller.signal,mutateRead:({kind,value,options})=>{
+  if(kind==='source'){childSignal=options.signal;controller.abort();}return value;
+ }});
+ await assert.rejects(f.run(),{code:'CALIBRATION_SAMPLING_CANCELLED'});assert(childSignal.aborted);
+ assert.deepEqual(f.calls,['app','window','orientation','source']);assert.equal(f.captures,0);assert.equal(f.receipt().uiActions,0);
 });
 
 
