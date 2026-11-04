@@ -120,6 +120,10 @@ WebDriver 在本模式下要求当前 context 明确为 `NATIVE_APP`，在读取
 
 复现见[两平台 MCP 分支测试](../test/software-native-branch-planner.test.mjs)、[探索证据反例](../apk_tools/tests/test_mobile_branches.py)和[执行及恢复反例](../apk_tools/tests/test_mobile_branch_workflows.py)。
 
+compiler23 的 iOS 原生语义表单排除 `XCUIElementTypeKeyboard` 类，以及 `traits` 中含精确逗号分隔 `KeyboardKey` 角色的节点及其全部后代。解析和实际 XPath 定位采用同一范围，避免键盘辅助按钮混入表单；普通 App 的重名控件仍严格拒绝，不按按钮名、文字或语言隐藏。App 自行声明的同类角色也在此范围之外，这个边界不证明系统键盘身份，也不授权按键。相应能力在 `fidelity.limits` 返回 `ios_keyboard_role_subtrees_out_of_semantic_scope`；视觉键盘路径继续使用其独立合同。回归见[角色边界测试](../apk_tools/tests/test_mobile_ios_keyboard_roles.py)。
+
+自建原生分支演示与设备验收脚本分别见 [Android App](../apk_tools/examples/native-branch-android/)、[Android 验收](../test/android-native-branch-e2e.mjs)、[iOS App](../apk_tools/examples/native-branch-ios/)和[iOS 验收](../test/ios-native-branch-e2e.mjs)。两端从实际输入控件读取参数，另存 App 私有业务账本，供统一与独立生成 MCP 的结果交叉核对。脚本使用新建自有模拟器并清理；需要已有 Android SDK 镜像，或已初始化的 Xcode、iOS runtime、Appium/XCUITest 与匹配的 WDA 构建。它们是有限自建 App 验收，当前各次运行结果及失败范围以[验证记录](software-to-mcp-verification.md)为准。
+
 ### 当前页面上的多步骤探索
 
 compiler17 在获准动作完整返回后，为新观察到的语义状态建立新的页面许可。冷启动按钮后出现的表单、普通 DOM/open shadow 中销毁重建的表单，以及通过导航策略检查的跨 URL 页面均可继续探索。closed root 的探索可在成功动作后只读检查新一代节点，再销毁旧许可；缺省参数化工作流仍要求同一次执行内节点稳定。compiler18 的[显式闭根多阶段流程](#显式闭根多阶段流程)另需本地阶段合同与启动授权；不能仅由探索覆盖推导学习/调用通过。

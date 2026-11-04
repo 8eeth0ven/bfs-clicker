@@ -65,7 +65,7 @@ export function deriveCapabilityFidelity({adapter,recipe,device,sourceKind}={}){
    steps=recipe.steps.map(s=>s.action);
   }
   const inputs=steps.filter(s=>s.kind==='type').map(s=>nativeInput(s,device));if(inputs.some(s=>!s))return unknownCapabilityFidelity();
-  return base(adapter,['native_semantic','fixed_ui_actions'],inputs,outputs,['provider_text_is_not_app_buffer_truth','fresh_source_checks_are_not_atomic','secure_missing_or_ambiguous_values_cannot_prove_echo','semantic_outputs_may_be_extracted_redacted_or_bounded','non_string_parameters_use_scalar_text_representation']);
+  return base(adapter,['native_semantic','fixed_ui_actions'],inputs,outputs,['provider_text_is_not_app_buffer_truth','fresh_source_checks_are_not_atomic','secure_missing_or_ambiguous_values_cannot_prove_echo','semantic_outputs_may_be_extracted_redacted_or_bounded','non_string_parameters_use_scalar_text_representation',...(sourceKind==='ios'?['ios_keyboard_role_subtrees_out_of_semantic_scope']:[])]);
  }
  if(adapter==='browser-workflow'){
   const spec=recipe.spec;if(recipe.kind!=='browser-workflow'||!plain(spec)||spec.schemaVersion!==1||!Array.isArray(spec.steps)||spec.steps.length>80||!Array.isArray(spec.extract)||spec.extract.length>32||spec.steps.some(s=>!plain(s)||!['fill','click','select','check','choose','visualClick','visualFill'].includes(s.kind)))return unknownCapabilityFidelity();

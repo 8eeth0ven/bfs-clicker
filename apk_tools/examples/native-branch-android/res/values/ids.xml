@@ -1,0 +1,18 @@
+<resources>
+  <item type="id" name="entry_form" />
+  <item type="id" name="left_form" />
+  <item type="id" name="right_form" />
+  <item type="id" name="left_result_form" />
+  <item type="id" name="right_result_form" />
+  <item type="id" name="query" />
+  <item type="id" name="route" />
+  <item type="id" name="left" />
+  <item type="id" name="right" />
+  <item type="id" name="next" />
+  <item type="id" name="detail" />
+  <item type="id" name="alternate_detail" />
+  <item type="id" name="left_search" />
+  <item type="id" name="right_search" />
+  <item type="id" name="left_result" />
+  <item type="id" name="right_result" />
+</resources>

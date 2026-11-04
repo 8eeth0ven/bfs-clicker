@@ -2652,65 +2652,69 @@
     "countingRule": "最终同源239/476、Python579、focused/independent、installed SDK与设备证据分列并有交叠；19/191等局部组不累加为全球独立总数。",
     "scopeNote": "完整保留compiler19当时current、focused、package、device、release、limits和storage；不是compiler20重跑。"
   },
-  "compilerVersion": "software-to-mcp-22",
-  "status": "native_branch24_full_suites_and_fresh_installed_branch_sdk_passed_device_scope_separate",
-  "scope": "有限Web/APK/iOS合同；本轮新增真实原生双路径规划、每臂学习和统一/生成入口，修复Android缺值空串回读。当前全套和新安装分支场景通过，物理设备与任意App覆盖分别验证。",
-  "asOf": "2026-11-05",
+  "compilerVersion": "software-to-mcp-23",
+  "status": "native_semantic_branch_simulators_passed_full_regressions_and_fresh_installed_sdk_verified",
+  "scope": "有限原生双路径、逐参数结果断言与统一/独立生成MCP；真实自建模拟器及协议夹具分列。",
+  "asOf": "2026-11-04T18:45:47.818359+00:00",
   "currentFullRegression": {
-    "compilerVersion": "software-to-mcp-22",
-    "verificationAttempt": 24,
-    "status": "passed_fresh_same_source_full_regressions",
-    "sourceFreezeSha256": "277739f29689d5e54d75d56b3979aaab0f695c90e34a30b3793fd7232d58e617",
+    "compilerVersion": "software-to-mcp-23",
+    "verificationAttempt": 25,
+    "status": "passed_full_regressions_with_two_test_only_source_changes",
+    "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
+    "combinedSourceCohort": {
+      "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
+      "runtimeFiles": 124,
+      "publicCodeFiles": 468,
+      "pythonScopeFiles": 89,
+      "finalReviewedBytesAndModesMatched": true,
+      "allPhasesSameFrozenBytesAndModes": false,
+      "runtimeBytesAndModesMatchAcrossPhases": true,
+      "softwareRegisteredTestsMatchFinal": true,
+      "sourceReconciliationSha256": "66b870f05fc0e20ffe3e1d8543e0f50a81011c89fc3f5d62b7c8319cabf16104"
+    },
     "legacy": {
       "tests": 239,
       "passed": 239,
       "failed": 0,
       "skipped": 0,
       "cancelled": 0,
-      "reportSha256": "60142a290a81f75f967a48379b097fd76ccdfd62ca7580a224f654daf5dde65f",
-      "logSha256": "163a478d2da95181b6e94c0531adebcfd8c4a255c02804f98b119c0893155ec4"
+      "logSha256": "aaea591f0ebb64b205a0d15a3a1e03a34971fefd3e4b9aeabf8ccc610fa2d820",
+      "reportSha256": "a669ee0213a189dc52a6b6fc482c40c88a262ef97bd2fd569344d801a77725f6"
     },
     "software": {
-      "tests": 524,
-      "passed": 524,
+      "tests": 525,
+      "passed": 525,
       "failed": 0,
       "skipped": 0,
       "cancelled": 0,
-      "reportSha256": "c207b25229c22215fc12d2afb1d2398c0ecc987433dd2628c861a93e1a193362",
-      "logSha256": "85575763f6e64b049f3355ddd973450be1a0990ff2e8014906957841c3be285c"
+      "logSha256": "0dea2ebdb95acf58a9a72bc8f19822a8a8dfa44743303ea03aab0b5155d579b9",
+      "reportSha256": "f479e666d2c2afdcfea0566997cd3c2bd2ad4e326199791d21fe1c91ffc0f813"
     },
     "python": {
-      "tests": 633,
-      "passed": 632,
+      "tests": 641,
+      "passed": 640,
       "failed": 0,
       "skipped": 1,
       "cancelled": 0,
-      "reportSha256": "867f31f5c0daefd8651a6f91e085e023da9cadefec070fd727f7cac6f94f7a0d",
-      "logSha256": "6b439684c8323e84a4ba69e521692e13ee5aca321e8a9c45dc757e54f21a413f",
+      "logSha256": "4d08cecb0c0db24687698dff9e7f42f9769aee019777010ed54254d7910cd713",
+      "reportSha256": "3da6f2a5f68cb35e5b3a03af9cb0837f69ca729bbaa2a8029c94402583eba8a7",
       "knownMissingHermesFixtureSkip": true,
       "skipNotCountedAsPass": true
-    },
-    "combinedSourceCohort": {
-      "sourceFreezeSha256": "277739f29689d5e54d75d56b3979aaab0f695c90e34a30b3793fd7232d58e617",
-      "runtimeFiles": 124,
-      "publicCodeFiles": 459,
-      "pythonScopeFiles": 88,
-      "allReviewedBytesAndModesMatched": true
     }
   },
   "currentPackageCheck": {
-    "compilerVersion": "software-to-mcp-22",
-    "verificationAttempt": 24,
+    "compilerVersion": "software-to-mcp-23",
+    "verificationAttempt": 25,
     "status": "passed_fresh_installed_native_branch_scenario",
-    "reportSha256": "42eb2911e12302967e80988b3bbd7c61c7189ccd7b732ad0b1dae75e4df1ef87",
-    "baselineManifestSha256": "f07d9981384bc9fd65ac7dce762fbbe4a32b24c2076b6e17aadfca158eb3c11d",
-    "baselineArchiveSha256": "399b55722846c81d536646082b97780c0e4a23c54f025bcfb0a8cc48f86734fd",
-    "files": 377,
+    "reportSha256": "41b920f67d628b4bbc89e7b94103284c6815e38ff4b28c9c06c690d950e7811a",
+    "baselineManifestSha256": "5c5514c0547a0c73f22afb85c0750a5c9ab67dc390ce0850782a9c282c28abd1",
+    "baselineArchiveSha256": "9fbb57c7e630e1cc606e2ffd7e963d021f2c26a95f7761d0cdd8e32bb6b32a16",
+    "files": 384,
     "distFiles": 32,
     "installedNativeBranches": {
       "status": "passed",
-      "runtimeCompilerVersion": "software-to-mcp-22",
-      "verificationAttempt": 24,
+      "runtimeCompilerVersion": "software-to-mcp-23",
+      "verificationAttempt": 25,
       "planningMode": "native-branch-stages-v1",
       "workflowInput": "automatic_native_branch_candidate_id",
       "platforms": {
@@ -2798,7 +2802,7 @@
         "total": 20
       },
       "externalFixtureIsTestOnly": true,
-      "installedPackageFileCount": 377,
+      "installedPackageFileCount": 384,
       "sourceBytesAndModesUnchanged": true,
       "sdkClientsClosed": 4,
       "sdkCleanupPassed": true,
@@ -2811,17 +2815,24 @@
       "noOrdinaryKeyboardClaim": true,
       "otherSdkScenariosNotRerunHere": true
     },
-    "otherSdkScenariosNotRerunHere": true,
-    "scope": "Fresh npm archive and pinned production install; new branch scenario only. The six older installed scenarios remain historical, not fresh24. Final documentation projection and exact index privacy are separate."
+    "otherSdkScenariosNotRerunHere": true
   },
   "currentFocused": {
-    "compilerVersion": "software-to-mcp-22",
-    "verificationAttempt": 24,
-    "status": "included_in_current_full_suites",
-    "androidInputPresenceAndLegacyUnicode": 14,
-    "branchExplorationMethods": 10,
-    "branchExecutionMethods": 8,
-    "overlappingScopesNotSummed": true
+    "iosKeyboardRoleRegression": {
+      "tests": 8,
+      "passed": 8
+    },
+    "capabilityFidelity": {
+      "tests": 11,
+      "passed": 11
+    },
+    "independentParserXPathComparisons": 132,
+    "setupReadinessOfflineChecks": 15,
+    "hashTimeoutModule": {
+      "tests": 11,
+      "passed": 11
+    },
+    "countsAreOverlappingAndNotAdded": true
   },
   "deviceEvidence": {
     "iosOrdinarySoftKeyboard": {
@@ -3188,19 +3199,19 @@
     },
     "historicalPlatforms": "previousCompiler19.deviceEvidence及更早previousCompiler*完整保留；旧失败与其他平台历史不换绑当前20源码。"
   },
-  "deviceEvidenceScope": "旧currentIOS23、deviceEvidence及currentFocusedCalibration保留其runtime21/attempt23原件范围；39项校准本轮另在software524内覆盖。本轮runtime22没有新物理设备或普通iOS键盘验收。nativeBranchWorkflows24为本地Android/iOS W3C协议夹具和安装MCP场景。",
+  "deviceEvidenceScope": "旧deviceEvidence与currentIOS23保留历史原值；本轮实际原生语义模拟器结果见nativeSemanticDevices25。",
   "release": {
-    "compilerVersion": "software-to-mcp-22",
-    "verificationAttempt": 24,
-    "status": "source_checkpoint_prepared_for_existing_draft_pull_request",
-    "basePublishedCommit": "e271fb204653d1c37058edcc684f43a9b23ae997",
-    "baseMainCommit": "44be51b12ef6eb01ac6a172287eec5bb4596821a",
-    "pullRequest": "https://github.com/8eeth0ven/bfs-clicker/pull/2",
-    "currentAttemptCommit": null,
-    "currentAttemptMerged": false,
-    "previousPr1MergedByUser": true,
+    "runtimeCompilerVersion": "software-to-mcp-23",
+    "verificationAttempt": 25,
+    "branch": "codex/ios-calibration-performance",
+    "pullRequestUrl": "https://github.com/8eeth0ven/bfs-clicker/pull/2",
+    "draft": true,
+    "mainMergedThisIteration": false,
     "npmPublished": false,
-    "finalGate": "另核最终index、精确tar与完整内容隐私；不自嵌未来提交或最终归档摘要。"
+    "basePublishedCheckpoint": {
+      "commit": "f411107494d54955aef1deb069a10c6bd3aaede8",
+      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/f411107494d54955aef1deb069a10c6bd3aaede8"
+    }
   },
   "storagePolicy": {
     "minimumAvailableReserveGiB": 10,
@@ -3405,17 +3416,19 @@
     }
   },
   "currentFullRegressionScope": {
-    "sourceFreezeSha256": "277739f29689d5e54d75d56b3979aaab0f695c90e34a30b3793fd7232d58e617",
-    "currentPublicCodeFullSuitePassed": true,
-    "publicCodeFiles": 459,
-    "publicFiles": 494,
+    "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
     "runtimeFiles": 124,
-    "pythonSourceFiles": 88,
-    "gatewayDistFiles": 32,
-    "newFullSuitesRun": true,
-    "newInstalledBranchSdkRun": true,
-    "excludedReportDocuments": 2,
-    "testsFromDifferentSuitesNotSummed": true
+    "publicCodeFiles": 468,
+    "pythonScopeFiles": 89,
+    "currentPublicCodeFullSuitePassed": false,
+    "currentRuntimeAndRegisteredSoftwareTestsValidated": true,
+    "softwareWholeSourceFreezeSha256": "04ac978776e6a26a731a3c30321eb6b9ee5f77e629e8e869c36aef2bb9f84c10",
+    "sourceReconciliationSha256": "66b870f05fc0e20ffe3e1d8543e0f50a81011c89fc3f5d62b7c8319cabf16104",
+    "testOnlyChangedPaths": [
+      "apk_tools/tests/test_adb_capture_identity.py",
+      "test/android-native-branch-e2e.mjs"
+    ],
+    "explanation": "software先通过；之后仅两份未被software套件加载的测试文件修正。最终主项目与Python全套重新执行，运行时及82份注册software测试字节不变；不宣称三套同一整仓快照。"
   },
   "previousPublishedAttempt21Checkpoint": {
     "publishedCommit": "cc27c268708e57eeecd7e95c3ec883eefe4e2c42",
@@ -4405,7 +4418,7 @@
       "keyUiActionRetries": 0
     }
   },
-  "verificationAttempt": 24,
+  "verificationAttempt": 25,
   "nativeBranchWorkflows24": {
     "planningMode": "native-branch-stages-v1",
     "optIn": "nativeBranchPlanning",
@@ -4703,6 +4716,357 @@
       "nativeBranchWorkflows24",
       "ordinaryIosKeyboardScope24",
       "verificationAttempt"
+    ]
+  },
+  "nativeSemanticDevices25": {
+    "scope": "真实新建自有模拟器及离线自建App，不代表物理设备、任意第三方App或普通视觉键盘通过。",
+    "android": {
+      "attempt": 3,
+      "compilerVersion": "software-to-mcp-23",
+      "status": "passed",
+      "api": 36,
+      "business": 10,
+      "byStage": {
+        "discovery": 2,
+        "learning": 4,
+        "unified": 2,
+        "generated": 2
+      },
+      "independentAppLedgerAndPreferencesExact": true,
+      "unicodeSpacesEmojiAndNfdExact": true,
+      "wrongArm": {
+        "businessAfter": 10,
+        "nextAfter": 11,
+        "detailChangesAfter": 10,
+        "additionalBusiness": 0,
+        "additionalDetailChanges": 0,
+        "automaticRetry": false
+      },
+      "missingArmAndEnumEvidenceScope": "no_additional_business_or_fork_dispatch",
+      "sourceRows": 188,
+      "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
+      "unicodeImeSourceFilesFrozen": 7,
+      "readinessProbesObserved": 1,
+      "missingThenReadyBranchDeviceObserved": false,
+      "cleanupFlags": 12,
+      "cleanupAllTrue": true,
+      "ownedPersistentProcessesAbsent": 13,
+      "ownedPortsClosed": 3,
+      "existingAvdConfigurationsPreserved": 2,
+      "sdkClientsExit0": 2,
+      "workerExitCodesIndividuallyCaptured": false,
+      "reportSha256": "28e32cfcbacf65f9a2fbb8e77bb9a20edaea2fc43fda2cae797d3a607aaf29e0",
+      "previousAttempts": {
+        "attempt1": {
+          "compilerVersion": "software-to-mcp-22",
+          "status": "passed",
+          "business": 10,
+          "imeTemporalSourceFreezeGapPreserved": true
+        },
+        "attempt2": {
+          "compilerVersion": "software-to-mcp-23",
+          "status": "failed",
+          "business": null,
+          "next": null,
+          "observedSystemUiAnr": true,
+          "initialLedgerVerified": false,
+          "mcpDiscoveryStarted": false,
+          "reportSha256": "eda75893a108650ad7617a55e562cb0913dbe6f43d841eb29e9397e7bef2fca0"
+        }
+      }
+    },
+    "ios": {
+      "attempt": 2,
+      "compilerVersion": "software-to-mcp-23",
+      "status": "passed",
+      "runtime": "27.0",
+      "business": 10,
+      "byStage": {
+        "discovery": 2,
+        "learning": 4,
+        "unified": 2,
+        "generated": 2
+      },
+      "independentAppLedgerExact": true,
+      "unicodeNewCalls": 4,
+      "unicodeCodepointsAndUtf8Exact": true,
+      "nfdPreserved": true,
+      "wrongArmDeviceTested": false,
+      "invalidEnumKnownNativeMutationEndpoints": 6,
+      "invalidEnumObservedNativeMutations": 0,
+      "forwardedRequestsReturned": 1547,
+      "unfinishedRequests": 0,
+      "failedRequests": 0,
+      "sourceRows": 188,
+      "sourceFreezeSha256": "04ac978776e6a26a731a3c30321eb6b9ee5f77e629e8e869c36aef2bb9f84c10",
+      "finalRuntimeAndIosFixtureSourcesUnchanged": true,
+      "cleanupFlags": 6,
+      "cleanupAllTrue": true,
+      "ownedServiceProcessesRemaining": 0,
+      "ownedPortsClosed": 4,
+      "existingSimulatorProfilesPreserved": 11,
+      "sdkClientsExit0": 2,
+      "cachedWdaFilesExact": 236,
+      "hostPreferences": {
+        "commonPreferenceWritesLogged": true,
+        "beforeSnapshotAvailable": false,
+        "wholeHostPreferencesUnchangedProven": false,
+        "blindRollbackPerformed": false
+      },
+      "reportSha256": "68d48ac8590147b8659457818ee067f64be448a12bc4ebc3fa16efb7a99d4499",
+      "previousAttempt1": {
+        "compilerVersion": "software-to-mcp-22",
+        "status": "failed",
+        "business": 0,
+        "error": "NATIVE_STAGE_CONTROLS_NOT_PROVEN",
+        "reportSha256": "dd0edd86d7e030d38578dd6dced7a469a6fc3b81012adde0cde02fd03b403ce9"
+      }
+    },
+    "genericFidelityNotUpgradedByOwnFixture": true,
+    "physicalDeviceAcceptance": false,
+    "ordinaryVisualKeyboardAcceptance": false
+  },
+  "iosKeyboardRoleBoundary25": {
+    "excludedClass": "XCUIElementTypeKeyboard",
+    "excludedExactTraitToken": "KeyboardKey",
+    "commaDelimitedAndCaseSensitive": true,
+    "descendantsExcluded": true,
+    "appDeclaredRolesAlsoExcluded": true,
+    "parserAndXPathAligned": true,
+    "ordinaryDuplicateControlsRemainBlocked": true,
+    "systemKeyboardIdentityProven": false,
+    "keyboardActionsAuthorizedByRole": false,
+    "fidelityLimit": "ios_keyboard_role_subtrees_out_of_semantic_scope"
+  },
+  "sourceCohorts25": {
+    "final": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
+    "softwareAndIosDevice": "04ac978776e6a26a731a3c30321eb6b9ee5f77e629e8e869c36aef2bb9f84c10",
+    "reconciliationSha256": "66b870f05fc0e20ffe3e1d8543e0f50a81011c89fc3f5d62b7c8319cabf16104",
+    "fullManifestSha256": "a6ee91c34c9683f6ce86394dc3641db09ffd7076127ed1d059be91fd3bc49ccb",
+    "earlierFailedPythonRun": {
+      "tests": 641,
+      "failed": 1,
+      "skipped": 1,
+      "reportSha256": "3acb967939c0c241265c0f940f1ae13080fe9cd501081ecd0a90e81b423d2072",
+      "cause": "50ms假ADB解释器可能在子日志写入前被收割；测试现核对真实Popen派发与已完成收割，不放宽超时。"
+    }
+  },
+  "webviewStatus25": {
+    "privatePrototypeOnly": true,
+    "productionRuntimeSupport": false,
+    "realDriverAcceptanceCompleted": false,
+    "arbitrarySoftwareSupportProven": false
+  },
+  "previousPublishedAttempt24Checkpoint": {
+    "publishedFeatureCommit": "f411107494d54955aef1deb069a10c6bd3aaede8",
+    "jsonSha256": "308c1a08ae77562f41eed9b684da85a5a51e24b4cf36f06edd7ed33857df654e",
+    "markdownSha256": "8b23e206f205f0ed05ece0d900ce3a7b04d9ba905c4ef08547528b994b994b60",
+    "preservedFields": {
+      "compilerVersion": "software-to-mcp-22",
+      "verificationAttempt": 24,
+      "status": "native_branch24_full_suites_and_fresh_installed_branch_sdk_passed_device_scope_separate",
+      "scope": "有限Web/APK/iOS合同；本轮新增真实原生双路径规划、每臂学习和统一/生成入口，修复Android缺值空串回读。当前全套和新安装分支场景通过，物理设备与任意App覆盖分别验证。",
+      "asOf": "2026-11-05",
+      "currentFullRegression": {
+        "compilerVersion": "software-to-mcp-22",
+        "verificationAttempt": 24,
+        "status": "passed_fresh_same_source_full_regressions",
+        "sourceFreezeSha256": "277739f29689d5e54d75d56b3979aaab0f695c90e34a30b3793fd7232d58e617",
+        "legacy": {
+          "tests": 239,
+          "passed": 239,
+          "failed": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "reportSha256": "60142a290a81f75f967a48379b097fd76ccdfd62ca7580a224f654daf5dde65f",
+          "logSha256": "163a478d2da95181b6e94c0531adebcfd8c4a255c02804f98b119c0893155ec4"
+        },
+        "software": {
+          "tests": 524,
+          "passed": 524,
+          "failed": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "reportSha256": "c207b25229c22215fc12d2afb1d2398c0ecc987433dd2628c861a93e1a193362",
+          "logSha256": "85575763f6e64b049f3355ddd973450be1a0990ff2e8014906957841c3be285c"
+        },
+        "python": {
+          "tests": 633,
+          "passed": 632,
+          "failed": 0,
+          "skipped": 1,
+          "cancelled": 0,
+          "reportSha256": "867f31f5c0daefd8651a6f91e085e023da9cadefec070fd727f7cac6f94f7a0d",
+          "logSha256": "6b439684c8323e84a4ba69e521692e13ee5aca321e8a9c45dc757e54f21a413f",
+          "knownMissingHermesFixtureSkip": true,
+          "skipNotCountedAsPass": true
+        },
+        "combinedSourceCohort": {
+          "sourceFreezeSha256": "277739f29689d5e54d75d56b3979aaab0f695c90e34a30b3793fd7232d58e617",
+          "runtimeFiles": 124,
+          "publicCodeFiles": 459,
+          "pythonScopeFiles": 88,
+          "allReviewedBytesAndModesMatched": true
+        }
+      },
+      "currentPackageCheck": {
+        "compilerVersion": "software-to-mcp-22",
+        "verificationAttempt": 24,
+        "status": "passed_fresh_installed_native_branch_scenario",
+        "reportSha256": "42eb2911e12302967e80988b3bbd7c61c7189ccd7b732ad0b1dae75e4df1ef87",
+        "baselineManifestSha256": "f07d9981384bc9fd65ac7dce762fbbe4a32b24c2076b6e17aadfca158eb3c11d",
+        "baselineArchiveSha256": "399b55722846c81d536646082b97780c0e4a23c54f025bcfb0a8cc48f86734fd",
+        "files": 377,
+        "distFiles": 32,
+        "installedNativeBranches": {
+          "status": "passed",
+          "runtimeCompilerVersion": "software-to-mcp-22",
+          "verificationAttempt": 24,
+          "planningMode": "native-branch-stages-v1",
+          "workflowInput": "automatic_native_branch_candidate_id",
+          "platforms": {
+            "android": {
+              "status": "passed",
+              "counts": {
+                "discoveryBusinessRequests": 2,
+                "learningBusinessRequests": 4,
+                "unifiedBusinessRequests": 2,
+                "generatedBusinessRequests": 2,
+                "totalBusinessRequests": 10,
+                "planningAdditionalBusinessRequests": 0,
+                "planningAdditionalUiWrites": 0
+              },
+              "candidateSchemaTypes": {
+                "route": "string",
+                "query": "string",
+                "detail": "string"
+              },
+              "bothArmsExplored": true,
+              "eachArmTwoSamplesLearned": true,
+              "literalSpacesEmojiAndNfdPreservedInUnifiedAndGenerated": true,
+              "generatedFullCatalogParity": true,
+              "generatedReadyOnlyRegistration": true,
+              "catalog": {
+                "total": 1,
+                "ready": 1,
+                "candidate": 0
+              },
+              "wrongArm": {
+                "operationStatus": "completed",
+                "resultOk": false,
+                "errorCode": "NATIVE_BRANCH_ROUTE_INPUT_MISMATCH",
+                "additionalBusinessRequests": 0,
+                "additionalSearch": 0,
+                "additionalNext": 1,
+                "afterForkUiWrites": 0,
+                "automaticRetry": false
+              },
+              "fixtureCleanupPassed": true
+            },
+            "ios": {
+              "status": "passed",
+              "counts": {
+                "discoveryBusinessRequests": 2,
+                "learningBusinessRequests": 4,
+                "unifiedBusinessRequests": 2,
+                "generatedBusinessRequests": 2,
+                "totalBusinessRequests": 10,
+                "planningAdditionalBusinessRequests": 0,
+                "planningAdditionalUiWrites": 0
+              },
+              "candidateSchemaTypes": {
+                "route": "string",
+                "query": "string",
+                "detail": "string"
+              },
+              "bothArmsExplored": true,
+              "eachArmTwoSamplesLearned": true,
+              "literalSpacesEmojiAndNfdPreservedInUnifiedAndGenerated": true,
+              "generatedFullCatalogParity": true,
+              "generatedReadyOnlyRegistration": true,
+              "catalog": {
+                "total": 1,
+                "ready": 1,
+                "candidate": 0
+              },
+              "wrongArm": {
+                "operationStatus": "completed",
+                "resultOk": false,
+                "errorCode": "NATIVE_BRANCH_ROUTE_INPUT_MISMATCH",
+                "additionalBusinessRequests": 0,
+                "additionalSearch": 0,
+                "additionalNext": 1,
+                "afterForkUiWrites": 0,
+                "automaticRetry": false
+              },
+              "fixtureCleanupPassed": true
+            }
+          },
+          "productionPythonInstalledOnly": true,
+          "productionPythonDriverCounts": {
+            "mobileUi": 14,
+            "mobilePlanner": 6,
+            "total": 20
+          },
+          "externalFixtureIsTestOnly": true,
+          "installedPackageFileCount": 377,
+          "sourceBytesAndModesUnchanged": true,
+          "sdkClientsClosed": 4,
+          "sdkCleanupPassed": true,
+          "fixtureCleanupPassed": true,
+          "normalTraceSpawned": 36,
+          "normalTraceClosed": 36,
+          "normalTraceAllExit0": true,
+          "expectedDeniedWorkers": 0,
+          "noPhysicalDeviceClaim": true,
+          "noOrdinaryKeyboardClaim": true,
+          "otherSdkScenariosNotRerunHere": true
+        },
+        "otherSdkScenariosNotRerunHere": true,
+        "scope": "Fresh npm archive and pinned production install; new branch scenario only. The six older installed scenarios remain historical, not fresh24. Final documentation projection and exact index privacy are separate."
+      },
+      "currentFocused": {
+        "compilerVersion": "software-to-mcp-22",
+        "verificationAttempt": 24,
+        "status": "included_in_current_full_suites",
+        "androidInputPresenceAndLegacyUnicode": 14,
+        "branchExplorationMethods": 10,
+        "branchExecutionMethods": 8,
+        "overlappingScopesNotSummed": true
+      },
+      "currentFullRegressionScope": {
+        "sourceFreezeSha256": "277739f29689d5e54d75d56b3979aaab0f695c90e34a30b3793fd7232d58e617",
+        "currentPublicCodeFullSuitePassed": true,
+        "publicCodeFiles": 459,
+        "publicFiles": 494,
+        "runtimeFiles": 124,
+        "pythonSourceFiles": 88,
+        "gatewayDistFiles": 32,
+        "newFullSuitesRun": true,
+        "newInstalledBranchSdkRun": true,
+        "excludedReportDocuments": 2,
+        "testsFromDifferentSuitesNotSummed": true
+      },
+      "deviceEvidenceScope": "旧currentIOS23、deviceEvidence及currentFocusedCalibration保留其runtime21/attempt23原件范围；39项校准本轮另在software524内覆盖。本轮runtime22没有新物理设备或普通iOS键盘验收。nativeBranchWorkflows24为本地Android/iOS W3C协议夹具和安装MCP场景。",
+      "release": {
+        "compilerVersion": "software-to-mcp-22",
+        "verificationAttempt": 24,
+        "status": "source_checkpoint_prepared_for_existing_draft_pull_request",
+        "basePublishedCommit": "e271fb204653d1c37058edcc684f43a9b23ae997",
+        "baseMainCommit": "44be51b12ef6eb01ac6a172287eec5bb4596821a",
+        "pullRequest": "https://github.com/8eeth0ven/bfs-clicker/pull/2",
+        "currentAttemptCommit": null,
+        "currentAttemptMerged": false,
+        "previousPr1MergedByUser": true,
+        "npmPublished": false,
+        "finalGate": "另核最终index、精确tar与完整内容隐私；不自嵌未来提交或最终归档摘要。"
+      }
+    },
+    "addedTopLevelKeys": [
+      "nativeSemanticDevices25",
+      "iosKeyboardRoleBoundary25",
+      "sourceCohorts25",
+      "webviewStatus25"
     ]
   }
 }

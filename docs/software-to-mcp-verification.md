@@ -1,3 +1,20 @@
+# 第25轮验证：Android/iOS 原生分支 MCP 通过真实模拟器验收
+
+本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/f411107494d54955aef1deb069a10c6bd3aaede8)，产品运行时为 `software-to-mcp-23`，继续在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)完善。此前 PR #1 已由用户合并；下方第24轮及更早原文保留当时范围。
+
+- 修复 iOS 键盘辅助按钮混入原生表单的问题：解析与 XPath 同步排除 Keyboard 类、精确 KeyboardKey 角色及其后代，普通重名、输入回读和选择域守卫保留。App 自声明同类角色也在域外；这不证明系统键盘身份或授予按键权限，能力元数据明确列出边界。
+- Android API36 与 iOS27.0 新建自有模拟器均完成：探索2、四样本学习4、统一调用2、独立生成2，每平台10次真实业务。App 从实际输入控件另存私有账本，逐笔核对中文、首尾/连续空格、emoji及NFD。Android额外真实错臂测试阻断后续输入和提交；iOS未做该设备故障测试。
+- 最终主项目239/239、software525/525；Python641项中640通过、1个既有Hermes fixture跳过。software先完成，之后仅两份未被该套件加载的测试文件修正；124份运行时及82份注册software测试未变，最终主项目和Python重新执行。它们不被宣称为同一整仓快照，计数分列不相加。
+- 新384文件/32dist包完成全新锁定依赖离线安装，实际SDK协议夹具每平台10次业务；4客户端与36正常子进程exit0，生产Python为安装目录的20次驱动。协议夹具、真实设备和重叠定向检查独立计证，六组更早SDK场景未在此重跑。
+- 失败原件保留：iOS首次runtime22因重复控件停止，独立账本0；Android第二次runtime23有系统界面无响应，未读成初始账本，业务与Next仍未知。第三次Android使用有界只读初始化等待，第1次即就绪，未实际覆盖“先缺失后就绪”分支；该分支仅有离线验证。旧IME源码冻结缺口、旧Python超时测试失败均保留。
+- Android自有13进程/3端口清理；iOS自有服务进程0/4端口关闭，原2份AVD配置与11台iOS设备profiles保留。Appium曾写共享Simulator偏好，缺少运行前逐键快照，未声称整个主机偏好未变。运行始终预留10GiB以上。
+
+本轮范围是自建App的原生语义双路径。普通iOS视觉键盘第23次失败保持原范围；物理设备、任意第三方软件及WebView生产路径尚未证明。本轮未合并main、未发布npm。配置见[原生条件分支指南](software-to-mcp.md#原生条件分支)，完整结果与来源摘要见[验证JSON](software-to-mcp-validation.json)。
+
+---
+
+## 第24轮及更早检查点原文（完整保留）
+
 # 第24轮验证：原生条件分支 MCP 与 Android 输入证据修复
 
 当前产品运行时为 `software-to-mcp-22`。本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/e271fb204653d1c37058edcc684f43a9b23ae997)，继续在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)完善；下方第23轮及更早原文保留当时范围。

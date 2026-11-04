@@ -129,9 +129,11 @@ def parse_tree(xml, platform, app_id, input_suffix=None):
             raise MobileError("UI_SOURCE_LIMIT")
         attrs = element.attrib
         cls = attrs.get("class", attrs.get("type", element.tag))[:512]
-        # System keyboard keys are not application controls, even when WDA
-        # serializes the keyboard underneath the foreground application.
-        if platform == "ios" and cls == "XCUIElementTypeKeyboard":
+        # Native semantic forms exclude keyboard roles and their descendants,
+        # including app-provided KeyboardKey roles. This is a control-domain
+        # boundary, not proof that a node belongs to a system keyboard.
+        if platform == "ios" and (cls == "XCUIElementTypeKeyboard" or
+                "KeyboardKey" in {part.strip(" \t\r\n") for part in attrs.get("traits", "").split(",")}):
             continue
         container = {"resourceId": attrs.get("resource-id", attrs.get("resourceId", ""))[:512], "accessibilityId": attrs.get("content-desc", attrs.get("name", ""))[:512], "className": cls}
         is_container = bool(list(element)) and bool(container["resourceId"] or container["accessibilityId"]) and not re.search(r"Application|Window|DecorView", cls, re.I)
@@ -794,6 +796,13 @@ class WebDriverBackend:
             predicates.append("(" + " or ".join("@" + attr + "=" + xpath_literal(value) for attr in fields[key]) + ")")
         if self.platform == "ios":
             predicates.append("not(ancestor-or-self::*[@type='XCUIElementTypeKeyboard'])")
+            # Match the same exact comma-delimited role token as parse_tree.
+            # normalize-space leaves internal token spaces intact; four edge
+            # forms allow whitespace around commas without substring matching.
+            traits = "concat(',', normalize-space(@traits), ',')"
+            keyboard_key = " or ".join("contains(" + traits + ", '" + token + "')" for token in
+                                       [",KeyboardKey,", ", KeyboardKey,", ",KeyboardKey ,", ", KeyboardKey ,"])
+            predicates.append("not(ancestor-or-self::*[" + keyboard_key + "])")
             predicates.append("not(@type='XCUIElementTypeStaticText' and @accessible='false' and ancestor::*[@type='XCUIElementTypeButton' and @accessible='true'])")
         result = self.request("POST", "/elements", {"using": "xpath", "value": "//*[" + " and ".join(predicates) + "]"})
         if not isinstance(result, list) or len(result) != 1:

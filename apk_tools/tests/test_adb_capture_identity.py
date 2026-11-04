@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -210,18 +211,42 @@ class AdbCaptureIdentityTests(unittest.TestCase):
     def test_hash_timeout_reaps_command_and_does_not_retry_or_capture(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture = CaptureFixture(tmp, sleepHash=True)
+            timeouts, launched = [], []
+            real_popen = subprocess.Popen
+            def record_start(argv, *args, **kwargs):
+                child = real_popen(argv, *args, **kwargs)
+                launched.append((list(argv), child))
+                return child
             class ShortHashBudget(Budget):
                 def timeout(self, maximum=15.):
                     self.check()
-                    return .05 if len(fixture.state()['commands']) >= 2 else 5.
+                    value = .05 if len(fixture.state()['commands']) >= 2 else 5.
+                    timeouts.append(value)
+                    return value
             fixture.session.budget = fixture.session.backend.budget = ShortHashBudget({'maxDurationMs': 10000})
-            with self.assertRaises(MobileError) as raised:
-                fixture.capture()
+            with patch('apk_inventory.mobile_ui.subprocess.Popen', side_effect=record_start):
+                with self.assertRaises(MobileError) as raised:
+                    fixture.capture()
             self.assertEqual(raised.exception.code, 'APK_ARTIFACT_UNVERIFIED')
-            self.assertEqual(categories(fixture.state()['commands']), ['devices', 'pm path', 'sha256sum'])
-            self.assertEqual(fixture.state()['captured'], 0)
+            self.assertEqual(timeouts, [5., 5., .05])
+            dispatched = categories([argv[1:] for argv, child in launched])
+            self.assertEqual(dispatched, ['devices', 'pm path', 'sha256sum'])
+            self.assertTrue(all(argv[0] == str(fixture.executable) for argv, child in launched))
+            state = fixture.state()
+            # A real hash process can time out before its Python runner logs.
+            logged = categories(state['commands'])
+            self.assertIn(len(logged), [2, 3])
+            self.assertEqual(logged, dispatched[:len(logged)])
+            self.assertEqual(state['pids'], [child.pid for argv, child in launched][:len(logged)])
+            self.assertEqual(state['captured'], 0)
             self.assertFalse((fixture.root / 'capture/screenshot.png').exists())
-            fixture.assert_reaped(self)
+            for argv, child in launched:
+                # poll() can reap an exited process itself; prove the backend
+                # already waited before calling it in this test.
+                self.assertIsNotNone(child.returncode)
+                with self.assertRaises(ChildProcessError):
+                    os.waitpid(child.pid, os.WNOHANG)
+                self.assertIsNotNone(child.poll())
 
     def test_cancellation_before_or_during_capture_never_publishes(self):
         for post in [False, True]:
