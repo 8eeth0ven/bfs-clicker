@@ -1,0 +1,47 @@
+<!doctype html>
+<html id="fixtureDocument" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BFS owned Android WebView</title>
+  <link rel="icon" href="data:,">
+  <style>
+    body{font:20px sans-serif;margin:24px;background:#fff;color:#172234}
+    h1{font-size:24px} label{display:block;margin:12px 0 5px}
+    input,button{box-sizing:border-box;width:100%;min-height:44px;font:inherit;padding:6px}
+    button{margin-top:16px} #result{margin-top:18px;white-space:pre-wrap;overflow-wrap:anywhere}
+  </style>
+</head>
+<body id="fixtureBody">
+  <h1>Owned Android WebView fixture</h1>
+  <form id="searchForm">
+    <label for="query">Query</label>
+    <input id="query" name="query" type="text" value="ATTRIBUTE_DECOY_QUERY" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <label for="detail">Detail</label>
+    <input id="detail" name="detail" type="text" value="ATTRIBUTE_DECOY_DETAIL" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button id="run" type="submit">Search</button>
+    <div id="result" role="status" aria-live="polite">IDLE</div>
+  </form>
+  <script>
+    (() => {
+      const events = {input:0,change:0,submit:0};
+      Object.defineProperty(window,'bfsFixtureEvents',{value:events});
+      document.addEventListener('input',()=>{events.input++;});
+      document.addEventListener('change',()=>{events.change++;});
+      document.getElementById('query').value='';
+      document.getElementById('detail').value='';
+      document.getElementById('searchForm').addEventListener('submit',event=>{
+        event.preventDefault(); events.submit++;
+        // Actual DOM values cross the app-owned Java bridge. Native code
+        // persists an independent private ledger before acknowledging them.
+        window.BfsNative.submit(document.getElementById('query').value,
+          document.getElementById('detail').value);
+      });
+      Object.defineProperty(window,'bfsFixtureAck',{value:row=>{
+        document.getElementById('result').textContent=
+          'RESULT '+row.query+' / '+row.detail+' ;COUNT:'+row.count;
+      }});
+    })();
+  </script>
+</body>
+</html>

@@ -1,3 +1,24 @@
+# 第27轮验证：Android WebView 完成 Unicode MCP 调用链
+
+本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/2b652f29f9e2d4bb8c95fd382f1ebc602604b64a)，运行时更新为 `software-to-mcp-25`，继续提交到[草稿 PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)。PR #1 已由用户合并；本轮不合并 main、不发布 npm。下方第26轮及更早原文完整保留当时范围。
+
+- 新增显式 Android WebView 通路：前台包、DevTools socket/进程、唯一页面及裸32位 window ID 必须相互匹配。管理者明确启用固定 CDP 文本输入；clear 后确认空值，固定 focus 写入及只读焦点核查后使用 `Input.insertText`，精确回读中文、首尾/连续空格、emoji 与 NFD。点击前再核对全部输入。iOS 继续使用原 W3C 文本通路。
+- 新建自有 API36 模拟器、系统 WebView 133、UiAutomator2 8.7.3 和匹配的 ChromeDriver 上，实际生产 MCP 账本为初始0、发现0、规划0、学习2、统一后3、生成入口后4。1737次透传 HTTP 全部成功，包含162次生产 DOM 探针；四笔业务共28条变更请求：clear/focus/insertText 各8、click4、W3C value0。四组样本逐项核对完整字符串，统一与生成入口的顶层和嵌套 outcome 均为 observed/noRetry，私有完成 receipt 未外泄。
+- 独立的 driver-only 首轮曾在 W3C value 发送 emoji 时遭 ChromeDriver 133 BMP 限制，业务账本0，原失败不追认为通过，也不据此推断没有输入事件。固定 CDP 的新 driver-only 队列通过1笔业务；上面的生产 MCP 是另一个新队列，计数不混加。实际设备尚未做未知派发或控件替换故障注入。
+- 同一563文件冻结（533公开文件减2份随后编写的验证文档，加32份 dist）完成主项目239/239、software564/564；Python719项中718通过、1个既有 Hermes fixture 跳过。各套件前后字节/模式与保留夹具一致。78项后端/规划器、26项路由/元数据、3项协议工作流及21项 outcome 单元/SDK 检查包含于完整回归，重叠不另加总数。
+- 新404文件/32dist包经全新锁定依赖离线安装，官方 SDK 调用安装目录中的生产模块；独立 Android/CDP 模型完成 Unicode 学习2、统一1、生成1，共4笔业务和28条变更。随后模拟插入已生效再返回500：业务仍为4，公开两层均为 unknown/noRetry，下一 worker HTTP/UI/业务均零新增。原成功 receipt 保留，但不匹配新的未知意图。2个 SDK 客户端、15个正常子进程（7Node、8Python）均退出0；模型及模块解析的2个外部 Python 进程另列，不把模型证据当设备结果。
+- 失败学习、合作取消与成功结果现在保留有证据的 `webviewOutcome`，公开对象仅允许 status、automaticRetry 与固定 storageWarning。学习 rebind 可有只读规划请求，UI与业务不重放；没有结果或强制结束时不伪造 not_started。显式 iOS association:null 的元数据与默认配置一致。实际 WebView SIGKILL 未验收。
+- 实际 SDK 首次观察到终态的耗时：发现2.023秒、两样本学习39.257秒、统一18.645秒、生成入口文件0.403秒、生成入口调用15.818秒；含轮询观察延迟。整个设备队列含启动和清理为141.009秒，未计此前构建。81次完整观察各有21次请求，重复观察与固定只读合并是后续优化候选；本轮没有旧 BFS 同条件基线，不宣称提速倍率。
+- 自有设备已移除，自有端口关闭、相关进程清理；原2份 AVD 配置与默认 ADB 状态保留，旧 iOS 驱动/WDA 缓存和新 Android 驱动、共享 SDK/镜像按各自冻结逐字节核对。2个设备验收 SDK 客户端退出0，未把未单独采样的每个内部 worker 都称为 OS 退出验收。全程保留10GiB以上；原始会话、设备标识、HTTP及日志只存私有目录。
+
+配置见[Android WebView 说明](android-webview-mcp.md)、[Android 设备示例](../examples/software/android-webview-device.example.json)与[iOS 通路](software-to-mcp.md#ios-webview-的-dom-通路)。当前只覆盖可检查、已显式配置的单文档只读线性查询；iframe、Shadow DOM、跨页、写业务、物理设备与任意第三方软件的全部业务仍未证明。旧 iOS WebView、第25轮原生分支和第23轮普通 iOS 视觉键盘失败各保留原源码范围。
+
+安装验证使用的原始包仍包含第26轮两份验证文档。最终审阅归档只更新这两份文档，其余402份成员字节/模式与实际安装验证一致；文档投影不算新的 SDK 执行。结构化来源与计数见[验证 JSON](software-to-mcp-validation.json)。
+
+---
+
+## 第26轮及更早检查点原文（完整保留）
+
 # 第26轮验证：iOS WebView 接通完整 MCP 调用链
 
 本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/2954ccdb55eb6ac950699e2d0561973f80ac54ae)，运行时更新为 `software-to-mcp-24`，在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)增加显式 WebView DOM 后端。PR #1 已由用户合并；下方第25轮及更早原文保持当时范围。

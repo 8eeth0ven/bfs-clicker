@@ -1,4 +1,4 @@
-"""Explicit, bounded DOM access to an owner-selected existing iOS WebView.
+"""Explicit, bounded DOM access to an owner-selected existing WebView.
 
 This adapter never selects a context/window, navigates, installs, or executes
 caller-supplied JavaScript. Its DOM values are provider observations, not proof
@@ -33,6 +33,44 @@ ELEMENT_KEY = "element-6066-11e4-a52e-4f735466cecf"
 ID_SELECTOR = re.compile(r"#[A-Za-z][A-Za-z0-9_-]{0,63}")
 PID_ASSOCIATION = "xcuitest_app_main_pid_v1"
 BUNDLE_ASSOCIATION = "reported_bundle_id_v1"
+ANDROID_ASSOCIATION = "uiautomator2_devtools_v1"
+ANDROID_IDENTITY_KEYS = {"devtoolsSocket", "devtoolsWebview", "devtoolsProcessId", "devtoolsAndroidPackage", "devtoolsPageId"}
+TEXT_TRANSPORT_MODE = "chromedriver_cdp_insert_text_v1"
+CDP_TEXT_ROUTE = "/goog/cdp/execute"
+CDP_TEXT_COMMAND = "Input.insertText"
+
+# Flat element arguments follow the same wire rule as DOM_PROBE. The guard is
+# shared, but the write and read scripts remain separate, pinned capabilities.
+_FOCUS_GUARD = r"""
+const selector=arguments[0], el=arguments[1], html=arguments[2], body=arguments[3],
+      owner=arguments[4], parent=arguments[5], url=arguments[6], origin=arguments[7];
+function deny(code) { throw new Error('WEBVIEW_FOCUS:' + code); }
+if (typeof selector!=='string' || !/^#[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(selector)) deny('SELECTOR');
+if (window.top!==window || document.documentElement!==html || document.body!==body ||
+    document.URL!==url || window.location.origin!==origin ||
+    !['interactive','complete'].includes(document.readyState)) deny('DOCUMENT');
+const found=document.querySelectorAll(selector);
+if (found.length!==1 || found[0]!==el || !el.isConnected || el.ownerDocument!==document ||
+    el.getRootNode()!==document || el.parentElement!==parent || (el.form || null)!==owner ||
+    !parent || !parent.isConnected || parent.ownerDocument!==document ||
+    (owner && (!owner.isConnected || owner.ownerDocument!==document))) deny('IDENTITY');
+const tag=String(el.tagName).toLowerCase(), type=String(el.type || '').toLowerCase();
+if (!(tag==='textarea' || tag==='input' && ['text','search','email','tel','url'].includes(type)) ||
+    el.disabled || el.readOnly || el.isContentEditable || el.getAttribute('aria-disabled')==='true') deny('INPUT');
+if (typeof el.value!=='string' || Array.from(el.value).length>2048) deny('VALUE');
+"""
+FOCUS_WRITE_SCRIPT = _FOCUS_GUARD + r"""
+el.focus({preventScroll:true});
+return {probeVersion:'webview-focus-1', focused:document.activeElement===el, value:el.value};
+"""
+FOCUS_READ_SCRIPT = _FOCUS_GUARD + r"""
+return {probeVersion:'webview-focus-1', focused:document.activeElement===el, value:el.value};
+"""
+FOCUS_WRITE_SHA256 = hashlib.sha256(FOCUS_WRITE_SCRIPT.encode("utf-8")).hexdigest()
+FOCUS_READ_SHA256 = hashlib.sha256(FOCUS_READ_SCRIPT.encode("utf-8")).hexdigest()
+TEXT_TRANSPORT_CONTRACT = {"schemaVersion": 1, "mode": TEXT_TRANSPORT_MODE, "writeScript": FOCUS_WRITE_SCRIPT,
+                           "readScript": FOCUS_READ_SCRIPT, "route": CDP_TEXT_ROUTE, "cdpCommand": CDP_TEXT_COMMAND}
+TEXT_TRANSPORT_SHA256 = digest(TEXT_TRANSPORT_CONTRACT)
 
 # Fixed, read-only script. Element arguments deliberately use flat arrays:
 # XCUITest atoms converts array entries to live elements, not arbitrary nested
@@ -171,8 +209,11 @@ def context_coordinates(value):
     return pid, page
 
 
-def association_profile(webview):
+def association_profile(webview, platform="ios"):
     association = webview.get("association")
+    if platform == "android":
+        require(association == {"mode": ANDROID_ASSOCIATION}, "WEBVIEW_ASSOCIATION_CONFIG_INVALID")
+        return association
     if association is None:
         return None
     require(isinstance(association, dict) and set(association) == {"mode", "reportedBundleId"} and
@@ -183,11 +224,40 @@ def association_profile(webview):
     return association
 
 
+def text_transport_profile(webview, platform):
+    if platform == "android":
+        require(webview.get("textTransport") == {"mode": TEXT_TRANSPORT_MODE}, "WEBVIEW_TEXT_TRANSPORT_REQUIRED", "unsupported")
+        return TEXT_TRANSPORT_MODE
+    require("textTransport" not in webview, "WEBVIEW_TEXT_TRANSPORT_CONFIG_INVALID")
+    return None
+
+
+def android_provenance(value, app_id, context, window):
+    """Validate the observed UiA2 DevTools join, never capabilities or caller PIDs.
+
+    UiA2's mapping joins the Unix socket PID to an adb-observed process name;
+    info and pages are separately read from that socket's CDP endpoints. This
+    profile accepts a single main-process page, not colon-suffixed processes,
+    Chrome tabs or custom sockets with an unverified ownership relationship.
+    """
+    require(isinstance(value, dict) and set(value) == ANDROID_IDENTITY_KEYS and
+            all(isinstance(item, str) and 0 < len(item) <= 2048 for item in value.values()), "WEBVIEW_ANDROID_PROVENANCE_UNAVAILABLE")
+    pid = value["devtoolsProcessId"]
+    require(re.fullmatch(r"[1-9][0-9]{0,9}", pid) and int(pid) <= 2147483647 and
+            value["devtoolsSocket"] == "@webview_devtools_remote_" + pid and value["devtoolsWebview"] == "WEBVIEW_" + pid,
+            "WEBVIEW_ANDROID_SOCKET_PID_MISMATCH")
+    require(value["devtoolsAndroidPackage"] == app_id and context == "WEBVIEW_" + app_id, "WEBVIEW_ANDROID_PACKAGE_MISMATCH")
+    page = value["devtoolsPageId"]
+    require(re.fullmatch(r"[A-Fa-f0-9]{32}", page) and window == page, "WEBVIEW_ANDROID_PAGE_WINDOW_MISMATCH")
+    return copy.deepcopy(value)
+
+
 def validate_config(config):
     require(isinstance(config, dict) and isinstance(config.get("backend"), dict) and
             isinstance(config.get("source"), dict), "WEBVIEW_CONFIG_INVALID")
     source, backend = config["source"], config["backend"]
-    require(source.get("kind") == "ios" and backend.get("platform") == "ios" and
+    platform = backend.get("platform")
+    require((source.get("kind"), platform) in {("ios", "ios"), ("apk", "android")} and
             backend.get("type") == "appium-webview", "WEBVIEW_DRIVER_PROFILE_UNVERIFIED", "unsupported")
     require(isinstance(source.get("id"), str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", source["id"]), "WEBVIEW_CONFIG_INVALID")
     require(isinstance(backend.get("appId"), str) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)+", backend["appId"]), "WEBVIEW_CONFIG_INVALID")
@@ -200,9 +270,11 @@ def validate_config(config):
     except ValueError:
         raise MobileError("WEBVIEW_CONFIG_INVALID", "blocked") from None
     webview = backend.get("webview")
-    require(isinstance(webview, dict) and set(webview) in ({"context", "windowHandle", "origin", "url", "controls"},
-                                                        {"context", "windowHandle", "origin", "url", "controls", "association"}), "WEBVIEW_CONFIG_INVALID")
-    association_profile(webview)
+    allowed_keys = ({"context", "windowHandle", "origin", "url", "controls", "association", "textTransport"},) if platform == "android" else (
+                   {"context", "windowHandle", "origin", "url", "controls"}, {"context", "windowHandle", "origin", "url", "controls", "association"})
+    require(isinstance(webview, dict) and set(webview) in allowed_keys, "WEBVIEW_CONFIG_INVALID")
+    association_profile(webview, platform)
+    text_transport_profile(webview, platform)
     require(isinstance(webview["context"], str) and re.fullmatch(r"WEBVIEW_[A-Za-z0-9._:-]{1,256}", webview["context"]), "WEBVIEW_CONFIG_INVALID")
     require(isinstance(webview["windowHandle"], str) and 0 < len(webview["windowHandle"]) <= 256, "WEBVIEW_CONFIG_INVALID")
     require(origin(webview["url"]) == webview["origin"] == origin(webview["origin"]) and
@@ -250,8 +322,9 @@ def _save_journal(path, record):
 class WebViewBackend:
     def __init__(self, config, budget):
         self.config, self.budget = config, budget
-        self.app_id, self.platform, self.session = config["appId"], "ios", config["sessionId"]
+        self.app_id, self.platform, self.session = config["appId"], config["platform"], config["sessionId"]
         self.url, self.webview = urlsplit(config["url"]), config["webview"]
+        self.text_transport = text_transport_profile(self.webview, self.platform)
         self.command_timeout_ms = config.get("commandTimeoutMs", 15000)
         self.artifact_verification = {"status": "unverified", "reason": "webview_session_does_not_prove_installed_artifact"}
         self.transport_identity = digest([config["url"], self.session])
@@ -276,10 +349,19 @@ class WebViewBackend:
 
     def request(self, method, suffix, body=None):
         self.budget.check()
-        is_ui = method == "POST" and bool(re.fullmatch(r"/element/[^/]+/(?:clear|value|click)", suffix))
+        is_ui = method == "POST" and bool(re.fullmatch(r"/element/[^/]+/(?:clear|value|click)", suffix)) and not (
+                self.platform == "android" and suffix.endswith("/value"))
+        text_mode = self.platform == "android" and self.text_transport == TEXT_TRANSPORT_MODE
+        focus_read = text_mode and method == "POST" and suffix == "/execute/sync" and isinstance(body, dict) and set(body) == {"script", "args"} and body["script"] == FOCUS_READ_SCRIPT
+        focus_write = text_mode and self._dispatching and method == "POST" and suffix == "/execute/sync" and isinstance(body, dict) and set(body) == {"script", "args"} and body["script"] == FOCUS_WRITE_SCRIPT
+        insert = text_mode and self._dispatching and method == "POST" and suffix == CDP_TEXT_ROUTE and isinstance(body, dict) and set(body) == {"cmd", "params"} and body["cmd"] == CDP_TEXT_COMMAND and isinstance(body["params"], dict) and set(body["params"]) == {"text"}
+        if insert:
+            self.validate_literal_inputs(body["params"])
         require((method == "GET" and suffix in {"/context", "/window/handles", "/window", "/url", "/source", "/appium/settings"}) or
+                (method == "GET" and suffix == "/appium/device/current_package" and self.platform == "android") or
                 (method == "POST" and suffix == "/execute/sync" and isinstance(body, dict) and body.get("script") in
-                 {DOM_PROBE, "mobile: activeAppInfo", "mobile: getContexts"}) or is_ui and self._dispatching,
+                 ({DOM_PROBE, "mobile: getContexts"} | ({"mobile: activeAppInfo"} if self.platform == "ios" else set()))) or
+                is_ui and self._dispatching or focus_read or focus_write or insert,
                 "WEBVIEW_COMMAND_REJECTED")
         connection_class = http.client.HTTPSConnection if self.url.scheme == "https" else http.client.HTTPConnection
         connection = connection_class(self.url.hostname, self.url.port, timeout=self.budget.timeout(self.command_timeout_ms / 1000))
@@ -306,6 +388,8 @@ class WebViewBackend:
         return self.request("POST", "/execute/sync", {"script": script, "args": args})
 
     def _ambient(self):
+        if self.platform == "android":
+            return self._android_ambient()
         wanted = self.webview
         active = self._execute("mobile: activeAppInfo", [])
         require(isinstance(active, dict) and active.get("bundleId") == self.app_id, "WEBVIEW_FOREGROUND_APP_UNVERIFIED")
@@ -341,6 +425,45 @@ class WebViewBackend:
         if association is not None:
             identity["appMainPid"] = str(pid)
         return identity
+
+    def _android_ambient(self):
+        wanted = self.webview
+        # Listing may allocate a transient ADB/CDP forwarding port. It is not a
+        # context-selection authority; current context/window are read around it.
+        current_before = self.request("GET", "/context")
+        window_before = self.request("GET", "/window")
+        active = self.request("GET", "/appium/device/current_package")
+        require(active == self.app_id, "WEBVIEW_FOREGROUND_APP_UNVERIFIED")
+        contexts = self._execute("mobile: getContexts", [{"waitForWebviewMs": 0}])
+        require(isinstance(contexts, list) and len(contexts) <= 256, "WEBVIEW_CONTEXT_PROVENANCE_UNAVAILABLE")
+        related = [row for row in contexts if isinstance(row, dict) and (row.get("webviewName") == wanted["context"] or
+                   isinstance(row.get("info"), dict) and row["info"].get("Android-Package") == active)]
+        require(len(related) == 1, "WEBVIEW_CONTEXT_PROVENANCE_UNAVAILABLE")
+        context = related[0]
+        info, pages = context.get("info"), context.get("pages")
+        require(isinstance(info, dict) and isinstance(pages, list) and len(pages) == 1 and isinstance(pages[0], dict),
+                "WEBVIEW_ANDROID_PAGE_AMBIGUOUS")
+        page = pages[0]
+        require(page.get("type") == "page" and page.get("url") == wanted["url"], "WEBVIEW_CONTEXT_URL_CHANGED")
+        socket = context.get("proc")
+        match = re.fullmatch(r"@webview_devtools_remote_([1-9][0-9]{0,9})", socket) if isinstance(socket, str) else None
+        require(match is not None, "WEBVIEW_ANDROID_SOCKET_PID_MISMATCH")
+        observed = {"devtoolsSocket": socket, "devtoolsWebview": context.get("webview"), "devtoolsProcessId": match[1],
+                    "devtoolsAndroidPackage": info.get("Android-Package"), "devtoolsPageId": page.get("id")}
+        require(context.get("webviewName") == wanted["context"], "WEBVIEW_CONTEXT_CHANGED")
+        provenance = android_provenance(observed, active, context["webviewName"], wanted["windowHandle"])
+        current = self.request("GET", "/context")
+        handles = self.request("GET", "/window/handles")
+        window = self.request("GET", "/window")
+        require(current_before == current == wanted["context"], "WEBVIEW_CONTEXT_CHANGED")
+        require(window_before == window == wanted["windowHandle"] and handles == [window], "WEBVIEW_WINDOW_CHANGED")
+        current_url = self.request("GET", "/url")
+        require(current_url == page["url"] and origin(current_url) == wanted["origin"], "WEBVIEW_URL_CHANGED")
+        require(self.request("GET", "/appium/device/current_package") == active, "WEBVIEW_FOREGROUND_APP_UNVERIFIED")
+        return {"modality": MODALITY, "platform": "android", "appId": active, "context": current, "windowHandle": window,
+                "origin": origin(current_url), "url": current_url, "probeVersion": PROBE_VERSION, "probeSha256": PROBE_SHA256,
+                "documentScope": "worker_live_reference_identity", "associationMethod": ANDROID_ASSOCIATION,
+                "textTransport": self.text_transport, "textTransportSha256": TEXT_TRANSPORT_SHA256, **provenance}
 
     def foreground(self):
         return self._ambient()
@@ -474,7 +597,7 @@ class WebViewBackend:
 
     def probe(self):
         self.observe()
-        return {"backend": "appium-webview", "platform": "ios", "modality": MODALITY,
+        return {"backend": "appium-webview", "platform": self.platform, "modality": MODALITY,
                 "features": ["bounded_dom_source", "exact_dom_input_value", "type_replace", "click", "same_document_workflow"],
                 "sourceIdentity": copy.deepcopy(self.source_identity), "sourceRevision": self.source_revision,
                 "artifactVerification": dict(self.artifact_verification), "appArtifactVerified": False,
@@ -482,7 +605,8 @@ class WebViewBackend:
                 "inputEvidence": "fixed_readonly_dom_probe_live_value; provider_echo_not_hidden_application_buffer",
                 "documentIdentityScope": "fresh_worker_attach_then_live_reference_equality_within_worker",
                 "associationEvidenceScope": "fresh_provider_reads_and_installed_driver_context_encoding; not_atomic_or_os_attestation",
-                "gaps": ["ios_driver_profile_only", "trusted_existing_selected_context_required", "configured_dom_assertions_only", "network_scope_not_enforced",
+                "gaps": (["ios_driver_profile_only"] if self.platform == "ios" else ["android_uiautomator2_devtools_profile_only"]) +
+                        ["trusted_existing_selected_context_required", "configured_dom_assertions_only", "network_scope_not_enforced",
                          "owner_limited_control_contract", "dom_check_select_unsupported", "multi_document_navigation_unsupported"]}
 
     def _read_journal(self, path):
@@ -519,7 +643,7 @@ class WebViewBackend:
         for row in pending["commands"]:
             require(isinstance(row, dict) and set(row) == {"commandId", "command", "selectorDigest", "timestampMs"} and
                     isinstance(row["commandId"], str) and re.fullmatch(r"[a-f0-9]{32}", row["commandId"]) and
-                    row["command"] in {"clear", "value", "click"} and isinstance(row["selectorDigest"], str) and
+                    row["command"] in {"clear", "value", "click", "focus", "insertText"} and isinstance(row["selectorDigest"], str) and
                     re.fullmatch(r"[a-f0-9]{64}", row["selectorDigest"]) and isinstance(row["timestampMs"], int) and
                     not isinstance(row["timestampMs"], bool), "WEBVIEW_JOURNAL_INVALID")
         try:
@@ -600,12 +724,22 @@ class WebViewBackend:
         self._dispatching = True
         self.ui_attempted = True
         try:
-            self.request("POST", "/element/" + quote(element, safe="") + "/" + command, payload)
+            if command == "focus":
+                require(self.platform == "android" and self.text_transport == TEXT_TRANSPORT_MODE, "WEBVIEW_COMMAND_REJECTED")
+                result = self.request("POST", "/execute/sync", payload)
+            elif command == "insertText":
+                result = self.request("POST", CDP_TEXT_ROUTE, payload)
+            else:
+                result = self.request("POST", "/element/" + quote(element, safe="") + "/" + command, payload)
             self.acknowledged_commands += 1
+            return result
         finally:
             self._dispatching = False
 
     def _element(self, wanted):
+        return self.refs[self._element_offset(wanted)][ELEMENT_KEY]
+
+    def _element_offset(self, wanted):
         require(set(wanted) == {"resourceId"}, "WEBVIEW_SELECTOR_NOT_TRUSTED")
         offset, seen = 2, set()
         for spec in self.webview["controls"]:
@@ -613,9 +747,19 @@ class WebViewBackend:
                 offset += 1
                 seen.add(spec["group"])
             if spec["selector"] == wanted["resourceId"]:
-                return self.refs[offset][ELEMENT_KEY]
+                return offset
             offset += 3
         raise MobileError("WEBVIEW_SELECTOR_NOT_TRUSTED", "blocked")
+
+    def _focus_args(self, wanted):
+        offset = self._element_offset(wanted)
+        return [wanted["resourceId"], self.refs[offset], self.refs[0], self.refs[1], self.refs[offset + 1], self.refs[offset + 2],
+                self.webview["url"], self.webview["origin"]]
+
+    def _check_focus(self, result, value):
+        require(isinstance(result, dict) and set(result) == {"probeVersion", "focused", "value"} and
+                result["probeVersion"] == "webview-focus-1" and result["focused"] is True and
+                isinstance(result["value"], str) and self._sha(result["value"]) == self._sha(value), "WEBVIEW_INPUT_FOCUS_UNVERIFIED")
 
     @staticmethod
     def validate_literal_inputs(inputs):
@@ -652,7 +796,14 @@ class WebViewBackend:
         self._dispatch(element, "clear", {}, action["selector"])
         cleared = locate(self.observe(), action["selector"])
         require(cleared.get("_inputValuePresent") is True and cleared.get("_inputSha256") == self._sha(""), "WEBVIEW_INPUT_CLEAR_UNVERIFIED")
-        self._dispatch(element, "value", {"text": value, "value": list(value)}, action["selector"])
+        if self.platform == "android":
+            focused = self._dispatch(element, "focus", {"script": FOCUS_WRITE_SCRIPT, "args": self._focus_args(action["selector"])}, action["selector"])
+            self._check_focus(focused, "")
+            self.observe()
+            self._check_focus(self._execute(FOCUS_READ_SCRIPT, self._focus_args(action["selector"])), "")
+            self._dispatch(element, "insertText", {"cmd": CDP_TEXT_COMMAND, "params": {"text": value}}, action["selector"])
+        else:
+            self._dispatch(element, "value", {"text": value, "value": list(value)}, action["selector"])
         after = locate(self.observe(), action["selector"])
         require(after.get("_inputValuePresent") is True and after.get("_inputSha256") == expected, "WEBVIEW_INPUT_VALUE_UNVERIFIED")
         self.budget.check()
@@ -663,7 +814,7 @@ class WebViewSession(MobileSession):
     def __init__(self, config, output, resume=False):
         self.config, self.output = validate_config(config), Path(output)
         require(not self.output.is_symlink(), "OUTPUT_SYMLINK_REJECTED")
-        self.source = {"id": config["source"]["id"], "kind": "ios"}
+        self.source = {"id": self.config["source"]["id"], "kind": self.config["source"]["kind"]}
         self.identity = digest({key: value for key, value in self.config.items() if key not in {"limits", "workflowPermissions"}})
         self.budget = Budget(config.get("limits", {}))
         self.backend = WebViewBackend(self.config["backend"], self.budget)

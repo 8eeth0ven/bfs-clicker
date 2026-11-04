@@ -43,16 +43,26 @@ function nativeBranchFidelity(recipe,device,sourceKind){
 function webViewFidelity(recipe,device,sourceKind){
  const backend=device?.backend,config=backend?.webview,definition=recipe.definition,plan=recipe.webviewPlan;
  const unknown=()=>unknownCapabilityFidelity('webview_workflow_contract_unrecognized');
- if(sourceKind!=='ios'||backend?.type!=='appium-webview'||backend.platform!=='ios'||!plain(config)||recipe.recipeType!=='webview_workflow'||!plain(plan)||plan.schemaVersion!==1||plan.planningMode!=='webview-dom-linear-v1')return unknown();
+ const expectedKind=backend?.platform==='ios'?'ios':backend?.platform==='android'?'apk':null;
+ if(!expectedKind||sourceKind!==expectedKind||backend?.type!=='appium-webview'||!plain(config)||recipe.recipeType!=='webview_workflow'||!plain(plan)||plan.schemaVersion!==1||plan.planningMode!=='webview-dom-linear-v1')return unknown();
  const identity=plan.sourceIdentity;
- if(!plain(identity)||identity.modality!=='appium_webview_dom'||identity.platform!=='ios'||identity.appId!==backend.appId||identity.documentScope!=='worker_live_reference_identity'||!/^[a-f0-9]{64}$/.test(identity.probeSha256||'')||!/^webview-dom-probe-[0-9]+$/.test(identity.probeVersion||'')||['context','windowHandle','origin','url'].some(key=>typeof config[key]!=='string'||identity[key]!==config[key])||!/^[a-f0-9]{64}$/.test(plan.sourceRevision||'')||!Array.isArray(plan.controls)||!plan.controls.length||plan.controls.length>512)return unknown();
- const association=config.association,method=association?.mode||'reported_bundle_id_v1';
+ if(!plain(identity)||identity.modality!=='appium_webview_dom'||identity.platform!==backend.platform||identity.appId!==backend.appId||identity.documentScope!=='worker_live_reference_identity'||!/^[a-f0-9]{64}$/.test(identity.probeSha256||'')||!/^webview-dom-probe-[0-9]+$/.test(identity.probeVersion||'')||['context','windowHandle','origin','url'].some(key=>typeof config[key]!=='string'||identity[key]!==config[key])||!/^[a-f0-9]{64}$/.test(plan.sourceRevision||'')||!Array.isArray(plan.controls)||!plan.controls.length||plan.controls.length>512)return unknown();
+ const association=config.association,method=association?.mode||'reported_bundle_id_v1',android=backend.platform==='android';let associationLimit;
  if(identity.associationMethod!==method)return unknown();
- if(association===undefined){if(identity.contextBundleId!==backend.appId)return unknown();}
- else{
-  if(!plain(association)||Object.keys(association).sort().join(',')!=='mode,reportedBundleId'||method!=='xcuitest_app_main_pid_v1'||typeof association.reportedBundleId!=='string'||!/^process-[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(association.reportedBundleId)||association.reportedBundleId.startsWith('process-com.apple.WebKit')||identity.contextBundleId!==association.reportedBundleId)return unknown();
-  const context=/^WEBVIEW_([1-9][0-9]{0,9})\.([1-9][0-9]{0,15})$/.exec(identity.context);
-  if(!context||!/^[1-9][0-9]{0,9}$/.test(identity.appMainPid||'')||context[1]!==identity.appMainPid||Number(context[1])>2147483647||!Number.isSafeInteger(Number(context[2])))return unknown();
+ if(android){
+  const transport=config.textTransport;
+  if(!plain(association)||Object.keys(association).join(',')!=='mode'||method!=='uiautomator2_devtools_v1'||Object.hasOwn(identity,'contextBundleId')||Object.hasOwn(identity,'appMainPid')||!plain(transport)||Object.keys(transport).join(',')!=='mode'||transport.mode!=='chromedriver_cdp_insert_text_v1'||identity.textTransport!==transport.mode||!/^[a-f0-9]{64}$/.test(identity.textTransportSha256||''))return unknown();
+  const pid=identity.devtoolsProcessId,page=identity.devtoolsPageId;
+  if(typeof pid!=='string'||!/^[1-9][0-9]{0,9}$/.test(pid)||Number(pid)>2147483647||identity.devtoolsSocket!=='@webview_devtools_remote_'+pid||identity.devtoolsWebview!=='WEBVIEW_'+pid||identity.devtoolsAndroidPackage!==backend.appId||identity.context!=='WEBVIEW_'+backend.appId||typeof page!=='string'||!/^[A-Fa-f0-9]{32}$/.test(page)||identity.windowHandle!==page)return unknown();
+  associationLimit='webview_app_association_uses_observed_android_devtools_process';
+ }else{
+  if(association==null){if(identity.contextBundleId!==backend.appId)return unknown();}
+  else{
+   if(!plain(association)||Object.keys(association).sort().join(',')!=='mode,reportedBundleId'||method!=='xcuitest_app_main_pid_v1'||typeof association.reportedBundleId!=='string'||!/^process-[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(association.reportedBundleId)||association.reportedBundleId.startsWith('process-com.apple.WebKit')||identity.contextBundleId!==association.reportedBundleId)return unknown();
+   const context=/^WEBVIEW_([1-9][0-9]{0,9})\.([1-9][0-9]{0,15})$/.exec(identity.context);
+   if(!context||!/^[1-9][0-9]{0,9}$/.test(identity.appMainPid||'')||context[1]!==identity.appMainPid||Number(context[1])>2147483647||!Number.isSafeInteger(Number(context[2])))return unknown();
+  }
+  associationLimit=association?'webview_app_association_uses_observed_main_pid':'webview_app_association_uses_reported_bundle_id';
  }
  if(!plain(definition)||definition.schemaVersion!==1||definition.effect!=='read'||definition.stagePlan||definition.branchPlan||!Array.isArray(definition.steps)||!definition.steps.length||definition.steps.length>30||definition.steps.some(step=>!plain(step)||!['type','click','assert','extract'].includes(step.kind)))return unknown();
  const inputs=[],outputs=[],typed=new Set(),asserted=new Set();
@@ -63,7 +73,7 @@ function webViewFidelity(recipe,device,sourceKind){
   if(step.kind==='type'){
    const parameter=name(step.input);
    if(!parameter||step.replace!==true||definition.inputSchema?.properties?.[parameter]?.type!=='string')return unknown();
-   inputs.push({parameter,contract:'dom_value_echo_required',mode:'replace',domain:'utf8_no_controls_surrogates_or_webdriver_keys',maxCodePoints:2048});typed.add(parameter);
+   inputs.push({parameter,contract:'dom_value_echo_required',mode:'replace',domain:'utf8_no_controls_surrogates_or_webdriver_keys',maxCodePoints:2048,...(android?{transport:'chromedriver_cdp_insert_text_v1'}:{})});typed.add(parameter);
   }else if(step.kind==='extract'){
    const output=name(step.output);if(!output||step.valueType!==undefined&&step.valueType!=='string')return unknown();
    outputs.push(projected(output,'webview_dom_text_projection'));
@@ -73,7 +83,7 @@ function webViewFidelity(recipe,device,sourceKind){
   }
  }
  if(!typed.size||!outputs.length||![...typed].every(parameter=>asserted.has(parameter))||!definition.steps.some(step=>step.kind==='click'))return unknown();
- return base('mobile-workflow',['appium_webview_dom','fixed_w3c_element_commands'],inputs,outputs,['dom_values_are_not_app_buffer_or_business_truth','fixed_probe_does_not_prove_page_code_authenticity','fresh_source_checks_are_not_atomic','webview_context_window_origin_and_dom_contract_required','live_document_refs_scoped_to_one_worker','clear_value_click_can_dispatch_multiple_dom_events','unknown_command_outcomes_require_owner_review','single_document_linear_type_click_only','outputs_are_projected_redacted_and_bounded',association?'webview_app_association_uses_observed_main_pid':'webview_app_association_uses_reported_bundle_id']);
+ return base('mobile-workflow',['appium_webview_dom','fixed_w3c_element_commands',...(android?['fixed_dom_focus','chromedriver_cdp_text']:[])],inputs,outputs,['dom_values_are_not_app_buffer_or_business_truth','fixed_probe_does_not_prove_page_code_authenticity','fresh_source_checks_are_not_atomic','webview_context_window_origin_and_dom_contract_required','live_document_refs_scoped_to_one_worker',android?'clear_focus_insert_text_click_can_dispatch_multiple_dom_events':'clear_value_click_can_dispatch_multiple_dom_events','unknown_command_outcomes_require_owner_review','single_document_linear_type_click_only','outputs_are_projected_redacted_and_bounded',associationLimit,...(android?['text_transport_is_cdp_insert_text_not_physical_keyboard']:[])]);
 }
 const canonicalSelector=value=>plain(value)?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a<b?-1:a>b?1:0)):null;
 export function deriveCapabilityFidelity({adapter,recipe,device,sourceKind}={}){

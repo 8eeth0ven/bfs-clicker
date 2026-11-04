@@ -21,6 +21,12 @@ test('a native, unsupported-platform or mismatched-context backend cannot inheri
  }
  assert.deepEqual(profile(recipe,device,'apk').modality.channels,['unknown']);
 });
+test('explicit null association uses the same default bundle contract as the Python backend',()=>{
+ const d=structuredClone(device);d.backend.webview.association=null;
+ assert.deepEqual(profile(recipe,d),profile());
+ const r=structuredClone(recipe);r.webviewPlan.sourceIdentity.contextBundleId='process-OwnedFixture';
+ assert.deepEqual(profile(r,d).modality.channels,['unknown']);
+});
 test('unbound or weaker WebView recipes retain unknown metadata',()=>{
  for(const change of [r=>r.recipeType='workflow',r=>delete r.webviewPlan,r=>r.webviewPlan.sourceIdentity.contextBundleId='other.application',r=>delete r.webviewPlan.sourceIdentity.probeSha256,r=>r.webviewPlan.controls.pop(),r=>r.definition.effect='write',r=>r.definition.steps[0].replace=false,r=>r.definition.steps[2].expect.changed=false,r=>r.definition.steps[2].expect.containsInput='other',r=>r.definition.steps[3].valueType='number',r=>r.definition.steps.push({kind:'swipe'}),r=>r.definition.branchPlan={}]){
   const value=structuredClone(recipe);change(value);assert.deepEqual(profile(value).modality.channels,['unknown']);
@@ -44,4 +50,37 @@ test('explicit main-PID association keeps raw process alias separate from the ob
  assert.deepEqual(profile(largeRecipe,large).modality.channels,['appium_webview_dom','fixed_w3c_element_commands']);
  large.backend.webview.context=largeRecipe.webviewPlan.sourceIdentity.context='WEBVIEW_10.9007199254740992';assert.deepEqual(profile(largeRecipe,large).modality.channels,['unknown']);
  const child=structuredClone(d),childRecipe=structuredClone(r);child.backend.webview.association.reportedBundleId=childRecipe.webviewPlan.sourceIdentity.contextBundleId='process-com.apple.WebKit.Networking';assert.deepEqual(profile(childRecipe,child).modality.channels,['unknown']);
+});
+function android(){
+ const d=structuredClone(device),r=structuredClone(recipe),page='0123456789ABCDEF'.repeat(2);
+ d.backend.platform='android';Object.assign(d.backend.webview,{context:'WEBVIEW_'+d.backend.appId,windowHandle:page,association:{mode:'uiautomator2_devtools_v1'},textTransport:{mode:'chromedriver_cdp_insert_text_v1'}});
+ delete r.webviewPlan.sourceIdentity.contextBundleId;
+ Object.assign(r.webviewPlan.sourceIdentity,{platform:'android',context:d.backend.webview.context,windowHandle:d.backend.webview.windowHandle,associationMethod:'uiautomator2_devtools_v1',devtoolsSocket:'@webview_devtools_remote_73',devtoolsWebview:'WEBVIEW_73',devtoolsProcessId:'73',devtoolsAndroidPackage:d.backend.appId,devtoolsPageId:page,textTransport:'chromedriver_cdp_insert_text_v1',textTransportSha256:'c'.repeat(64)});
+ return {d,r};
+}
+test('Android metadata requires its own observed devtools process and page mapping',()=>{
+ const {d,r}=android(),value=profile(r,d,'apk');
+ assert.deepEqual(value.modality.channels,['appium_webview_dom','chromedriver_cdp_text','fixed_dom_focus','fixed_w3c_element_commands']);
+ assert(value.fidelity.limits.includes('webview_app_association_uses_observed_android_devtools_process'));
+ assert(!value.fidelity.limits.includes('webview_app_association_uses_reported_bundle_id'));
+ assert.equal(value.fidelity.inputText[0].contract,'dom_value_echo_required');assert.equal(value.fidelity.inputText[0].transport,'chromedriver_cdp_insert_text_v1');
+ assert.equal(value.fidelity.outputs[0].sourceCodepointsProven,false);
+ assert(!JSON.stringify(value).includes('webview_devtools_remote_73'));
+});
+test('Android metadata cannot inherit an iOS, injected or missing association profile',()=>{
+ for(const association of [undefined,null,{}, {mode:'reported_bundle_id_v1'},{mode:'xcuitest_app_main_pid_v1',reportedBundleId:'process-OwnedFixture'},{mode:'uiautomator2_devtools_v1',pid:73}]){
+  const {d,r}=android();d.backend.webview.association=association;
+  assert.deepEqual(profile(r,d,'apk').modality.channels,['unknown']);
+ }
+ const {d,r}=android();assert.deepEqual(profile(r,d,'ios').modality.channels,['unknown']);
+ for(const transport of [undefined,null,{}, {mode:'w3c_value'},{mode:'chromedriver_cdp_insert_text_v1',cmd:'Runtime.evaluate'}]){
+  const {d,r}=android();d.backend.webview.textTransport=transport;assert.deepEqual(profile(r,d,'apk').modality.channels,['unknown']);
+ }
+});
+test('mismatched Android package, process, socket and target provenance never advertises DOM fidelity',()=>{
+ for(const change of [i=>delete i.devtoolsSocket,i=>i.devtoolsProcessId=73,i=>i.devtoolsProcessId='073',i=>i.devtoolsProcessId='2147483648',i=>i.devtoolsSocket='@chrome_devtools_remote',i=>i.devtoolsWebview='WEBVIEW_74',i=>i.devtoolsAndroidPackage='other.application',i=>i.devtoolsPageId='not-a-target-id',i=>i.contextBundleId=device.backend.appId,i=>i.appMainPid='73',i=>delete i.textTransportSha256,i=>i.textTransport='w3c_value']){
+  const {d,r}=android();change(r.webviewPlan.sourceIdentity);assert.deepEqual(profile(r,d,'apk').modality.channels,['unknown']);
+ }
+ const {d,r}=android();d.backend.webview.windowHandle=r.webviewPlan.sourceIdentity.windowHandle='CDwindow-'+ '0'.repeat(32);
+ assert.deepEqual(profile(r,d,'apk').modality.channels,['unknown']);
 });

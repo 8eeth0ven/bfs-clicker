@@ -24,11 +24,13 @@ def config_for(state, directory, *, second_input=False, outside_output=False):
         specs.append({"id": "detail", "selector": "#detail", "kind": "input", "group": "#searchForm"})
     specs.extend([{"id": "run", "selector": "#run", "kind": "button", "group": "#searchForm"},
                   {"id": "result", "selector": "#result", "kind": "output", "group": None if outside_output else "#searchForm"}])
-    return {"source": {"id": "webview_fixture", "kind": "ios"},
-            "backend": {"type": "appium-webview", "platform": "ios", "url": state["transportUrl"], "sessionId": "webview-session", "appId": APP,
+    android = state.get("platform") == "android"
+    return {"source": {"id": "webview_fixture", "kind": "apk" if android else "ios"},
+            "backend": {"type": "appium-webview", "platform": "android" if android else "ios", "url": state["transportUrl"], "sessionId": "webview-session", "appId": APP,
                         "intentJournal": str(Path(directory).resolve() / "shared-intent.json"),
-                        "webview": {"context": "WEBVIEW_7.1", "windowHandle": "7.1", "origin": state["origin"],
-                                    "url": state["documentUrl"], "controls": specs}},
+                        "webview": {"context": state["context"] if android else "WEBVIEW_7.1", "windowHandle": state["window"] if android else "7.1", "origin": state["origin"],
+                                    "url": state["documentUrl"], "controls": specs, **({"association": {"mode": "uiautomator2_devtools_v1"},
+                                    "textTransport": {"mode": "chromedriver_cdp_insert_text_v1"}} if android else {})}},
             "limits": {"maxActions": 30, "maxDurationMs": 60000},
             "actionAllowlist": [{"kind": "type" if spec["kind"] == "input" else "click", "selector": {"resourceId": spec["selector"]}, "effect": "read"}
                                 for spec in specs if spec["kind"] != "output"]}
@@ -727,6 +729,181 @@ except MobileError as e:
                 self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
 
+class AndroidWebViewBackendTests(unittest.TestCase):
+    """Independent HTTP protocol models; no UiA2, browser or device claim."""
+    def test_foreground_cdp_socket_pid_page_join_has_no_invented_ios_bundle(self):
+        with webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+            session = WebViewSession(config_for(state, directory), directory)
+            result = session.explore()
+            identity = result["features"]["sourceIdentity"]
+            self.assertEqual(identity["platform"], "android")
+            self.assertEqual(identity["appId"], APP)
+            self.assertEqual(identity["associationMethod"], "uiautomator2_devtools_v1")
+            self.assertEqual(identity["devtoolsSocket"], "@webview_devtools_remote_73")
+            self.assertEqual(identity["devtoolsWebview"], "WEBVIEW_73")
+            self.assertEqual(identity["devtoolsProcessId"], "73")
+            self.assertEqual(identity["devtoolsAndroidPackage"], APP)
+            self.assertNotIn("contextBundleId", identity)
+            self.assertNotIn("appMainPid", identity)
+            self.assertEqual(state["settings"], {})
+            self.assertEqual(session.source["kind"], "apk")
+            self.assertEqual(state["effects"], [])
+
+    def test_android_requires_explicit_platform_profile_without_configured_pid_evidence(self):
+        mutations = [lambda c: c["backend"]["webview"].pop("association"),
+                     lambda c: c["backend"]["webview"]["association"].update(pid=73),
+                     lambda c: c["backend"]["webview"]["association"].update(reportedBundleId=APP),
+                     lambda c: c["backend"]["webview"].update(association={"mode": "xcuitest_app_main_pid_v1", "reportedBundleId": "process-Fixture"}),
+                     lambda c: c["source"].update(kind="ios")]
+        with webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+            for mutate in mutations:
+                config = config_for(state, directory)
+                mutate(config)
+                with self.subTest(config=config), self.assertRaises(MobileError):
+                    WebViewSession(config, directory)
+            self.assertEqual(state["calls"], [])
+
+    def test_wrong_missing_or_ambiguous_observed_android_ownership_blocks_without_ui(self):
+        def change(field, value):
+            return lambda state: state["androidContexts"][0].__setitem__(field, value)
+        mutations = [lambda s: s.update(active="com.other.app"),
+                     change("proc", "@webview_devtools_remote_074"), change("proc", "@chrome_devtools_remote"),
+                     change("proc", "@webview_devtools_remote_2147483648"), change("webview", "WEBVIEW_74"),
+                     change("webviewName", "WEBVIEW_com.other.app"), change("info", {}),
+                     change("info", {"Android-Package": "com.other.app"}), change("pages", []),
+                     lambda s: s["androidContexts"][0]["pages"].append(copy.deepcopy(s["androidContexts"][0]["pages"][0])),
+                     lambda s: s["androidContexts"].append(copy.deepcopy(s["androidContexts"][0])),
+                     lambda s: s["androidContexts"][0]["pages"][0].update(type="service_worker"),
+                     lambda s: s["androidContexts"][0]["pages"][0].update(id="B" * 32),
+                     lambda s: s["androidContexts"][0]["pages"][0].update(url="https://other.example/form")]
+        with webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+            original = copy.deepcopy(state["androidContexts"])
+            config = config_for(state, directory)
+            for number, mutate in enumerate(mutations):
+                state.update(androidContexts=copy.deepcopy(original), active=APP)
+                mutate(state)
+                with self.subTest(number=number), self.assertRaises(MobileError):
+                    WebViewSession(config, directory).backend.observe()
+            self.assertEqual(state["effects"], [])
+
+    def test_context_listing_cannot_change_selected_context_or_window_before_dom(self):
+        for key, value in [("context", "NATIVE_APP"), ("window", "1")]:
+            with self.subTest(key=key), webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+                config = config_for(state, directory)
+                state["onRequest"] = lambda method, route: state.update({key: value}) if route == "/execute/sync" else None
+                with self.assertRaises(MobileError):
+                    WebViewSession(config, directory).backend.observe()
+                self.assertEqual(state["probeCount"], 0)
+                self.assertEqual(state["effects"], [])
+                self.assertFalse(any(method == "POST" and route in {"/context", "/window", "/url"} for method, route in state["calls"]))
+
+    def test_android_same_url_document_replacement_and_process_drift_reject_old_refs(self):
+        for change in ("document", "process"):
+            with self.subTest(change=change), webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+                session = WebViewSession(config_for(state, directory), directory)
+                before = session.backend.observe()
+                if change == "document":
+                    state["generation"] += 1
+                else:
+                    state["androidContexts"][0].update(proc="@webview_devtools_remote_74", webview="WEBVIEW_74")
+                with self.assertRaises(MobileError):
+                    session.backend.observe()
+                self.assertEqual(state["documentUrl"], before["sourceIdentity"]["url"])
+                self.assertEqual(state["effects"], [])
+
+    def test_android_live_unicode_and_independent_new_worker_successful_receipts(self):
+        with webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+            config = config_for(state, directory)
+            for number, value in enumerate([" 中  文🙂e\u0301 ", "新  调🙂e\u0301"]):
+                session = WebViewSession(config, Path(directory) / str(number))
+                with session.execution():
+                    type_query(session, value)
+                    session.backend.perform({"kind": "click", "selector": {"resourceId": "#run"}}, session.backend.observe(), {})
+                self.assertEqual(state["input"], value)
+                self.assertIsNone(session.backend._pending())
+            self.assertEqual([row["query"] for row in state["ledger"]], [" 中  文🙂e\u0301 ", "新  调🙂e\u0301"])
+            self.assertEqual(len(state["effects"]), 8)
+
+    def test_android_uncertain_click_retains_unknown_and_new_worker_sends_no_http(self):
+        with webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+            config = config_for(state, directory)
+            session = WebViewSession(config, Path(directory) / "one")
+            state["failCommand"] = "click"
+            with self.assertRaises(MobileError), session.execution():
+                type_query(session, "once")
+                session.backend.perform({"kind": "click", "selector": {"resourceId": "#run"}}, session.backend.observe(), {})
+            self.assertEqual(len(state["ledger"]), 1)
+            self.assertEqual(session.progress["webviewOutcome"]["status"], "unknown")
+            calls = len(state["calls"])
+            with self.assertRaises(MobileError) as caught, WebViewSession(config, Path(directory) / "two").execution():
+                self.fail("unknown intent must refuse before UI")
+            self.assertEqual(caught.exception.code, "WEBVIEW_PENDING_UNKNOWN")
+            self.assertEqual(len(state["calls"]), calls)
+            self.assertEqual(len(state["ledger"]), 1)
+
+    def test_android_native_peer_lease_blocks_first_foreground_or_context_http(self):
+        from apk_inventory.mobile_ui import Budget, WebDriverBackend
+        with webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+            config = config_for(state, directory)
+            peer = WebDriverBackend({**config["backend"], "type": "webdriver"}, Budget({}))
+            with DeviceLease(peer), self.assertRaises(MobileError) as caught:
+                WebViewSession(config, directory).explore()
+            self.assertEqual(caught.exception.code, "DEVICE_BUSY")
+            self.assertEqual(state["calls"], [])
+
+    def test_android_transport_is_explicit_fixed_and_cannot_run_arbitrary_cdp_or_focus_writes(self):
+        from apk_inventory.mobile_webview import FOCUS_WRITE_SCRIPT
+        with webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+            original = config_for(state, directory)
+            for value in [None, {"mode": "w3c"}, {"mode": "chromedriver_cdp_insert_text_v1", "cmd": "Runtime.evaluate"}]:
+                config = copy.deepcopy(original)
+                if value is None:
+                    config["backend"]["webview"].pop("textTransport")
+                else:
+                    config["backend"]["webview"]["textTransport"] = value
+                with self.subTest(value=value), self.assertRaises(MobileError):
+                    WebViewSession(config, directory)
+            session = WebViewSession(original, directory)
+            for endpoint, payload in [("/goog/cdp/execute", {"cmd": "Input.insertText", "params": {"text": "x"}}),
+                                      ("/execute/sync", {"script": FOCUS_WRITE_SCRIPT, "args": []})]:
+                with self.assertRaises(MobileError):
+                    session.backend.request("POST", endpoint, payload)
+            session.backend._dispatching = True
+            try:
+                for payload in [{"cmd": "Runtime.evaluate", "params": {"expression": "1"}},
+                                {"cmd": "Input.insertText", "params": {"text": "x", "targetId": "foreign"}},
+                                {"cmd": "Input.insertText", "params": {"text": "x"}, "sessionId": "foreign"}]:
+                    with self.assertRaises(MobileError):
+                        session.backend.request("POST", "/goog/cdp/execute", payload)
+                with self.assertRaises(MobileError):
+                    session.backend.request("POST", "/element/fake/value", {"text": "x"})
+            finally:
+                session.backend._dispatching = False
+            self.assertEqual(state["calls"], [])
+
+    def test_android_focus_and_insert_failures_are_separately_durable_and_never_replayed(self):
+        for change, expected_commands in [({"noopFocus": True}, ["clear", "focus"]),
+                                          ({"loseFocusOnRead": True}, ["clear", "focus"]),
+                                          ({"noopCommand": "insertText"}, ["clear", "focus", "insertText"]),
+                                          ({"normalizeValue": True}, ["clear", "focus", "insertText"]),
+                                          ({"failCommand": "insertText"}, ["clear", "focus", "insertText"])]:
+            with self.subTest(change=change), webview_fixture("android") as state, tempfile.TemporaryDirectory() as directory:
+                config = config_for(state, directory)
+                state.update(change)
+                session = WebViewSession(config, Path(directory) / "one")
+                with self.assertRaises(MobileError), session.execution():
+                    type_query(session, " 原 e\u0301🙂 ")
+                intent = read_json(Path(directory) / "shared-intent.json")["pending"]
+                self.assertEqual([row["command"] for row in intent["commands"]], expected_commands)
+                self.assertEqual(session.progress["webviewOutcome"]["status"], "unknown")
+                self.assertEqual(state["ledger"], [])
+                calls = len(state["calls"])
+                with self.assertRaises(MobileError) as caught, WebViewSession(config, Path(directory) / "two").execution():
+                    self.fail("unknown transport intent must block before HTTP")
+                self.assertEqual(caught.exception.code, "WEBVIEW_PENDING_UNKNOWN")
+                self.assertEqual(len(state["calls"]), calls)
+
+
 class FixedDOMProbeTests(unittest.TestCase):
     def test_fixed_probe_executes_against_local_dom_fixture(self):
         node = shutil.which("node")
@@ -737,6 +914,19 @@ class FixedDOMProbeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
         self.assertGreaterEqual(report["checks"], 20)
+        self.assertEqual(report["failures"], [])
+
+    def test_fixed_focus_write_and_read_scripts_execute_identity_and_readonly_negatives(self):
+        from apk_inventory.mobile_webview import FOCUS_READ_SCRIPT, FOCUS_WRITE_SCRIPT
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js required for the focus transport fixture")
+        fixture = Path(__file__).parent / "fixtures" / "webview-focus-transport.cjs"
+        run = subprocess.run([node, str(fixture)], input=json.dumps({"readScript": FOCUS_READ_SCRIPT, "writeScript": FOCUS_WRITE_SCRIPT}),
+                             text=True, capture_output=True, timeout=10)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        report = json.loads(run.stdout)
+        self.assertGreaterEqual(report["checks"], 10)
         self.assertEqual(report["failures"], [])
 
 

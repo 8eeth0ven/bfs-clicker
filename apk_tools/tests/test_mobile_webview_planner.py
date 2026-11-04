@@ -505,5 +505,104 @@ class HttpProtocolIntegrationTests(unittest.TestCase):
             self.assertFalse(hasattr(session.backend, "_before_workflow_click"))
 
 
+class AndroidHttpProtocolIntegrationTests(unittest.TestCase):
+    """Android rich-context protocol models, independent of installed drivers."""
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+
+    binding = HttpProtocolIntegrationTests.binding
+
+    def test_android_two_samples_and_two_independent_worker_calls_exact_ledger(self):
+        from apk_inventory.mobile_webview import WebViewSession
+        from webview_fixture import webview_fixture
+        with webview_fixture("android") as state:
+            config, spec = self.binding(state)
+            samples = [{"query": "学  习🙂e\u0301", "detail": " 第 一 "}, {"query": "样 本🙂e\u0301 ", "detail": "第二  条"}]
+            session = WebViewSession(config, Path(self.temp.name) / "learn")
+            learned = planner.learn_workflow(session, spec, samples)
+            recipe = copy.deepcopy(session.progress["recipes"][learned["capabilityId"]])
+            calls = [{"query": " 上 海🙂e\u0301 ", "detail": "终 一"}, {"query": "北 京🙂e\u0301", "detail": " 终 二 "}]
+            for index, params in enumerate(calls):
+                fresh = WebViewSession(config, Path(self.temp.name) / ("call" + str(index)))
+                result = planner.execute_workflow(fresh, recipe, recipe["revision"], params)
+                self.assertTrue(result["ok"])
+                self.assertEqual(result["outputs"], {"result": "Query:" + params["query"] + ";Detail:" + params["detail"]})
+                self.assertTrue(result["resultFreshness"]["outputs"]["result"]["changedSinceStart"])
+                self.assertIsNone(fresh.backend._pending())
+            self.assertEqual([{key: item[key] for key in ["query", "detail"]} for item in state["ledger"]], samples + calls)
+            self.assertEqual(len(state["effects"]), 28)
+            identity = recipe["webviewPlan"]["sourceIdentity"]
+            self.assertEqual(identity["platform"], "android")
+            self.assertNotIn("contextBundleId", identity)
+            self.assertNotIn("element-6066", json.dumps(recipe))
+            self.assertNotIn(session.backend.document_lease, json.dumps(recipe))
+            receipt = read_json(Path(self.temp.name) / "shared-intent.json.completed.json")
+            intent = read_json(Path(self.temp.name) / "shared-intent.json")
+            self.assertEqual(receipt["completion"]["commandCount"], 7)
+            self.assertEqual([row["command"] for row in intent["pending"]["commands"]],
+                             ["clear", "focus", "insertText", "clear", "focus", "insertText", "click"])
+
+    def test_android_recipe_rejects_forged_ios_or_mismatched_devtools_provenance(self):
+        from apk_inventory.mobile_webview import WebViewSession
+        from webview_fixture import webview_fixture
+        with webview_fixture("android") as state:
+            config, spec = self.binding(state)
+            identity = spec["webviewPlan"]["sourceIdentity"]
+            changes = [{"devtoolsProcessId": "074"}, {"devtoolsProcessId": 73}, {"devtoolsWebview": "WEBVIEW_74"},
+                       {"devtoolsAndroidPackage": "com.other.app"}, {"devtoolsPageId": "B" * 32},
+                       {"associationMethod": "reported_bundle_id_v1"}, {"contextBundleId": APP},
+                       {"textTransport": "w3c_element_value"}, {"textTransportSha256": "0" * 64}]
+            effects = len(state["effects"])
+            for change in changes:
+                forged = copy.deepcopy(spec)
+                forged["webviewPlan"]["sourceIdentity"] = {**identity, **change}
+                session = WebViewSession(config, Path(self.temp.name) / "forged")
+                with self.subTest(change=change), self.assertRaises(MobileError):
+                    planner.learn_workflow(session, forged, [{"query": "one", "detail": "a"}, {"query": "two", "detail": "b"}])
+            self.assertEqual(len(state["effects"]), effects)
+            self.assertEqual(state["ledger"], [])
+
+    def test_android_latest_dom_echo_blocks_cross_field_changes_before_click(self):
+        from apk_inventory.mobile_webview import WebViewSession
+        from webview_fixture import webview_fixture
+        with webview_fixture("android") as state:
+            config, spec = self.binding(state)
+            state["afterEffect"] = lambda name, command: state.update(detail=state["detail"] + " suffix") if name == "query" and command == "insertText" else None
+            session = WebViewSession(config, Path(self.temp.name) / "modified")
+            samples = [{"query": "one", "detail": "a"}, {"query": "two", "detail": "b"}]
+            with self.assertRaises(MobileError) as caught:
+                planner.learn_workflow(session, spec, samples)
+            self.assertEqual(caught.exception.code, "WEBVIEW_WORKFLOW_INPUT_STATE_CHANGED")
+            self.assertEqual(state["ledger"], [])
+            self.assertFalse(any(command == "click" for _, command in state["effects"]))
+            self.assertEqual(session.progress["webviewOutcome"]["status"], "unknown")
+            calls = len(state["calls"])
+            with self.assertRaises(MobileError) as caught:
+                planner.learn_workflow(WebViewSession(config, Path(self.temp.name) / "fresh"), spec, samples)
+            self.assertEqual(caught.exception.code, "WEBVIEW_PENDING_UNKNOWN")
+            self.assertEqual(len(state["calls"]), calls)
+
+    def test_android_unknown_click_blocks_new_learning_without_repeating_business(self):
+        from apk_inventory.mobile_webview import WebViewSession
+        from webview_fixture import webview_fixture
+        with webview_fixture("android") as state:
+            config, spec = self.binding(state)
+            state["failCommand"] = "click"
+            samples = [{"query": "one", "detail": "a"}, {"query": "two", "detail": "b"}]
+            session = WebViewSession(config, Path(self.temp.name) / "unknown")
+            with self.assertRaises(MobileError):
+                planner.learn_workflow(session, spec, samples)
+            self.assertEqual(len(state["ledger"]), 1)
+            self.assertEqual(session.progress["webviewOutcome"]["status"], "unknown")
+            calls, effects = len(state["calls"]), len(state["effects"])
+            with self.assertRaises(MobileError) as caught:
+                planner.learn_workflow(WebViewSession(config, Path(self.temp.name) / "fresh"), spec, samples)
+            self.assertEqual(caught.exception.code, "WEBVIEW_PENDING_UNKNOWN")
+            self.assertEqual(len(state["calls"]), calls)
+            self.assertEqual(len(state["effects"]), effects)
+            self.assertEqual(len(state["ledger"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

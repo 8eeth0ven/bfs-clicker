@@ -23,35 +23,35 @@ async function connect(entry,config){
  const client=new Client({name:'protocol-webview-workflow-client',version:'1'});await client.connect(transport);const child=transport._process;
  return {client,async close(){await client.close();if(child.exitCode===null&&child.signalCode===null)await once(child,'close');assert.equal(child.exitCode,0);assert.equal(child.signalCode,null);assert.equal(stderr,'')}};
 }
-async function fixture(){
- const child=spawn(path.join(root,'.venv/bin/python'),['-B',path.join(root,'test/webview-fixture.py')],{cwd:root,env:{...process.env,PYTHONDONTWRITEBYTECODE:'1'},stdio:['pipe','pipe','pipe']});
+async function fixture(platform='ios'){
+ const child=spawn(path.join(root,'.venv/bin/python'),['-B',path.join(root,'test/webview-fixture.py'),'--platform',platform],{cwd:root,env:{...process.env,PYTHONDONTWRITEBYTECODE:'1'},stdio:['pipe','pipe','pipe']});
  let stderr='';child.stderr.on('data',bytes=>stderr+=bytes);const lines=createInterface({input:child.stdout});
  const next=()=>once(lines,'line').then(([line])=>JSON.parse(line)),first=await next();
  assert.equal(first.ok,true);assert.equal(first.protocolModelOnly,true);assert.equal(first.productionImports,0);
  const request=async value=>{const pending=next();child.stdin.write(JSON.stringify(value)+'\n');const result=await pending;assert.equal(result.ok,true);return result};
  return {...first,read:async()=> (await request({op:'snapshot'})).snapshot,set:changes=>request({op:'set',changes}),async close(){await request({op:'quit'});child.stdin.end();if(child.exitCode===null&&child.signalCode===null)await once(child,'close');lines.close();assert.equal(child.exitCode,0);assert.equal(child.signalCode,null);assert.equal(stderr,'')}};
 }
-async function setup(t,{pidProfile=false}={}){
- const dir=temp(t),app=await fixture(),clients=[];
+async function setup(t,{pidProfile=false,platform='ios'}={}){
+ const dir=temp(t),app=await fixture(platform),clients=[],kind=platform==='android'?'apk':'ios';
  t.after(async()=>{for(const row of clients.reverse())await row.close();await app.close()});
- const association=pidProfile?{mode:'xcuitest_app_main_pid_v1',reportedBundleId:'process-ProtocolFixture'}:undefined;
- if(association)await app.set({bundleId:association.reportedBundleId,pid:7});
+ const association=platform==='android'?{mode:'uiautomator2_devtools_v1'}:pidProfile?{mode:'xcuitest_app_main_pid_v1',reportedBundleId:'process-ProtocolFixture'}:undefined;
+ if(pidProfile)await app.set({bundleId:association.reportedBundleId,pid:7});
  const inventory=path.join(dir,'inventory');mkdirSync(inventory);mkdirSync(path.join(dir,'journal'),{mode:0o700});
- put(path.join(inventory,'source.json'),{format:'endpoint-inventory',schema_version:'1.1',kind:'ios',source_id:'webview_fixture',inventory:'endpoints.json',app:{package_name:app.ready.appId,bundle_id:app.ready.appId,artifact_type:'app',version_name:'1',artifact_sha256:'a'.repeat(64)}});put(path.join(inventory,'endpoints.json'),[]);
+ put(path.join(inventory,'source.json'),{format:'endpoint-inventory',schema_version:'1.1',kind,source_id:'webview_fixture',inventory:'endpoints.json',app:{package_name:app.ready.appId,...(kind==='ios'?{bundle_id:app.ready.appId}:{}),artifact_type:kind==='apk'?'apk':'app',version_name:'1',artifact_sha256:'a'.repeat(64)}});put(path.join(inventory,'endpoints.json'),[]);
  const wanted=id=>({resourceId:'#'+id});
  const controls=[['query','input'],['detail','input'],['run','button'],['result','output']].map(([id,kind])=>({id,kind,selector:'#'+id,group:'#searchForm'}));
- const device=path.join(dir,'device.json');put(device,{source:{id:'webview_fixture',kind:'ios'},backend:{type:'appium-webview',platform:'ios',appId:app.ready.appId,url:app.ready.url,sessionId:app.ready.sessionId,intentJournal:path.join(dir,'journal','intent.json'),commandTimeoutMs:3000,webview:{context:app.ready.context,windowHandle:app.ready.windowHandle,origin:app.ready.origin,url:app.ready.documentUrl,controls,...(association?{association}:{})}},limits:{maxActions:100,maxDurationMs:60000},actionAllowlist:[{kind:'type',selector:wanted('query'),effect:'read'},{kind:'type',selector:wanted('detail'),effect:'read'},{kind:'click',selector:wanted('run'),effect:'read'}]});
+ const device=path.join(dir,'device.json');put(device,{source:{id:'webview_fixture',kind},backend:{type:'appium-webview',platform,appId:app.ready.appId,url:app.ready.url,sessionId:app.ready.sessionId,intentJournal:path.join(dir,'journal','intent.json'),commandTimeoutMs:3000,webview:{context:app.ready.context,windowHandle:app.ready.windowHandle,origin:app.ready.origin,url:app.ready.documentUrl,controls,...(association?{association}:{}),...(platform==='android'?{textTransport:{mode:'chromedriver_cdp_insert_text_v1'}}:{})}},limits:{maxActions:100,maxDurationMs:60000},actionAllowlist:[{kind:'type',selector:wanted('query'),effect:'read'},{kind:'type',selector:wanted('detail'),effect:'read'},{kind:'click',selector:wanted('run'),effect:'read'}]});
  const config=path.join(dir,'config.json');put(config,{outputRoot:path.join(dir,'out'),artifactRoots:[dir],python:path.join(root,'.venv/bin/python'),devices:{webview:device}});
  const main=await connect(path.join(root,'src/software-mcp.js'),config);clients.push(main);
- await terminal(main.client,await call(main.client,'software_discover',{kind:'ios',input:inventory,deviceName:'webview'}));
+ await terminal(main.client,await call(main.client,'software_discover',{kind,input:inventory,deviceName:'webview'}));
  const plan=await call(main.client,'software_workflows',{sourceId:'webview_fixture'}),candidate=plan.items.find(row=>row.planningMode==='webview-dom-linear-v1');assert(candidate,JSON.stringify(plan));
  const assertions=['query','detail'].map(param=>({outputTargetId:candidate.outputTargets[0].id,param}));
  const bind=extra=>call(main.client,'software_bind_workflow',{sourceId:'webview_fixture',expectedRevision:plan.source.revision,candidateId:candidate.id,samples:[{query:'alpha',detail:'one'},{query:'beta',detail:'two'}],resultAssertions:assertions,...extra});
  return {dir,app,clients,client:main.client,plan,candidate,assertions,bind};
 }
 const text=p=>'Query:'+p.query+';Detail:'+p.detail;
-test('protocol fixture: observed PID-associated WebView form learns and remains callable through unified and generated MCP',{timeout:120000},async t=>{
- const f=await setup(t,{pidProfile:true}),before=await f.app.read();assert.equal(before.ledger.length,0);assert.equal(before.effects.length,0);
+for(const [profile,options] of [['PID-associated',{pidProfile:true}],['Android devtools-associated',{platform:'android'}]])test('protocol fixture: observed '+profile+' WebView form learns and remains callable through unified and generated MCP',{timeout:120000},async t=>{
+ const f=await setup(t,options),before=await f.app.read();assert.equal(before.ledger.length,0);assert.equal(before.effects.length,0);
  assert.deepEqual(Object.keys(f.candidate.inputSchema.properties).sort(),['detail','query']);
  assert(!JSON.stringify(f.plan).includes('sourceIdentity'));assert(!JSON.stringify(f.plan).includes('resourceId'));
  const forged=path.join(f.dir,'forged.json');put(forged,{schemaVersion:1,webviewPlan:{schemaVersion:1}});
@@ -61,7 +61,7 @@ test('protocol fixture: observed PID-associated WebView form learns and remains 
  assert.equal((await f.app.read()).effects.length,0);
  await terminal(f.client,await f.bind({}));
  const catalog=await call(f.client,'software_capabilities',{sourceId:'webview_fixture',kind:'mobile'}),cap=catalog.items.find(row=>row.readiness==='ready');assert(cap,JSON.stringify(catalog));
- assert.deepEqual(cap.modality.channels,['appium_webview_dom','fixed_w3c_element_commands']);assert.equal(cap.fidelity.inputText.length,2);assert(cap.fidelity.inputText.every(row=>row.contract==='dom_value_echo_required'));assert(cap.fidelity.outputs.every(row=>row.sourceCodepointsProven===false));
+ assert.deepEqual(cap.modality.channels,options.platform==='android'?['appium_webview_dom','chromedriver_cdp_text','fixed_dom_focus','fixed_w3c_element_commands']:['appium_webview_dom','fixed_w3c_element_commands']);assert.equal(cap.fidelity.inputText.length,2);assert(cap.fidelity.inputText.every(row=>row.contract==='dom_value_echo_required'));assert(cap.fidelity.outputs.every(row=>row.sourceCodepointsProven===false));
  const third={query:' 上  海 ',detail:'海🙂e\u0301'};
  const result=await terminal(f.client,await call(f.client,'software_call',{sourceId:'webview_fixture',capabilityId:cap.id,expectedRevision:cap.revision,params:third}));assert.equal(result.result.result.ok,true,JSON.stringify(result));assert.equal(result.result.result.outputs.result,text(third));
  const generated=await terminal(f.client,await call(f.client,'software_generate',{sourceId:'webview_fixture',expectedRevision:catalog.source.revision})),other=await connect(generated.result.entry);f.clients.push(other);

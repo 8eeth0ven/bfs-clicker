@@ -39,13 +39,17 @@ def _identity(session, value):
     if not isinstance(value, dict):
         fail("WEBVIEW_PLAN_SOURCE_INVALID")
     method = value.get("associationMethod")
-    expected_keys = IDENTITY_KEYS | ({"appMainPid"} if method == "xcuitest_app_main_pid_v1" else set())
+    from .mobile_webview import (ANDROID_ASSOCIATION, ANDROID_IDENTITY_KEYS, DOM_PROBE, PROBE_VERSION,
+                                 TEXT_TRANSPORT_MODE, TEXT_TRANSPORT_SHA256, android_provenance,
+                                 association_profile, context_coordinates, text_transport_profile)
+    android = value.get("platform") == "android"
+    expected_keys = ((IDENTITY_KEYS - {"contextBundleId"}) | ANDROID_IDENTITY_KEYS | {"textTransport", "textTransportSha256"} if android else
+                     IDENTITY_KEYS | ({"appMainPid"} if method == "xcuitest_app_main_pid_v1" else set()))
     if (set(value) != expected_keys or
             value.get("modality") != MODALITY or
-            value.get("platform") != "ios" or
+            value.get("platform") not in {"ios", "android"} or
             any(not isinstance(item, str) or not item or len(item) > 2048 for item in value.values())):
         fail("WEBVIEW_PLAN_SOURCE_INVALID")
-    from .mobile_webview import DOM_PROBE, PROBE_VERSION, association_profile, context_coordinates
     if (value["probeVersion"] != PROBE_VERSION or
             value["probeSha256"] != hashlib.sha256(DOM_PROBE.encode("utf-8")).hexdigest()):
         fail("WEBVIEW_PLAN_PROBE_IDENTITY_MISMATCH")
@@ -57,8 +61,15 @@ def _identity(session, value):
             any(value[key] != trusted.get(key) for key in ("context", "windowHandle", "origin", "url")) or
             value["documentScope"] != "worker_live_reference_identity"):
         fail("WEBVIEW_PLAN_SOURCE_MISMATCH")
-    association = association_profile(trusted)
-    if method == "reported_bundle_id_v1":
+    association = association_profile(trusted, value["platform"])
+    if android:
+        if method != ANDROID_ASSOCIATION or session.source.get("kind") != "apk":
+            fail("WEBVIEW_PLAN_ASSOCIATION_UNSUPPORTED")
+        android_provenance({key: value[key] for key in ANDROID_IDENTITY_KEYS}, value["appId"], value["context"], value["windowHandle"])
+        if (text_transport_profile(trusted, "android") != TEXT_TRANSPORT_MODE or value["textTransport"] != TEXT_TRANSPORT_MODE or
+                value["textTransportSha256"] != TEXT_TRANSPORT_SHA256):
+            fail("WEBVIEW_PLAN_TEXT_TRANSPORT_MISMATCH")
+    elif method == "reported_bundle_id_v1":
         if association is not None or value["contextBundleId"] != value["appId"]:
             fail("WEBVIEW_PLAN_ASSOCIATION_MISMATCH")
     elif method == "xcuitest_app_main_pid_v1":
@@ -70,7 +81,7 @@ def _identity(session, value):
             fail("WEBVIEW_PLAN_ASSOCIATION_MISMATCH")
     else:
         fail("WEBVIEW_PLAN_ASSOCIATION_UNSUPPORTED")
-    if (session.source.get("kind") == "ios") != (value["platform"] == "ios"):
+    if session.source.get("kind") != ("apk" if android else "ios"):
         fail("WEBVIEW_PLAN_SOURCE_MISMATCH")
     return copy.deepcopy(value)
 

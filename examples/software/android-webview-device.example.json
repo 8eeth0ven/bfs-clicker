@@ -1,0 +1,31 @@
+{
+  "source": {"id": "android_webview_demo", "kind": "apk"},
+  "backend": {
+    "type": "appium-webview",
+    "platform": "android",
+    "url": "http://127.0.0.1:4723",
+    "sessionId": "REPLACE_WITH_OBSERVED_SESSION",
+    "appId": "com.example.authorized",
+    "commandTimeoutMs": 15000,
+    "webview": {
+      "context": "WEBVIEW_com.example.authorized",
+      "windowHandle": "00000000000000000000000000000000",
+      "origin": "https://example.test",
+      "url": "https://example.test/form",
+      "association": {"mode": "uiautomator2_devtools_v1"},
+      "textTransport": {"mode": "chromedriver_cdp_insert_text_v1"},
+      "controls": [
+        {"id": "query", "kind": "input", "selector": "#query", "group": "#searchForm"},
+        {"id": "detail", "kind": "input", "selector": "#detail", "group": "#searchForm"},
+        {"id": "run", "kind": "button", "selector": "#run", "group": "#searchForm"},
+        {"id": "result", "kind": "output", "selector": "#result", "group": null}
+      ]
+    }
+  },
+  "limits": {"maxActions": 100, "maxDurationMs": 60000},
+  "actionAllowlist": [
+    {"kind": "type", "selector": {"resourceId": "#query"}, "effect": "read"},
+    {"kind": "type", "selector": {"resourceId": "#detail"}, "effect": "read"},
+    {"kind": "click", "selector": {"resourceId": "#run"}, "effect": "read"}
+  ]
+}
