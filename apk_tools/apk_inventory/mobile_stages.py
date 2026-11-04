@@ -58,6 +58,9 @@ def emit(session, kind, **fields):
         run_id = session._native_stage_replay_run
     else:
         run_id = trace['runId']
+    arm_id = getattr(session, '_native_branch_arm_id', None)
+    if arm_id is not None:
+        fields['nativeBranchArmId'] = arm_id
     return session.event(kind, stageRunId=run_id, sourceIdentity=session.identity, workflowId=session.config['nativeStagePlanning']['workflowId'], **fields)
 
 
@@ -75,7 +78,10 @@ def sensitive_metadata(session, tree):
     # Text seed values are exclusion data only, held in this call's memory.
     # Complete enum domains remain contracts; the actually selected value is never recorded.
     seeds = []
-    for row in session.config['nativeStagePlanning']['seedInputs']:
+    seed_inputs = session.config['nativeStagePlanning']['seedInputs']
+    if getattr(session, '_native_branch_arm_id', None) is not None:
+        seed_inputs = [row for arm in session.config['nativeBranchPlanning']['arms'] for row in arm['seedInputs']]
+    for row in seed_inputs:
         if row['kind'] == 'type' and row['value']:
             for value in [row['value'], re.sub(r'^(?:Bearer|Basic)\s+', '', row['value'], flags=re.I)]:
                 seeds.extend([value, ' '.join(value.split())])
@@ -145,6 +151,9 @@ def static_part(stage):
 
 def capture(session, tree, index):
     stage = {'index': index, 'occurrenceId': 'stage_' + uuid.uuid4().hex, **inspect_stage(session, tree)}
+    branch_check = getattr(session, '_native_branch_check_stage', None)
+    if branch_check is not None:
+        branch_check(stage)
     stage['digest'] = digest(static_part(stage))
     stage['observationEvidenceId'] = emit(session, 'native_stage_observed', occurrenceId=stage['occurrenceId'], stageDigest=stage['digest'])
     stage['preparations'] = []
@@ -299,6 +308,11 @@ def verify_trace(session, trace, events):
         if event.get('kind', '').startswith('native_'):
             if event.get('stageRunId') != trace['runId'] or event.get('sourceIdentity') != session.identity or event.get('workflowId') != cfg['workflowId']:
                 fail('NATIVE_STAGE_EVENT_IDENTITY_MISMATCH')
+            branch_arm = getattr(session, '_native_branch_arm_id', None)
+            if branch_arm is None and 'nativeBranchArmId' in event:
+                fail('NATIVE_STAGE_EVENT_IDENTITY_MISMATCH')
+            if branch_arm is not None and event.get('nativeBranchArmId') != branch_arm:
+                fail('NATIVE_BRANCH_EVENT_ARM_MISMATCH')
             executions = starts_seen if event['kind'] == 'native_stage_action_started' else finishes_seen if event['kind'] == 'native_stage_action_finished' else None
             if executions is not None:
                 if not isinstance(event.get('executionId'), str) or event['executionId'] in executions:
@@ -333,7 +347,7 @@ def verify_trace(session, trace, events):
         last = positions[stage['observationEvidenceId']]
         for field, receipt in zip(stage['fields'], stage['preparations']):
             ident = receipt.get('evidenceId')
-            if (ident in used_receipts or rows.get(ident, {}).get('kind') != 'native_preparation_verified' or {k: v for k, v in rows.get(ident, {}).items() if k not in {'schemaVersion', 'kind', 'timestampMs', 'evidenceId', 'stageRunId', 'sourceIdentity', 'workflowId'}} != {k: v for k, v in receipt.items() if k != 'evidenceId'} or
+            if (ident in used_receipts or rows.get(ident, {}).get('kind') != 'native_preparation_verified' or {k: v for k, v in rows.get(ident, {}).items() if k not in {'schemaVersion', 'kind', 'timestampMs', 'evidenceId', 'stageRunId', 'sourceIdentity', 'workflowId', 'nativeBranchArmId'}} != {k: v for k, v in receipt.items() if k != 'evidenceId'} or
                     receipt.get('inputVerified') is not True or receipt.get('stageOccurrenceId') != stage['occurrenceId'] or receipt.get('inputSlotId') != input_key(field) or receipt.get('actionKind') != field['kind']):
                 fail('NATIVE_STAGE_PREPARATION_NOT_PROVEN')
             used_receipts.add(ident)

@@ -85,6 +85,41 @@ compiler20 可在可信设备配置中启用 `nativeStagePlanning`，为 Android
 
 源码复现见[原生阶段 SDK 测试](../test/software-native-stage-planner.test.mjs)与[证据及恢复反例](../apk_tools/tests/test_mobile_stages.py)。协议夹具、安装包与物理设备的验证范围分别记录在[验证摘要](software-to-mcp-validation.json)，不把协议通过计为真机通过。
 
+### 原生条件分支
+
+compiler22 新增 `nativeBranchPlanning`，让一个 MCP 工作流处理一次分叉后的两条原生页面路径。探索会分别走完两条路径，保存各自的动作和页面证据；执行时先走共同前缀，完成分叉操作后，再读取当前界面。只有一个已观察路径的正向结构合同匹配，且与本次分支参数相符，才执行该路径后续动作。
+
+在可信设备配置中使用下面的字段片段，并按实际 App 替换 selector。它与 `nativeStagePlanning` 互斥；原 `actionAllowlist` 仍须明确批准所有路径中的输入、选项及按钮，选项使用 `kind:"check"` 批准。
+
+```json
+{
+  "nativeBranchPlanning": {
+    "workflowId": "branch_lookup",
+    "forkInput": {"kind": "select", "selector": {"resourceId": "demo:id/route"}},
+    "arms": [
+      {"id": "left", "value": "left", "seedInputs": [
+        {"kind": "type", "selector": {"resourceId": "demo:id/query"}, "value": "example-query"},
+        {"kind": "select", "selector": {"resourceId": "demo:id/route"}, "value": "left"},
+        {"kind": "type", "selector": {"resourceId": "demo:id/detail"}, "value": "example-detail"}
+      ]},
+      {"id": "right", "value": "right", "seedInputs": [
+        {"kind": "type", "selector": {"resourceId": "demo:id/query"}, "value": "example-query"},
+        {"kind": "select", "selector": {"resourceId": "demo:id/route"}, "value": "right"},
+        {"kind": "type", "selector": {"resourceId": "demo:id/alternate_detail"}, "value": "example-detail"}
+      ]}
+    ]
+  }
+}
+```
+
+支持两值完整枚举，或 `kind:"check"` 的 `true/false` 分叉。当前为一次分叉、两条路径、无汇合；对应阶段须有相同字段类型和数量，两条路径共享公开输入及输出 schema，物理 selector 可以不同。合并结构最多16节点，参数最多16，每条完整路径仍受3–30步限制。未探索完整路径、第三个枚举值、歧义分组、种子反射到标识或按钮、共享终点及循环均不能产生完整候选。
+
+调用顺序仍为 `software_discover` → `software_workflows` → `software_bind_workflow`。选择 `planningMode:"native-branch-stages-v1"` 的候选，按返回的共同参数 schema 提供每条路径各两组不同样本，总共至少四组；每个参数都要配置 `resultAssertions`。新分支默认要求结果相对本次开始时变化，并与输入关联，显式 `changedFromBefore:false` 会被拒绝。两条路径都通过独立结果验证，才发布一个 ready 能力；随后 `software_call` 和生成的 MCP 工具使用同一个逻辑 schema。
+
+WebDriver 在本模式下要求当前 context 明确为 `NATIVE_APP`，在读取及派发边界复核，不自动切换 WebView。未确认的分叉、错路、歧义、超时、取消或完成记录写入失败会保留 pending/unknown；不会重发分叉或尝试另一条路径。返回入口仅从已证明且前驱唯一的页面逐步校验。协议夹具的通过范围和设备结果分别见[验证记录](software-to-mcp-verification.md)；普通 iOS 键盘视觉输入仍有独立的未通过项。
+
+复现见[两平台 MCP 分支测试](../test/software-native-branch-planner.test.mjs)、[探索证据反例](../apk_tools/tests/test_mobile_branches.py)和[执行及恢复反例](../apk_tools/tests/test_mobile_branch_workflows.py)。
+
 ### 当前页面上的多步骤探索
 
 compiler17 在获准动作完整返回后，为新观察到的语义状态建立新的页面许可。冷启动按钮后出现的表单、普通 DOM/open shadow 中销毁重建的表单，以及通过导航策略检查的跨 URL 页面均可继续探索。closed root 的探索可在成功动作后只读检查新一代节点，再销毁旧许可；缺省参数化工作流仍要求同一次执行内节点稳定。compiler18 的[显式闭根多阶段流程](#显式闭根多阶段流程)另需本地阶段合同与启动授权；不能仅由探索覆盖推导学习/调用通过。

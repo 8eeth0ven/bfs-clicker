@@ -448,6 +448,15 @@ class AdbBackend:
                 if not isinstance(value, str) or len(value) > 2048:
                     raise MobileError("INPUT_REQUIRED", "blocked")
                 if self.unicode_input:
+                    def input_evidence(target):
+                        check_target("type", target)
+                        # An empty digest cannot prove an omitted or masked
+                        # provider value. Recheck each source snapshot.
+                        if (target.get("_inputValuePresent") is not True or target.get("secure")
+                                or re.search(r"password|secure", target.get("inputType", ""), re.I)):
+                            raise MobileError("UNICODE_IME_INPUT_EVIDENCE_UNAVAILABLE", "unsupported")
+                        return target
+                    input_evidence(node)
                     try:
                         value.encode("utf-8")
                     except UnicodeError:
@@ -461,15 +470,15 @@ class AdbBackend:
             if kind == "type":
                 if self.unicode_input:
                     # Recheck foreground and selected IME after focusing the field.
-                    focused = locate(self.observe(), action["selector"])
+                    focused = input_evidence(locate(self.observe(), action["selector"]))
                     if focused.get("_inputFocused") is not True:
                         raise MobileError("UNICODE_IME_TARGET_NOT_FOCUSED", "blocked")
                     android_unicode.preflight(self)
                     android_unicode.commit(self, value, bool(action.get("replace")) and focused.get("_inputLength") != 0, append_at=focused.get("_inputUtf16Length", 0))
-                    if action.get("replace") and locate(self.observe(), action["selector"]).get("_inputSha256") != hashlib.sha256(value.encode("utf-8")).hexdigest():
+                    if action.get("replace") and input_evidence(locate(self.observe(), action["selector"])).get("_inputSha256") != hashlib.sha256(value.encode("utf-8")).hexdigest():
                         raise MobileError("UNICODE_IME_RESULT_UNKNOWN")
                     if not action.get("replace"):
-                        after_input = locate(self.observe(input_suffix=value), action["selector"])
+                        after_input = input_evidence(locate(self.observe(input_suffix=value), action["selector"]))
                         if not after_input.get("_inputSuffixMatched") or after_input.get("_inputPrefixSha256") != focused.get("_inputSha256"):
                             raise MobileError("UNICODE_IME_RESULT_UNKNOWN")
                     return
@@ -642,6 +651,9 @@ class WebDriverBackend:
         self.url = urlsplit(config.get("url", ""))
         self.session = config.get("sessionId", "")
         self.expected_artifact = config.get("expectedArtifact")
+        # The new native branch workflow must never borrow a WebView context.
+        # This is set by the trusted planning configuration, not a tool input.
+        self.native_branch_context = config.get("_nativeBranchContextRequired") is True
         self.command_timeout_ms = config.get("commandTimeoutMs", 15000)
         if not isinstance(self.command_timeout_ms, int) or isinstance(self.command_timeout_ms, bool) or not 1 <= self.command_timeout_ms <= 120000:
             raise MobileError("WEBDRIVER_COMMAND_TIMEOUT_INVALID")
@@ -653,6 +665,8 @@ class WebDriverBackend:
 
     def request(self, method, suffix, body=None):
         self.budget.check()
+        if self.native_branch_context and method == "POST" and (suffix in {"/actions", "/back", "/appium/device/activate_app"} or re.fullmatch(r"/element/[^/]+/(?:click|clear|value)", suffix)):
+            self.verify_native_context()
         connection_class = http.client.HTTPSConnection if self.url.scheme == "https" else http.client.HTTPConnection
         connection = connection_class(self.url.hostname, self.url.port, timeout=self.budget.timeout(self.command_timeout_ms / 1000))
         route = self.url.path.rstrip("/") + "/session/" + quote(self.session, safe="") + suffix
@@ -680,8 +694,14 @@ class WebDriverBackend:
 
     def probe(self):
         self.verify_artifact()
+        self.verify_native_context()
         self.request("GET", "/source")
+        self.verify_native_context()
         return {"backend": "webdriver", "platform": self.platform, "features": ["source", "click", "type", "swipe", "back", "launch_appium_extension"], "artifactVerification": dict(self.artifact_verification), "appArtifactVerified": False, "networkScopeEnforced": False, "captureScopeEnforced": False, "gaps": ["existing_trusted_session_required", "appium_active_app_extension_required_for_execution"]}
+
+    def verify_native_context(self):
+        if self.native_branch_context and self.request("GET", "/context") != "NATIVE_APP":
+            raise MobileError("NATIVE_BRANCH_CONTEXT_UNVERIFIED", "blocked")
 
     def verify_artifact(self):
         if self.expected_artifact is not None:
@@ -690,6 +710,7 @@ class WebDriverBackend:
         return self.artifact_verification
 
     def foreground(self):
+        self.verify_native_context()
         if self.platform == "android":
             actual = self.request("GET", "/appium/device/current_package")
         else:
@@ -700,7 +721,9 @@ class WebDriverBackend:
 
     def observe(self, input_suffix=None):
         self.foreground()
-        return parse_tree(self.request("GET", "/source"), self.platform, self.app_id, input_suffix=input_suffix)
+        tree = parse_tree(self.request("GET", "/source"), self.platform, self.app_id, input_suffix=input_suffix)
+        self.verify_native_context()
+        return tree
 
     @staticmethod
     def _input_contract(node):
@@ -834,6 +857,9 @@ class MobileSession:
             selector(row.get("selector"))
         from .mobile_stages import validate_config
         validate_config(config)
+        from .mobile_branches import validate_config as validate_branch_config
+        if validate_branch_config(config) is not None:
+            backend = {**backend, "_nativeBranchContextRequired": True}
         # Exploration budgets can be raised on resume without changing identity.
         self.identity = digest({k: v for k, v in config.items() if k not in {"limits", "workflowPermissions"}})
         self.source = {"id": source["id"], "kind": source["kind"]}
@@ -1023,6 +1049,8 @@ class MobileSession:
             return self._explore()
 
     def _explore(self):
+        if self.config.get("nativeBranchPlanning") is not None and (self.progress.get("pending") is not None or self.progress.get("nativeBranchTrace") is not None):
+            raise MobileError("NATIVE_BRANCH_RESUME_REQUIRES_FRESH_RUN", "blocked")
         if self.config.get("nativeStagePlanning") is not None and (self.progress.get("pending") is not None or self.progress.get("nativeStageTrace") is not None):
             raise MobileError("NATIVE_STAGE_RESUME_REQUIRES_FRESH_RUN", "blocked")
         if self.config.get("launchApp", False):
@@ -1031,6 +1059,9 @@ class MobileSession:
             self.step({"kind": "launch"}, None)
         if self.config.get("nativeStagePlanning") is not None:
             from .mobile_stages import explore
+            return explore(self)
+        if self.config.get("nativeBranchPlanning") is not None:
+            from .mobile_branches import explore
             return explore(self)
         if not self.progress["states"]:
             tree = self.backend.observe()

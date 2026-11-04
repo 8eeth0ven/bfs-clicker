@@ -1,3 +1,20 @@
+# 第24轮验证：原生条件分支 MCP 与 Android 输入证据修复
+
+当前产品运行时为 `software-to-mcp-22`。本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/e271fb204653d1c37058edcc684f43a9b23ae997)，继续在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)完善；下方第23轮及更早原文保留当时范围。
+
+- 新增可信 `nativeBranchPlanning`：实际探索两条原生路径，共用逻辑参数和输出。分叉动作完成后，从同一份 fresh UI 正向匹配唯一后屏，并核对路由参数，才执行该路径后续步骤。支持两值 enum 或 boolean，限单分叉、无汇合、只读、每条路径3–30步。
+- 两条路径各需两组不同输入及独立结果，总共至少四样本；缺路径、缺样本、未选路径缺权限或错误分叉均阻断。结果默认要求本次变化和输入关联。WebDriver明确核对 `NATIVE_APP`；未知动作和完成记录写入失败保留 pending，不重发分叉或试另一条路径。
+- 修复 Android Unicode 输入把缺失或 secure 回显误作空串证明的问题：聚焦前、聚焦后和单次提交后均要求明确值证据；合法空串、UTF8逐码点、替换/追加及IME nonce合同保留。定向14项与本轮Python全套均覆盖，未据此宣称新真机验收。
+- 本次实际主项目239/239、software524/524；Python633项中632通过、1个既有Hermes fixture跳过。三套范围分列，重叠定向用例不累加。当前124份运行时、459份公开代码、88份Python-linked与32份dist按同一源码快照核对。
+- 新打包的377份文件（含32份dist）完成锁文件固定的生产依赖安装后，实际SDK验证Android/iOS本地W3C分支夹具：每平台探索2、学习4、统一2、独立生成2，共10次夹具业务提交；两入口均核对中文、首尾/连续空格、emoji和NFD原码点。错路只派发一次分叉、无新增搜索、分叉后无路径动作。安装场景仅本轮新增分支，其他六组旧SDK场景保持历史范围。
+- 本轮没有新普通iOS键盘或物理设备验收。第23次runtime21普通iOS仍是校准 `CALIBRATION_SAMPLING_REQUEST_TIMEOUT` 失败；保留原投影、未知业务计数及清理证据，不能换贴为runtime22设备通过。任意第三方App或网站全部业务仍未证明，main未合并本轮、npm未发布。
+
+配置和调用步骤见[原生条件分支指南](software-to-mcp.md#原生条件分支)。机器摘要完整保留新安装场景投影，并可精确恢复上轮JSON与Markdown；最终index、归档及脱敏检查另行绑定实际提交。
+
+---
+
+## 第23轮及更早检查点原文（完整保留）
+
 # 第23次验收：校准像素比较优化，普通iOS仍未通过
 
 用户已将此前PR#1合并到[主分支检查点](https://github.com/8eeth0ven/bfs-clicker/commit/44be51b12ef6eb01ac6a172287eec5bb4596821a)。本轮在新分支继续，产品运行时仍为 `software-to-mcp-21`，设备编号为 `attempt23`；本轮提交和新PR尚未预填。下方原文中的Draft、main未合并等表述保留为当时的历史发布状态。

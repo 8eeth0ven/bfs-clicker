@@ -1,4 +1,5 @@
 // Compiler-owned routing contracts, never quality assertions copied from evidence.
+import {nativeBranchParameters} from './native-branch-binding.js';
 export const CAPABILITY_FIDELITY_VERSION=2;
 const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const name=v=>typeof v==='string'&&/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(v)?v:null;
@@ -18,6 +19,27 @@ function nativeInput(step,device){
  if(backend.type==='adb')return {parameter,contract:'command_only_no_exact_echo',mode:step.replace===true?'replace':'append',domain:'adb_ascii_no_c0_or_literal_percent_s',maxCodePoints:2048};
  return null;
 }
+function nativeBranchFidelity(recipe,device,sourceKind){
+ const definition=recipe.definition;
+ try{nativeBranchParameters(definition);}catch{return unknownCapabilityFidelity('native_branch_contract_unrecognized');}
+ if(definition.effect!=='read')return unknownCapabilityFidelity('native_branch_contract_unrecognized');
+ const profiles=[];
+ for(const arm of definition.branchPlan.arms){
+  if(arm.definition.branchPlan)return unknownCapabilityFidelity('native_branch_contract_unrecognized');
+  const result=deriveCapabilityFidelity({adapter:'mobile-workflow',recipe:{schemaVersion:1,recipeType:'workflow',definition:arm.definition},device,sourceKind});
+  if(result.modality.channels.includes('unknown'))return unknownCapabilityFidelity('native_branch_arm_contract_unrecognized');
+  const inverse=Object.fromEntries(Object.entries(arm.inputMap).map(([global,local])=>[local,global]));
+  const inputs=result.fidelity.inputText.map(input=>({...input,parameter:inverse[input.parameter]}));
+  if(inputs.some(input=>!input.parameter))return unknownCapabilityFidelity('native_branch_arm_contract_unrecognized');
+  // Physical order and selectors may differ; guarantees for logical inputs and
+  // outputs must agree across every possible path.
+  const logical=values=>[...new Map(values.map(value=>[JSON.stringify(value),value])).entries()].sort(([a],[b])=>a<b?-1:a>b?1:0).map(([,value])=>value);
+  profiles.push({...result,fidelity:{...result.fidelity,inputText:logical(inputs),outputs:logical(result.fidelity.outputs)}});
+ }
+ if(JSON.stringify(profiles[0])!==JSON.stringify(profiles[1]))return unknownCapabilityFidelity('native_branch_arm_guarantees_differ');
+ const result=profiles[0];
+ return base('mobile-workflow',result.modality.channels,result.fidelity.inputText,result.fidelity.outputs,[...result.fidelity.limits,'native_branch_each_arm_requires_two_observed_samples','native_branch_selection_requires_unique_fresh_structure','native_branch_context_must_remain_native']);
+}
 export function deriveCapabilityFidelity({adapter,recipe,device,sourceKind}={}){
  if(adapter==='unresolved-http')return unknownCapabilityFidelity('http_method_unresolved');
  if(adapter==='http')return base('http',['http_wire'],[{scope:'request_parameters',contract:'schema_defined_wire_serialization',domain:'exposed_input_schema'}],[projected('response','decoded_redacted_bounded_response')],['http_response_is_not_business_equivalence','response_may_be_truncated_or_binary_summary']);
@@ -34,6 +56,7 @@ export function deriveCapabilityFidelity({adapter,recipe,device,sourceKind}={}){
   if(backend.type==='adb'&&unicodeImeMode(backend.unicodeInput)==='invalid')return unknownCapabilityFidelity('unicode_ime_config_invalid');
   let steps,outputs=[];
   if(adapter==='mobile-workflow'){
+   if(recipe.recipeType==='workflow'&&plain(recipe.definition)&&recipe.definition.schemaVersion===1&&recipe.definition.branchPlan)return nativeBranchFidelity(recipe,device,sourceKind);
    if(recipe.recipeType!=='workflow'||!plain(recipe.definition)||recipe.definition.schemaVersion!==1||!Array.isArray(recipe.definition.steps)||recipe.definition.steps.length>30||recipe.definition.steps.some(s=>!plain(s)||!['type','click','swipe','check','select','assert','extract'].includes(s.kind)))return unknownCapabilityFidelity();
    steps=recipe.definition.steps;if(steps.some(step=>step.kind==='type'&&step.replace!==true))return unknownCapabilityFidelity();
    outputs=steps.filter(s=>s.kind==='extract').map(s=>projected(name(s.output)||'*','semantic_provider_text_projection'));

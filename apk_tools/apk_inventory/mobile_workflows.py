@@ -143,6 +143,9 @@ def validate_inputs(schema, inputs):
 
 
 def definition_contract(session, definition):
+    if isinstance(definition, dict) and "branchPlan" in definition:
+        from .mobile_branch_workflows import definition_contract as branch_contract
+        return branch_contract(session, definition)
     allowed = {"schemaVersion", "id", "name", "description", "inputSchema", "effect", "steps", "entryPrefix", "stagePlan"}
     if not isinstance(definition, dict) or set(definition) - allowed or definition.get("schemaVersion") != 1 or not isinstance(definition.get("id"), str) or not NAME.fullmatch(definition["id"]) or definition.get("effect") not in {"read", "write"}:
         raise MobileError("WORKFLOW_DEFINITION_INVALID", "blocked")
@@ -317,10 +320,18 @@ def assertion_matches(expect, text, bound, baseline=None):
     return matches
 
 
-def _run(session, definition, inputs, contracts):
+def _run(session, definition, inputs, contracts, branch_context=None):
     outputs, assertions, evidence = {}, 0, []
     stage_plan = definition.get("stagePlan")
-    if stage_plan is not None:
+    stage_session = session
+    workflow_id = definition["id"]
+    if branch_context is not None:
+        from . import mobile_branches as branch
+        branch_plan = branch_context["definition"]["branchPlan"]
+        workflow_id = branch_context["definition"]["id"]
+        branch.restore_entry(session, branch_plan)
+        stage_session = branch.arm_session(session, branch_plan, branch_plan["arms"][0])
+    elif stage_plan is not None:
         from .mobile_stages import restore_entry
         restore_entry(session, stage_plan)
     prefix = definition.get("entryPrefix")
@@ -331,7 +342,7 @@ def _run(session, definition, inputs, contracts):
         session.budget.check()
         if reached["fingerprint"] != prefix["targetStateId"]:
             raise MobileError("WORKFLOW_PREFIX_TARGET_CHANGED", "blocked")
-        evidence.append(session.event("workflow_prefix_verified", workflowId=definition["id"], stateId=prefix["targetStateId"], steps=len(prefix["steps"])))
+        evidence.append(session.event("workflow_prefix_verified", workflowId=workflow_id, stateId=prefix["targetStateId"], steps=len(prefix["steps"])))
     bound = {key: input_text(value) for key, value in inputs.items()}
     for step in definition["steps"]:
         if step["kind"] == "assert" and any(step["expect"].get(key) not in bound for key in ("equalsInput", "containsInput") if key in step["expect"]):
@@ -352,27 +363,41 @@ def _run(session, definition, inputs, contracts):
     # Capture changed-target baselines before *any* input or click in this run.
     # A type handler may already launch a query; capturing only before assert
     # would mistake a completed new result for the baseline.
-    baselines = {}
-    changed = [(number, step) for number, step in enumerate(definition["steps"]) if step["kind"] == "assert" and step["expect"].get("changed") is True]
-    if changed:
+    baselines, branch_baselines = {}, {}
+    baseline_paths = [(None, definition, contracts)] if branch_context is None else [
+        (arm["id"], arm["definition"], branch_context["contracts"][arm["id"]])
+        for arm in branch_plan["arms"]]
+    for arm_id, baseline_definition, baseline_contracts in baseline_paths:
+        path_baselines = {}
+        changed = [(number, step) for number, step in enumerate(baseline_definition["steps"]) if step["kind"] == "assert" and step["expect"].get("changed") is True]
+        if not changed:
+            continue
         tree = session.backend.observe()
         session.budget.check()
         for number, step in changed:
             try:
-                node = contract_node(contracts, number, locate(tree, step["selector"]), "assert")
+                node = contract_node(baseline_contracts, number, locate(tree, step["selector"]), "assert")
                 if node["editable"] or node["secure"]:
                     raise MobileError("WORKFLOW_FRESHNESS_TARGET_INVALID", "blocked")
-                baselines[number] = {"present": True, "text": node["text"]}
+                path_baselines[number] = {"present": True, "text": node["text"]}
             except MobileError as error:
                 if error.code != "SELECTOR_NOT_FOUND":
                     raise
-                baselines[number] = {"present": False}
-            evidence.append(session.event("workflow_freshness_baseline", workflowId=definition["id"], step=number, baselinePresent=baselines[number]["present"]))
+                path_baselines[number] = {"present": False}
+            evidence.append(session.event("workflow_freshness_baseline", workflowId=workflow_id, step=number, baselinePresent=path_baselines[number]["present"], **({"armId": arm_id} if arm_id else {})))
+        if arm_id is None:
+            baselines = path_baselines
+        else:
+            branch_baselines[arm_id] = path_baselines
+    if branch_context is not None:
+        baselines = branch_baselines[branch_plan["arms"][0]["id"]]
     observed_assertions, output_freshness, guarded_outputs, generation = {}, {}, [], 0
     changed_count, correlated_count, actions_performed = 0, 0, 0
     check_observations = {"changed": 0, "noOp": 0}
     select_observations = {"changed": 0, "noOp": 0}
-    for number, step in enumerate(definition["steps"]):
+    number = 0
+    while number < len(definition["steps"]):
+        step = definition["steps"][number]
         session.budget.check()
         kind = step["kind"]
         if kind in {"type", "click", "swipe", "check", "select"}:
@@ -382,14 +407,14 @@ def _run(session, definition, inputs, contracts):
                 from .mobile_stages import guard
                 boundary = next((r for r in stage_plan["ranges"] if r["start"] == number), None)
                 if boundary is not None:
-                    guard(session, tree, stage_plan["proof"]["trace"]["stages"][boundary["stageIndex"]])
+                    guard(stage_session, tree, stage_plan["proof"]["trace"]["stages"][boundary["stageIndex"]])
                 final = next((r for r in stage_plan["ranges"] if r["end"] == number), None)
                 if final is not None:
-                    guard(session, tree, stage_plan["proof"]["trace"]["stages"][final["stageIndex"]])
+                    guard(stage_session, tree, stage_plan["proof"]["trace"]["stages"][final["stageIndex"]])
                     from .mobile_stages import verify_input
                     for prepared in definition["steps"][final["start"]:final["end"]]:
                         verify_input(tree, prepared, inputs)
-                    evidence.append(session.event("workflow_stage_inputs_reverified", workflowId=definition["id"], stage=final["stageIndex"], parameters=final["end"] - final["start"]))
+                    evidence.append(session.event("workflow_stage_inputs_reverified", workflowId=workflow_id, stage=final["stageIndex"], parameters=final["end"] - final["start"]))
             if kind == "select":
                 selection = contract_selection(contracts, number, selection_state(tree, step))
                 target = locate(tree, step["selector"])
@@ -403,12 +428,14 @@ def _run(session, definition, inputs, contracts):
                 if verified.get("commandPerformed") is not False:
                     raise MobileError("CONTROL_NOOP_COMMAND_UNEXPECTED", "blocked")
                 (check_observations if kind == "check" else select_observations)["noOp"] += 1
-                evidence.append(session.event("workflow_" + kind + "_state_verified", workflowId=definition["id"], step=number, commandPerformed=False))
+                evidence.append(session.event("workflow_" + kind + "_state_verified", workflowId=workflow_id, step=number, commandPerformed=False))
+                number += 1
                 continue
             session.budget.action()
             execution_id = "execution_" + uuid.uuid4().hex
-            started = session.event("workflow_action_started", workflowId=definition["id"], step=number, actionKind=kind, executionId=execution_id)
-            session.progress["pending"] = {"executionId": execution_id, "workflowId": definition["id"], "step": number, "startedEvidenceId": started}
+            started = session.event("workflow_action_started", workflowId=workflow_id, step=number, actionKind=kind, executionId=execution_id)
+            session.progress["pending"] = {"executionId": execution_id, "workflowId": workflow_id, "step": number, "startedEvidenceId": started,
+                                           **({"branchFork": True, "branchSelection": "unknown"} if branch_context is not None and number == branch_context["forkIndex"] else {})}
             session.checkpoint()
             try:
                 session.backend.perform(step, tree, inputs if kind in {"check", "select"} else bound)
@@ -418,16 +445,50 @@ def _run(session, definition, inputs, contracts):
                 # duplicates uiautomator work. Keep a final-action observation
                 # when there is no next phase to verify readability.
                 post_observed = kind in {"check", "select"} or number == len(definition["steps"]) - 1
-                if post_observed and kind not in {"check", "select"}:
+                if branch_context is not None and number == branch_context["forkIndex"]:
+                    # Do not clear the fork intent on a transport-only return.
+                    # The fresh positive UI match and configured domain must
+                    # agree before any arm action, or the outcome stays unknown.
+                    selection_tree = session.backend.observe()
+                    session.budget.check()
+                    selected = branch.select_arm(session, branch_plan, selection_tree, branch_context["inputs"])
+                    from .mobile_branch_workflows import arm_inputs
+                    definition = selected["definition"]
+                    inputs = arm_inputs(selected, branch_context["inputs"])
+                    bound = {key: input_text(value) for key, value in inputs.items()}
+                    contracts = branch_context["contracts"][selected["id"]]
+                    stage_plan = definition["stagePlan"]
+                    stage_session = branch.arm_session(session, branch_plan, selected)
+                    baselines = branch_baselines[selected["id"]]
+                    branch_context["selectedArmId"] = selected["id"]
+                    evidence.append(session.event("workflow_branch_selected", workflowId=workflow_id,
+                                                  executionId=execution_id, armId=selected["id"],
+                                                  freshPositiveStructuralMatch=True))
+                    post_observed = True
+                elif post_observed and kind not in {"check", "select"}:
                     session.backend.observe()
                     session.budget.check()
             except MobileError as error:
                 session.event("workflow_action_uncertain", executionId=execution_id, code=error.code)
                 raise
-            finished = session.event("workflow_action_finished", executionId=execution_id, workflowId=definition["id"], step=number, status="observed" if post_observed else "command_completed")
+            finished = session.event("workflow_action_finished", executionId=execution_id, workflowId=workflow_id, step=number, status="observed" if post_observed else "command_completed")
             evidence.extend([started, finished])
+            pending_intent = session.progress["pending"]
             session.progress["pending"] = None
-            session.checkpoint()
+            try:
+                session.checkpoint()
+            except Exception:
+                if branch_context is not None:
+                    # A failed completion checkpoint cannot become permission
+                    # for the same in-memory or resumed session to repeat a
+                    # dispatched branch command. Restore the conservative
+                    # intent; this retries persistence only, never UI work.
+                    session.progress["pending"] = pending_intent
+                    try:
+                        atomic_json(session.output / "checkpoint.json", session.progress)
+                    except (OSError, MobileError):
+                        pass
+                raise
             generation += 1
             actions_performed += 1
             if kind == "check":
@@ -443,7 +504,7 @@ def _run(session, definition, inputs, contracts):
                     node = contract_node(contracts, number, locate(assertion_tree, step["selector"]), kind)
                     if stage_plan is not None:
                         from .mobile_stages import guard
-                        guard(session, assertion_tree, stage_plan["proof"]["trace"]["stages"][-1])
+                        guard(stage_session, assertion_tree, stage_plan["proof"]["trace"]["stages"][-1])
                     session.budget.check()
                     expect = step["expect"]
                     guarded = expect.get("changed") is True or "equalsInput" in expect or "containsInput" in expect
@@ -457,7 +518,7 @@ def _run(session, definition, inputs, contracts):
                         changed_count += int(changed_observed)
                         correlated_count += int(correlated)
                         observed_assertions[digest(step["selector"])] = {"text": node["text"], "generation": generation, "changedSinceStart": changed_observed, "inputCorrelated": correlated, "guarded": guarded}
-                        evidence.append(session.event("workflow_assertion_passed", workflowId=definition["id"], step=number, changedSinceStart=changed_observed, inputCorrelated=correlated))
+                        evidence.append(session.event("workflow_assertion_passed", workflowId=workflow_id, step=number, changedSinceStart=changed_observed, inputCorrelated=correlated))
                         break
                 except MobileError as error:
                     if error.code != "SELECTOR_NOT_FOUND":
@@ -470,7 +531,7 @@ def _run(session, definition, inputs, contracts):
             node = contract_node(contracts, number, locate(extraction_tree, step["selector"]), kind)
             if stage_plan is not None:
                 from .mobile_stages import guard
-                guard(session, extraction_tree, stage_plan["proof"]["trace"]["stages"][-1])
+                guard(stage_session, extraction_tree, stage_plan["proof"]["trace"]["stages"][-1])
             session.budget.check()
             if node["editable"] or node["secure"]:
                 raise MobileError("WORKFLOW_INPUT_EXTRACTION_REJECTED", "blocked")
@@ -494,6 +555,7 @@ def _run(session, definition, inputs, contracts):
             except (ValueError, OverflowError):
                 raise MobileError("WORKFLOW_EXTRACTION_TYPE_MISMATCH", "blocked") from None
             outputs[step["output"]] = value
+        number += 1
     if guarded_outputs:
         # Keep the assertion and extraction as distinct fresh reads, then verify
         # all freshness-guarded outputs once more before returning. This catches
@@ -503,12 +565,12 @@ def _run(session, definition, inputs, contracts):
         session.budget.check()
         if stage_plan is not None:
             from .mobile_stages import guard
-            guard(session, final_tree, stage_plan["proof"]["trace"]["stages"][-1])
+            guard(stage_session, final_tree, stage_plan["proof"]["trace"]["stages"][-1])
         for guarded in guarded_outputs:
             final_node = contract_node(contracts, guarded["number"], locate(final_tree, guarded["selector"]), "extract")
             if guarded["generation"] != generation or final_node["text"] != guarded["text"]:
                 raise MobileError("WORKFLOW_RESULT_CHANGED_AFTER_ASSERTION", "blocked")
-        evidence.append(session.event("workflow_outputs_reverified", workflowId=definition["id"], outputs=len(guarded_outputs)))
+        evidence.append(session.event("workflow_outputs_reverified", workflowId=workflow_id, outputs=len(guarded_outputs)))
     if stage_plan is not None:
         session.backend.verify_artifact()
         session.backend.foreground()
@@ -521,6 +583,9 @@ def learn_workflow(session, definition, samples):
 
 
 def _learn_workflow(session, definition, samples):
+    if isinstance(definition, dict) and "branchPlan" in definition:
+        from .mobile_branch_workflows import learn_workflow as learn_branch
+        return learn_branch(session, definition, samples)
     definition = definition_contract(session, definition)
     approve_workflow(session, definition, learning=True)
     if not isinstance(samples, list) or not 2 <= len(samples) <= 5:
@@ -564,6 +629,9 @@ def execute_workflow(session, recipe, revision, inputs):
 
 
 def _execute_workflow(session, recipe, revision, inputs):
+    if isinstance(recipe.get("definition"), dict) and "branchPlan" in recipe["definition"]:
+        from .mobile_branch_workflows import execute_workflow as execute_branch
+        return execute_branch(session, recipe, revision, inputs)
     definition = definition_contract(session, recipe.get("definition"))
     validate_inputs(definition["inputSchema"], inputs)
     learning = recipe.get("learningEvidence", {})

@@ -314,6 +314,12 @@ def _observed_states(session, checkpoint, events):
 
 
 def plan_tree(session, tree, checkpoint=None, events=None):
+    if session.config.get("nativeBranchPlanning") is not None or isinstance(checkpoint, dict) and "nativeBranchTrace" in checkpoint:
+        from .mobile_branches import plan
+        try:
+            return plan(session, checkpoint or {}, events or [])
+        except (MobileError, KeyError, ValueError, TypeError, IndexError) as error:
+            return {"schemaVersion": 1, "source": {**session.source, "revision": digest([session.identity, "branch-proof-rejected"])}, "items": [], "specs": {}, "total": 0, "nextOffset": None, "truncated": False, "gaps": [error.code if isinstance(error, MobileError) else "NATIVE_BRANCH_PROOF_INVALID"]}
     if isinstance(checkpoint, dict) and "nativeStageTrace" in checkpoint:
         from .mobile_stages import plan
         try:
