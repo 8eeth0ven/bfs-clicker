@@ -37,12 +37,14 @@ def _keyboard():
 
 def key_input_contract(value, definition):
     if (not isinstance(value, dict) or not {"mode", "controls"} <= set(value)
-            or set(value) - {"mode", "controls", "confirmation", "clearPlan"}
+            or set(value) - {"mode", "controls", "confirmation", "clearPlan", "caretUnderlay"}
             or value.get("mode") != "onscreen" or not isinstance(value.get("controls"), dict)
             or set(value["controls"]) != CONTROLS
             or value.get("confirmation", "each_prefix") not in ("each_prefix", "complete_text")
             or value.get("clearPlan", "observed_shortening") not in ("observed_shortening", "fixed_max_length")):
         fail("VISUAL_KEY_INPUT_CONFIG_INVALID")
+    if "caretUnderlay" in value:
+        _keyboard().caret_underlay_contract(value["caretUnderlay"])
     identities = set()
     for control in value["controls"].values():
         if (not isinstance(control, dict) or set(control) != {"type", "name", "label"}
@@ -215,8 +217,12 @@ def _fresh_key(session, lease, config, definition, observation, geometry, source
                         result = "unapproved_pixels_changed"
                         if task.fingerprint(fresh, masks) == expected:
                             result = "exact"
-                        elif "caret" in config["keyboard"] and k._caret_equivalent(session, config, definition, observation, fresh, geometry, masks, task=task):
-                            result = "caret_equivalent"
+                        elif "caret" in config["keyboard"]:
+                            caret_options = {"task": task}
+                            if "caretUnderlay" in config["keyboard"]["keyInput"]:
+                                caret_options["underlay"] = config["keyboard"]["keyInput"]["caretUnderlay"]
+                            if k._caret_equivalent(session, config, definition, observation, fresh, geometry, masks, **caret_options):
+                                result = "caret_equivalent"
                 # A legal response alone is not complete evidence: worker exit
                 # and the original cancellation/overall budget must also pass.
                 session.budget.check()

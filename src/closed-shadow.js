@@ -5,6 +5,7 @@ const fail=code=>{throw Object.assign(new Error(code+'：closed Shadow 契约未
 const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v)&&[Object.prototype,null].includes(Object.getPrototypeOf(v));
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const backends=new WeakMap(),bindings=new WeakMap();
+const planningDocuments=new WeakMap();
 const css=v=>typeof v==='string'&&v.length>0&&v.length<=512&&!/[\x00-\x1f\x7f]/.test(v)&&!v.includes('>>');
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 async function boundedCleanup(promise){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('cleanup timeout')),250)})])}finally{clearTimeout(timer)}}
@@ -179,6 +180,70 @@ export class ClosedLocator{
  }
 }
 export const closedLocator=(page,target,config)=>new ClosedLocator(page,target,config);
+
+function planningConfig(config){
+ const row=config.closedStagePlanning;
+ if(!plain(row)||Object.keys(row).join(',')!=='workflowId'||typeof row.workflowId!=='string'||! /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(row.workflowId)||['__proto__','constructor','prototype'].includes(row.workflowId))fail('CLOSED_STAGE_PLANNING_NOT_CONFIGURED');
+ return row;
+}
+
+// Read-only provenance for an actually observed transition. The reference is
+// process-local and opaque; only initial/same/new enters planning evidence.
+export async function captureClosedStagePlanningDocument(page,config){
+ planningConfig(config);const b=await backend(page,config),doc=(await b.send('DOM.getDocument',{depth:0,pierce:false},config)).root.backendNodeId;
+ if(b.doc!==null&&b.doc!==doc)fail('CLOSED_SHADOW_DOCUMENT_REBUILT');
+ const reference={};planningDocuments.set(reference,{page,doc});return reference;
+}
+
+export async function collectClosedStagePlanningEvidence(page,config,{beforeDocument,sensitiveValues=[]}={}){
+ const planning=planningConfig(config),previous=beforeDocument&&planningDocuments.get(beforeDocument);
+ if(beforeDocument&&(!previous||previous.page!==page))fail('CLOSED_STAGE_DOCUMENT_UNPROVEN');
+ if(!Array.isArray(sensitiveValues)||sensitiveValues.length>1024||sensitiveValues.some(v=>typeof v!=='string'||v.length>8192))fail('CLOSED_SHADOW_LIMIT');
+ sensitiveValues=[...new Set(sensitiveValues.flatMap(value=>{const bare=value.replace(/^(?:Bearer|Basic)\s+/i,'');return[value,bare,value.replace(/\s+/g,' ').trim(),bare.replace(/\s+/g,' ').trim()];}).filter(Boolean))];
+ if(sensitiveValues.length>1024)fail('CLOSED_SHADOW_LIMIT');
+ const b=await backend(page,config),before=await closedFingerprint(page,config),anchors=[],outputs=[],gaps=new Set();let ordinaryRead=false;
+ for(const policy of normalizeClosedShadowRoots(config.closedShadowRoots)){
+  const rows=await b.scope(closedDescriptor(policy,':scope'),config,async(r,g)=>{
+   if(!r)return null;
+   return b.call(r.objectId,(root,{max,exclusions,secrets,ordinary})=>{
+    if(root.querySelectorAll('*').length>max)return{limit:true};
+    const excluded=e=>{for(let n=e;n;n=n.parentElement||n.getRootNode()?.host||null)if(exclusions.some(s=>n.matches(s)||n.closest(s)))return true;return false;};
+    const visible=e=>{if(!e.isConnected||!e.checkVisibility?.({checkOpacity:true,checkVisibilityCSS:true}))return false;const r=e.getBoundingClientRect();if(!r.width||!r.height||r.x<0||r.y<0||r.right>innerWidth||r.bottom>innerHeight)return false;for(let n=e;n;n=n.parentElement||n.getRootNode()?.host||null){const s=getComputedStyle(n),b=n.getBoundingClientRect();if(s.display==='none'||s.visibility!=='visible'||Number(s.opacity)===0||s.transform!=='none'||s.clipPath!=='none'||s.maskImage!=='none'||n.hidden)return false;if(n!==e){const x=['hidden','clip','scroll','auto'].includes(s.overflowX),y=['hidden','clip','scroll','auto'].includes(s.overflowY);if(x&&(r.left<b.left+n.clientLeft||r.right>b.left+n.clientLeft+n.clientWidth)||y&&(r.top<b.top+n.clientTop||r.bottom>b.top+n.clientTop+n.clientHeight))return false;}}return true;};
+    const safe=v=>typeof v==='string'&&!/[\x00-\x1f\x7f]/.test(v)&&!secrets.some(s=>s&&v.includes(s))&&!/password|passwd|secret|token|authorization|credential|api[-_]?key|验证码|密码|口令|令牌|密钥/i.test(v);
+    const locator=(e,scope)=>e.id&&e.id.length<=128&&safe(e.id)&&scope.querySelectorAll('#'+CSS.escape(e.id)).length===1?'#'+CSS.escape(e.id):null;
+    // Never derive a parent string by silently subtracting excluded/editable
+    // children. Omit the entire semantic anchor/output instead.
+    const blockedChildren=e=>Array.from(e.querySelectorAll('*')).some(n=>excluded(n)||n.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(n.tagName)||n.hasAttribute('contenteditable'));
+    const isText=e=>!e.isContentEditable&&!e.closest('input,textarea,select,[contenteditable]')&&!excluded(e)&&visible(e)&&!blockedChildren(e);
+    const a=[],o=[];let omitted=0,excludedContent=0;
+    for(const e of root.querySelectorAll('h1,h2,h3,h4,legend,[role="heading"]')){
+     if(!excluded(e)&&visible(e)&&blockedChildren(e)){excludedContent++;continue;}
+     if(!isText(e))continue;const selector=locator(e,root),text=String(e.innerText||e.textContent||'').replace(/\s+/g,' ').trim();
+     if(!selector||!text||text.length>160||!safe(text)){omitted++;continue;}
+     if(a.length>=8){omitted++;continue;}a.push({selector,tag:e.tagName.toLowerCase(),text});
+    }
+    const add=(scope,closed)=>{const nodes=scope.querySelectorAll('output,[role="status"],[aria-live]');if(nodes.length>32)return false;
+     for(const e of nodes){if(!isText(e)||['INPUT','TEXTAREA','SELECT','BUTTON','TABLE','CANVAS','IFRAME'].includes(e.tagName))continue;const selector=locator(e,scope);if(!selector)continue;const aria=e.getAttribute('aria-label'),title=e.getAttribute('title'),label=aria||title||'';if(label.length>120||!safe(label))continue;
+      if(o.length>=12)return false;o.push({selector,tag:e.tagName.toLowerCase(),role:e.getAttribute('role')||'',closed,...(label?{label,labelSource:aria?'aria':'title'}:{})});
+     }return true;
+    };
+    const complete=add(root,true)&&(!ordinary||add(root.ownerDocument,false));return{anchors:a,outputs:o,omitted,excludedContent,complete};
+   },{max:policy.maxNodes,exclusions:config.excludeSelectors||[],secrets:sensitiveValues,ordinary:!ordinaryRead},g,config);
+  },{rootOnly:true});
+  if(!rows){gaps.add('closed_stage_root_not_observed');continue;}ordinaryRead=true;if(rows.limit)fail('CLOSED_SHADOW_LIMIT');
+  if(rows.omitted)gaps.add('closed_stage_anchor_not_fixed_or_sensitive');if(!rows.complete)gaps.add('closed_stage_output_inventory_limit');
+  if(rows.excludedContent)gaps.add('closed_stage_anchor_contains_excluded_or_editable_descendant');
+  // The root-only callback proved unique selector + complete ancestor geometry.
+  // Observation must not add headings to long-lived action target leases.
+  for(const row of rows.anchors)anchors.push({...closedDescriptor(policy,row.selector),tag:row.tag,text:row.text});
+  for(const row of rows.outputs){const {closed,...metadata}=row;outputs.push({...metadata,...(closed?closedDescriptor(policy,row.selector):{selector:row.selector,framePath:[]})});}
+ }
+ const after=await closedFingerprint(page,config);if(!same(before,after))fail('CLOSED_STAGE_OBSERVATION_CHANGED');
+ const uniqueOutputs=[...new Map(outputs.map(row=>[JSON.stringify([row.framePath,row.selector,row.closedShadow||null]),row])).values()];
+ if(anchors.length>32||uniqueOutputs.length>24)fail('CLOSED_SHADOW_LIMIT');
+ if(!anchors.length)gaps.add('closed_stage_anchor_not_observed');
+ return {schemaVersion:1,workflowId:planning.workflowId,documentRelation:previous?(previous.doc===b.doc?'same':'new'):'initial',closedFingerprintDigest:hash(after.map(r=>r.policyId+':'+r.sha256)),anchors,outputs:uniqueOutputs,gaps:[...gaps]};
+}
 
 function workflowOriginsFor(b,roots,config,previous=b.workflowOrigins){
  if(previous&&previous.document!==b.doc)fail('CLOSED_SHADOW_GENERATION_EXPIRED');

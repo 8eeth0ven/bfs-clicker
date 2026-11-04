@@ -176,7 +176,7 @@ compiler15 可通过可信启动配置 `webConfig.closedShadowRoots` 显式批�
 
 #### 显式闭根多阶段流程
 
-compiler18 可为 Start → 表单 → 下一表单 → 独立结果这类真实重建流程建立参数化 MCP。当前由 owner 提供完整本地 spec，再通过 `software_bind_workflow` 的 `specPath` 学习；规划器不会自动补造阶段计划。来源启动配置另按精确 workflow ID 授权，和写入执行/真实学习授权分别管理，例如：
+compiler18 可为 Start → 表单 → 下一表单 → 独立结果这类真实重建流程建立参数化 MCP。显式路径由 owner 提供完整本地 spec，再通过 `software_bind_workflow` 的 `specPath` 学习；compiler19 的自动候选路径见下节。来源启动配置另按精确 workflow ID 授权，和写入执行/真实学习授权分别管理，例如：
 
 ```json
 {
@@ -226,6 +226,16 @@ compiler18 可为 Start → 表单 → 下一表单 → 独立结果这类真实
 
 [真实闭根销毁重建 SDK 与负例测试](../test/software-closed-multistage.test.mjs)包含两样本、统一新值、生成第四值，以及跨批准根搬迁、阶段前隐藏洗源、同根合法复用、未知派发、超时、错误 document 和预算/证书上限反例。跨 URL/new-document 另有真实浏览器 direct compile/execute 测试，其证据范围与独立生成入口分列。默认旧工作流不会因新增此模式而自动重绑。
 
+#### 自动规划闭根多阶段候选
+
+compiler19 可从一次完整成功探索中生成阶段计划，无需手写完整 `closedStages`。启动时显式设置 `webConfig.closedStagePlanning:{"workflowId":"closed_search"}`，并保留已批准的 roots、动作和请求范围。`workflowPermissions.console.allowClosedStages:["closed_search"]` 仍是学习和执行所需的独立授权；规划开关本身不授予执行权限，MCP 的 `webOptions` 不能启用或更换该设置。
+
+例如 Start → 填写 first → Next → 填写 second → Search 的探索完成后，调用 `software_workflows({sourceId:"console"})`，选择 `planningMode:"closed-stages-v1"` 的候选。候选 ID 与本地 workflow ID 分开，前者绑定来源和实际路径，后者用于精确本地授权。使用返回的 `candidateId`、来源 revision、两组所有参数均变化的 `samples`，以及分别关联每个参数的 `resultAssertions` 调用 `software_bind_workflow`；随后仍须通过实际学习才会出现 ready 能力。
+
+规划器只接受完整连续路径：每次填写须有真实成功执行，完整填写序列与随后点击的执行事件严格绑定，并保持原顺序；删除、重复、重排或借用其他执行证据都会留下缺口。阶段使用当前批准根内可见、唯一且固定的标题锚点和实际 document 关系；包含排除后代或已知敏感/输入回显的标题整体省略，不裁字伪造锚点。新增阶段观察不保存输入值、其摘要或浏览器节点句柄。最终必须观察到独立文本结果目标，输入框的 status 标签不能替代结果。一个授权 ID 对应多条不同合格路径时拒绝自动选择。
+
+当前自动路径的真实 SDK 正例是同 document 销毁重建、两个参数的两样本学习及统一/生成调用；同阶段双字段加下一阶段字段的三个参数仅验证探索候选，自动跨 document 导航尚未完成该闭环实测。当前自动路径限主 frame 中已批准 closed text/search 输入与点击构成的有界直线流程，最多8个输入、30步。它不推导未知条件分支、跨 frame、select/check 或任意组件的业务含义；既有阶段执行守卫、双样本及逐次独立结果验证继续适用。复现与边界见[自动阶段规划测试](../test/software-closed-stage-planner.test.mjs)和[启动策略测试](../test/closed-stage-planning-policy.test.mjs)，实际回归与设备状态分别记录在验证摘要中。
+
 ## 参数化流程
 
 新探索会保留字段名、关联标签、HTML 必填/范围/长度/选项、外置 form 关联，以及结果区域候选；同一区域的结果定位扫描复用缓存。`software_workflows({sourceId})` 从这些私有证据识别搜索/筛选候选，公开输入 schema、outputTargets 标识与缺口。私有选择器不进入目录；旧库存没有约束时不会猜测字段必填。
@@ -272,7 +282,7 @@ Android/iOS 后端执行替换输入、点击/滑动、断言和类型化提取�
 
 视觉合同 `schemaVersion:2` 对解码后的整张 Canvas 像素建立指纹；只遮罩同 selector、同 frame 中此前已填写并回读的输入区，结果区不作为动态遮罩。同一区域多次输入以最后一次为准；当前输入区及动作锚点不得与其他遮罩按像素重叠，点击点也不得落入遮罩。`visualClick` 必须落在当前 OCR 锚点文字框内。每个后续视觉动作前使用同一张 OCR 截图重读此前关联的输入值；检查后仍会核对画面，发生变化则拒绝动作。不同 selector 的别名不自动视为同一宿主，动态时间、动画或光标等未遮罩变化可能导致保守拒绝；画面一致也不能证明隐藏处理器语义未变。
 
-PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；统一入口编译器版本为 `software-to-mcp-18`。
+PNG 使用 `pngjs` 7.0.0 解码，按上限校验完整压缩流、chunk 与 CRC；图片最多 1600 万像素、16 MiB，不接受交错 PNG。旧视觉合同缺少像素证据，需重新学习；当前编译器版本见[公开验证摘要](software-to-mcp-validation.json)。
 
 声明 `changedFromBefore:true` 的 DOM、ARIA 与视觉流程在最后触发动作前另取结果基线，防止输入时已更新的结果令无操作触发通过；提取后还会复核结果。该变化仍是时间上的证据：异步结果更新可能独立于触发动作，不能据此证明因果或后台业务完成。同一结果验证阶段中，同一 Canvas 的多个结果区域共享一次截图与 OCR；缓存仅限当前阶段，不跨动作或断言轮次复用。复用时固定 ElementHandle 并检查当前节点仍是同一宿主，替换则拒绝；触发前基线、触发后断言和提取后复核各自保留。
 
@@ -441,6 +451,16 @@ compiler14 可在可信本地 `keyboard.keyInput` 中显式设置 `mode:"onscree
 [整串确认模板](../examples/software/ios-visual-onscreen-complete-device.example.json) 另显式选择 `confirmation:"complete_text"` 与 `clearPlan:"fixed_max_length"`。它先执行可信定义 maxLength 限定的固定删除计划，再执行一份有限键入计划；中间 OCR 只用于观察，不据其分词或漏字增删动作、重试或重新聚焦。每键的新鲜度检查仍包含输入像素，切换键盘层还须比较切换前后的原始观察帧，确认输入未变化，仅沿用已批准的窄光标例外。识别过程、来源、布局或方位错误仍立即终止。
 
 固定删除完成后必须回读空值；全部键入后必须以原置信度门槛回读完整输入，随后执行原 Dismiss、隐藏阶段完整输入、布局、完整 PNG SHA、提交前结果基线和单次提交检查。`maxLength` 约束新输入，不证明旧值长度或光标位置；固定删除和 OCR 空值也不证明隐藏缓冲区真实为空。按键可能触发的未观察到的中间副作用不由整串确认保证。两项本地策略进入身份与 revision，改变后须重新学习。
+
+compiler19 另支持默认关闭的本地 `keyboard.keyInput.caretUnderlay`：
+
+```json
+{"mode":"paired_revealed_grayscale","maxUnderlayPixels":16,"minWhiteCoreFraction":0.8,"minSharedOpacity":0.125}
+```
+
+它只为屏幕按键的新鲜度比较增加有限像素等价权限，不能由 MCP 参数设置。基础 `keyboard.caret` 仍为原8字段，背景必须精确白色、前景为固定彩色。比较同一次解码的两张新图，保留完整 ROI、形状、单组件、透明度、颜色容差和区域外像素检查；必须由同一个实际端点显露所有变化点的灰度背景。透明度只从白色核心推导，再以固定透明度解释有限灰底点，灰底点不能反过来拟合透明度。所有非白点均计数，包括近白点；本地上限1–64，白核心比例至少0.8、共同透明度至少0.125。
+
+这是一项明确的视觉等价选择：应用自己绘制的同形彩条也可能满足规则，不能据此证明 OS 光标身份、被覆盖字符或隐藏缓冲区未变。切换键盘层、可见性准备、Dismiss 和提交不继承该权限；最终完整文字、布局及独立结果仍须通过。策略进入设备身份和学习 recipe，变更后须重新学习。原严格默认及第18轮失败原件保留。第19轮自建模拟器在校准阶段因 `CALIBRATION_UNRELATED_PIXELS_CHANGED` 停止，尚未执行流程发现、双样本或双入口；自有会话、模拟器、进程和端口均已清理。离线像素通过不代表设备闭环通过，实际结论以验证记录为准。相关测试见[PNG 比较](../test/visual-caret-underlay.test.mjs)与[配置及阶段隔离](../apk_tools/tests/test_mobile_visual_ios_underlay.py)。
 
 整串确认与固定删除相关的 137 项模拟回归通过；补充键位中心排他检查后，相关回归为 143/143。原严格路径的 123 项包含在这些回归内，不相加。真实传输诊断已回读 `alpha` 与 `Ab7z`，严格路径完整验收在首字母处拒绝；整串策略的完整设备结论以[验证记录](software-to-mcp-verification.md)为准。上述证据不能相加为一次设备验收。最多 64 次物理键仍受全局预算约束，示例的 50 动作不保证所有 16 字符组合都能执行完。
 

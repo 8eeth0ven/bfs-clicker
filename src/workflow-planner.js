@@ -10,6 +10,7 @@ import {createPolicy} from './policy.js';
 import {redactText} from './redact.js';
 import {visualRegion,overlap} from './browser-visual.js';
 import {validVirtualEvidence,virtualPolicyFor} from './aria-virtual-policy.js';
+import {validClosedStageObservation} from './closed-stage-evidence.js';
 const MAX_FILE=128*1024*1024,MAX_LINE=2*1024*1024,MAX_STATES=10000,MAX_CANDIDATES=100,MAX_INPUTS=8;
 const SEARCH=/search|query|filter|lookup|查询|搜索|筛选|检索/i;
 const SENSITIVE=/password|passwd|secret|token|cookie|authorization|credential|api[-_]?key|验证码|密码|口令|令牌|密钥|支付|付款|登录|登陆|注册/i;
@@ -80,10 +81,12 @@ export async function planBrowserWorkflows({runDir,sourceId,offset=0,limit=20}={
   const recovered=openCheckpointJournal({file:journal||path.join(root,'private/checkpoint.journal.jsonl'),checkpointFile:path.join(root,'private/checkpoint.json'),checkpoint:base,identity:id,runId:meta.runId,readOnly:true});
   if(recovered.notices.length)globalGaps.add('checkpoint_recovery_notice');
   const states=recovered.checkpoint.states;if(!Array.isArray(states)||states.length>MAX_STATES)fail('WORKFLOW_SOURCE_LIMIT','状态规模超出规划上限');
-  const observed=new Map(),starts=new Map(),successful=new Map(),virtualEvents=new Map(),eventHash=createHash('sha256'),stateEvidenceIds=new Set(states.map(state=>state.evidenceId));
+  const observed=new Map(),starts=new Map(),successful=new Map(),virtualEvents=new Map(),stageEvents=new Map(),eventPositions=new Map(),eventHash=createHash('sha256'),stateEvidenceIds=new Set(states.map(state=>state.evidenceId));let eventPosition=0;
   await readEvents(localFile(root,'private/events.jsonl',true),row=>{
    eventHash.update(JSON.stringify(row)+'\n');
+   eventPosition++;if(['state','closed_stage_planning_observed','action_started','action_finished'].includes(row.kind))eventPositions.set(row.evidenceId,eventPosition);
    if(row.kind==='state'&&stateEvidenceIds.has(row.evidenceId))observed.set(row.evidenceId,row);
+   if(row.kind==='closed_stage_planning_observed'&&stageEvents.size<MAX_STATES)stageEvents.set(row.stateEvidenceId,row);
    if(row.kind==='aria_virtual_domain_complete'&&virtualEvents.size<10000)virtualEvents.set(row.evidenceId,row);
    if(row.kind==='action_started'){if(starts.size<50000)starts.set(row.evidenceId,row);else globalGaps.add('execution_index_limit')}
    if(row.kind==='action_finished'&&row.status==='succeeded'){const start=starts.get(row.executionId);if(start&&start.stateId===row.stateId&&start.actionId===row.actionId)successful.set(JSON.stringify([row.stateId,row.actionId]),{started:start.evidenceId,finished:row.evidenceId})}
@@ -169,6 +172,64 @@ export async function planBrowserWorkflows({runDir,sourceId,offset=0,limit=20}={
      candidates.push(item);privateSpecs[candidateId]=spec;
     }
    }
+  }
+  if(config.closedStagePlanning){
+   const workflowId=config.closedStagePlanning.workflowId,byId=new Map(states.map(row=>[row.id,row])),routes=[];
+   const provenStage=state=>{const row=state?.closedStagePlanning,event=stageEvents.get(state?.evidenceId),stateEvent=observed.get(state?.evidenceId);if(!provenState(state)||!validClosedStageObservation(row,workflowId)||event?.stateId!==state.id||event.parentId!==state.parentId||event.digest!==row.digest||stateEvent?.closedStageDigest!==row.digest||stateEvent?.diagnostics?.frames?.at(-1)?.lines?.sha256!==row.closedFingerprintDigest||!(eventPositions.get(state.evidenceId)<eventPositions.get(event.evidenceId))||!policy.navigation(state.url).allow)return false;try{return row.anchors.every(a=>validLocator(a)&&closedTarget(a,config));}catch{return false;}};
+   for(const terminal of states){
+    if(!terminal.parentId)continue;
+    const final=terminal.path?.at(-1),parent=byId.get(terminal.parentId),button=parent?.interactives?.find(a=>a.id===final?.id);
+    if(!button||button.type!=='click'||!SEARCH.test([button.label,button.aria,button.associatedLabel].join(' ')))continue;
+    const chain=[];let current=terminal;const seen=new Set();
+    while(current&&!seen.has(current.id)&&chain.length<=31){seen.add(current.id);chain.unshift(current);current=current.parentId?byId.get(current.parentId):null;}
+    if(current||chain.length<2||chain.length>31||chain[0].parentId||chain[0].path?.length||!chain.every(provenStage)||chain[0].closedStagePlanning.documentRelation!=='initial'){globalGaps.add('closed_stage_route_not_proven');continue;}
+    const steps=[],stageRows=[],inputs=[],used=new Set(),properties={},required=[],routeGaps=[],usedExecutions=new Set();let invalid=false;
+    for(let index=0;index<chain.length;index++){
+     const state=chain[index],snapshot=state.closedStagePlanning;
+     if(index&&snapshot.documentRelation==='initial'){invalid=true;break;}
+     stageRows.push({id:'stage_'+index,startStep:steps.length,document:snapshot.documentRelation,url:state.url,anchors:clone(snapshot.anchors)});
+     if(index===chain.length-1)break;
+     const child=chain[index+1];if(child.parentId!==state.id||!Array.isArray(child.path)||hash(child.path.slice(0,state.path.length))!==hash(state.path)){invalid=true;break;}
+     const delta=child.path.slice(state.path.length);if(!delta.length||steps.length+delta.length>30){invalid=true;break;}
+     const transition=stageEvents.get(child.evidenceId),completed=successful.get(JSON.stringify([state.id,delta.at(-1)?.id]));
+     const preparations=transition.preparations;
+     if(!completed||transition.actionId!==delta.at(-1).id||transition.executionId!==completed.started||!Array.isArray(preparations)||preparations.length!==delta.length-1||hash(preparations.map(p=>p.actionId))!==hash(delta.slice(0,-1).map(a=>a.id))||new Set(preparations.map(p=>p.executionId)).size!==preparations.length||!(eventPositions.get(completed.started)<eventPositions.get(child.evidenceId)&&eventPositions.get(transition.evidenceId)<eventPositions.get(completed.finished))||usedExecutions.has(completed.started)){invalid=true;break;}
+     usedExecutions.add(completed.started);
+     if(preparations.length&&!state.inputPrefixes?.some(marker=>marker.liveOnly===true&&marker.outcome==='primitive_completed'&&hash(marker.actionIds)===hash(preparations.map(p=>p.actionId)))){invalid=true;break;}
+     let previousFinished=eventPositions.get(state.evidenceId);
+     for(const prepared of preparations){const execution=successful.get(JSON.stringify([state.id,prepared.actionId]));if(!execution||execution.started!==prepared.executionId||usedExecutions.has(execution.started)||!(previousFinished<eventPositions.get(execution.started)&&eventPositions.get(execution.started)<eventPositions.get(execution.finished)&&eventPositions.get(execution.finished)<eventPositions.get(completed.started))){invalid=true;break;}usedExecutions.add(execution.started);previousFinished=eventPositions.get(execution.finished);}
+     if(invalid)break;
+     for(let at=0;at<delta.length;at++){
+      const pathAction=delta[at],action=state.interactives.find(a=>a.id===pathAction.id),last=at===delta.length-1;
+      if(!action||pathAction.fromStateId!==state.id||locatorKey(action)!==locatorKey(pathAction)||action.noRetry||action.attempts!==1||action.status!=='succeeded'||!successful.has(JSON.stringify([state.id,action.id]))||!policy.action({...action,kind:action.kind||'click'}).allow||!action.closedShadow||!validLocator(action)||action.framePath?.length||last&&action.type!=='click'||!last&&action.type!=='text'||SENSITIVE.test([action.name,action.associatedLabel,action.aria].join(' '))){invalid=true;break;}
+      try{closedTarget(action,config);}catch{invalid=true;break;}
+      if(action.formAction&&!policy.request({url:action.formAction,method:String(action.formMethod||'GET').toUpperCase(),type:'document',navigation:true}).allow){invalid=true;break;}
+      const descriptor={selector:action.selector,framePath:[],closedShadow:clone(action.closedShadow),actionId:action.id};
+      if(!last){
+       const marker=state.inputPrefixes?.find(row=>row.liveOnly===true&&row.outcome==='primitive_completed'&&row.actionIds?.includes(action.id));
+       if(!marker||!['text','search'].includes(action.htmlType||'text')||action.htmlConstraints?.readOnly||inputs.length>=MAX_INPUTS){invalid=true;break;}
+       const param=parameterName(containsSecret(action.name)?{...action,name:''}:action,used),schema=constraintSchema(action,routeGaps);if(!schema||containsSecret(JSON.stringify({...schema,title:''}))){invalid=true;break;}
+       schema.title=safeLabel(schema.title,config,knownSecrets);properties[param]=schema;required.push(param);inputs.push(action);steps.push({...descriptor,kind:'fill',param,htmlType:action.htmlType,htmlConstraints:clone(action.htmlConstraints||{})});
+      }else steps.push({...descriptor,kind:'click'});
+     }
+     if(invalid)break;
+    }
+    if(invalid||!inputs.length||steps.at(-1)?.kind!=='click'){globalGaps.add('closed_stage_transition_execution_not_proven');continue;}
+    if(stageRows.some((row,index)=>index&&hash([row.url,row.anchors])===hash([stageRows[index-1].url,stageRows[index-1].anchors]))){globalGaps.add('closed_stage_semantic_boundary_not_fixed');continue;}
+    const candidateId='workflow_'+hash([sourceId,workflowId,steps,stageRows]),outcomeCandidates=[];
+    for(const output of terminal.closedStagePlanning.outputs){
+     if(!validLocator(output)||inputs.some(a=>locatorKey(a)===locatorKey(output))||['input','textarea','select','button','iframe','canvas','table'].includes(output.tag)||output.tag!=='output'&&!['status','log'].includes(output.role))continue;
+     try{closedTarget(output,config);}catch{continue;}
+     const outputId='output_'+hash([candidateId,locatorKey(output)]);outcomeCandidates.push({id:outputId,kind:'text',selector:output.selector,framePath:clone(output.framePath||[]),...(output.closedShadow?{closedShadow:clone(output.closedShadow)}:{}),tag:output.tag,role:output.role,...(output.label?{semanticLabel:safeLabel(output.label,config,knownSecrets)}:{})});
+    }
+    if(!outcomeCandidates.length){globalGaps.add('closed_stage_independent_output_missing');continue;}
+    const inputSchema={type:'object',properties,required,additionalProperties:false},spec={schemaVersion:1,id:workflowId,name:'分阶段查询流程',description:'由真实冷启动探索的完整成功路径生成；需双样本与独立结果验证',effect:'unknown',executionMode:'closed-stages-v1',closedStages:{schemaVersion:1,stages:stageRows},inputSchema,entry:{url:chain[0].url,anchors:clone(stageRows[0].anchors)},steps,assertions:[],extract:[],samples:[],outcomeCandidates};
+    routes.push({spec,item:{id:candidateId,name:'分阶段查询流程',description:'实际阶段路径候选；本地阶段授权与双样本业务结果仍须独立验证',planningMode:'closed-stages-v1',kind:'browser_workflow',readiness:'candidate',effect:'unknown',revision:hash([revision,spec]),inputSchema:clone(inputSchema),outputTargets:outcomeCandidates.map(o=>({id:o.id,kind:o.kind,label:o.semanticLabel||'结果区域'})),gaps:['two_distinct_samples_required','parameter_related_assertions_required','workflow_not_validated','closed_stage_startup_grant_required'],evidence:{runId:meta.runId,stateIds:chain.map(s=>s.id),stateEvidenceIds:chain.map(s=>s.evidenceId),parameterizationValidated:false}}});
+   }
+   const distinct=[...new Map(routes.map(row=>[hash(row.spec),row])).values()];
+   if(distinct.length>1)globalGaps.add('closed_stage_routes_ambiguous');
+   else if(distinct.length===1&&candidates.length<MAX_CANDIDATES){const row=distinct[0];candidates.unshift(row.item);privateSpecs[row.item.id]=row.spec;}
+   else if(!distinct.length)globalGaps.add('closed_stage_complete_route_missing');
   }
   // Visual actions and result regions come only from the server owner's fixed
   // configuration. They describe a possible association, not observed business

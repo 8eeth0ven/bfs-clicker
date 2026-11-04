@@ -1,8 +1,37 @@
 # 软件转 MCP：能力与验证范围
 
+本页记录`software-to-mcp-19`的有限契约与验证范围。统一服务保留28工具；ready不表示任意网站/App全部业务都覆盖。分发为[草稿PR检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)，main未合并、npm未发布；[compiler18历史检查点](https://github.com/8eeth0ven/bfs-clicker/commit/bed2d4c55f3758d7772c957d40460f9aece60504)不是未来compiler19提交声明。机器状态见[公开验证摘要](software-to-mcp-validation.json)，配置见[指南](software-to-mcp.md)。
+
+## compiler19 当前证据
+
+| 项目 | 实际证据 | 范围 |
+| --- | --- | --- |
+| 最终冻结完整JS | 主项目239/239；完整software476/476，均0失败/跳过 | 两套结束120runtime/441公开代码逐SHA匹配 |
+| 完整Python | 579项，578通过、1 Hermes fixture跳过；144.763秒 | 74份producer/helper源当前匹配，实际签名APK fixture；不是完整JS或508设备同一范围 |
+| 自动闭根阶段规划 | 新规划+既有planner19/19；源码SDK两样本/统一/生成共5业务请求 | 同document实际销毁重建、2参数；3参数仅探索候选；不外推自动跨new-document |
+| iOS underlay视觉合同 | Node原帧/PNG19项、Python受影响191项分列 | 显式paired_revealed_grayscale，默认strict不变；不是设备或OS光标身份通过 |
+| 独立生产安装/SDK | 367文件/32dist、28工具、stderr0；bytes/modes/源/归档/锁一致，8直接依赖本地 | 8个验收producer文件；DOM/open、provider/HTTP、手写closed、自动closed及refresh各有有限实际正链 |
+| 普通iOS第19轮 | 终态失败，实际错误 `CALIBRATION_UNRELATED_PIXELS_CHANGED`；phase=`keyboard_calibration` | 508复制源/32dist对120/441；前bytes匹配=是、后匹配=是；共享host依赖、非hermetic |
+
+自动规划从本地`closedStagePlanning.workflowId`启用，随后仍需`allowClosedStages`精确ID授权。只读阶段锚点、独立文本结果、有序完整输入准备与父路径共同产生候选；候选本身不授予执行。成功动作后跨合法语义阶段可重建host/form，阶段内身份仍稳定，未知不重试。新证据不保存输入原文、值摘要和DOM handles；这个范围不扩展到全部私有配置/checkpoint。复现见[自动规划](../test/software-closed-stage-planner.test.mjs)及[配置身份](../test/closed-stage-planning-policy.test.mjs)。
+
+自动链安装包实际为探索1+学习2+统一1+生成1，共5次业务，采用发现的candidateId，没有完整手写specPath；host/field/form实际销毁，decoy不参与。8项离线事件/证据反例不新增HTTP，缺少owner grant不新增HTTP，input echo不能成为独立结果。缺授权反例的1个worker按预期退出1，单独绑定实际操作、安装目录与进程观察记录；17个SDK客户端均退出0且stderr为0，62个正常子进程均退出0，预期拒绝不混入正常退出统计。自动正例只有同document重建；3参数只证明探索候选，旧手写spec跨新document的源码证据保留在compiler18历史，不当新自动学习/双入口证明。DOM/open每mode各5业务，provider探索1+随后4，显式HTTP另2且不新增native UI；OpenAPI原生成、统一、再生成共3业务，refresh/stale请求0。它们不证明物理设备、OCR或任意业务等价。
+
+显式`caretUnderlay`仅用于`fresh_key`：同一对已解码PNG先走原strict，必要时全图重新扫描；一个实际揭示的opaque灰阶端点、白色核心推得共享opacity、局部非白像素cap共同检查。当前owner策略为16像素、核心比例0.8、opacity下限0.125。默认strict及其他派发/结果/取消/预算守卫保留。伪造覆盖或被遮字形可能产生同样像素，因此这是视觉等价权限，不能证明系统caret身份、隐藏buffer或源字符串精确。见[Node合同](../test/visual-caret-underlay.test.mjs)与[Python阶段/IPC](../apk_tools/tests/test_mobile_visual_ios_underlay.py)。
+
+第19轮setup focus=1、MCP键=0、业务提交=0；discoveryStarted=否、learningStarted=否、twoSampleValidated=否、readyPublished=否、unifiedPassed=否、generatedPassed=否。六清理全部成立=是，fresh主机审计=是，剩余owned进程=0、监听owned端口=0，自有simulator退出=是、既有设备保留=是。未知不写成0或通过；缓存WDA使用=是只表示构建复用，不移用旧校准图/成功结论。
+
+执行者保留10GiB可用空间。设备4GiB计划准入、15秒检查，低于11GiB只中止本次harness；storageAbort=否、末核reserve满足=是。这是任务运维约束，不是产品自动删除或并发OS写入quota；历史清理原值保留，不把旧回收量计入本轮。
+
+提交前须另核实际暂存index、精确最终tar、SDK基线外仅批准两验证文档delta，以及完整内容隐私。本投影不自批提交、不自嵌未来commit/tar摘要。原第18轮真实失败、Android中文未闭环与空格研究假接受保留；这些不能由新有限功能追认为成功。
+
+## compiler18 及更早历史（以下原文保留）
+
+# 软件转 MCP：能力与验证范围
+
 本页记录`software-to-mcp-18`的有限契约与验证范围。统一服务保留28工具；ready不表示任意网站/App的全部业务都已覆盖。分发仍为[草稿PR检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)，main未合并、npm未发布；[compiler17历史检查点](https://github.com/8eeth0ven/bfs-clicker/commit/af4cfa90be06ed951ccee602360e97704e68a2ef)不是未来compiler18提交声明。机器状态见[公开验证摘要](software-to-mcp-validation.json)，配置见[指南](software-to-mcp.md)。
 
-## compiler18 当前证据
+## compiler18 历史证据
 
 | 项目 | 实际证据 | 范围 |
 | --- | --- | --- |

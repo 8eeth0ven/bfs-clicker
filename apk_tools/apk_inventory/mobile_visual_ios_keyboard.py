@@ -79,12 +79,35 @@ def caret_contract(value):
     return value
 
 
+def caret_underlay_contract(value, policy=None):
+    """Explicit local authority for key-freshness only, never inferred from PNG."""
+    fields = {"mode", "maxUnderlayPixels", "minWhiteCoreFraction", "minSharedOpacity"}
+    if (not isinstance(value, dict) or set(value) != fields
+            or value.get("mode") != "paired_revealed_grayscale"
+            or type(value.get("maxUnderlayPixels")) is not int
+            or not 1 <= value["maxUnderlayPixels"] <= 64):
+        fail("VISUAL_CARET_UNDERLAY_CONFIG_INVALID")
+    for key, minimum in (("minWhiteCoreFraction", .8), ("minSharedOpacity", .125)):
+        number = value[key]
+        if (not isinstance(number, (int, float)) or isinstance(number, bool)
+                or not math.isfinite(number) or not minimum <= number <= 1):
+            fail("VISUAL_CARET_UNDERLAY_CONFIG_INVALID")
+    if policy is not None:
+        caret_contract(policy)
+        if policy["background"] != [255, 255, 255] or max(policy["color"]) - min(policy["color"]) < 64:
+            fail("VISUAL_CARET_UNDERLAY_CONFIG_INVALID")
+    return value
+
+
 def gaps(config):
     from .mobile_visual_ios_keys import GAPS as key_gaps
     return GAPS + (CARET_GAPS if "caret" in config else []) + (key_gaps if "keyInput" in config else []) + ([
         "explicit_keyplane_and_visual_shell_are_local_owner_authority_not_os_ownership",
         "calibration_hashes_are_provenance_only_current_app_window_image_and_keyplane_are_rechecked",
-    ] if "geometryEvidence" in config else [])
+    ] if "geometryEvidence" in config else []) + ([
+        "paired_revealed_grayscale_is_local_pixel_authority_not_os_caret_or_glyph_identity",
+        "covered_grayscale_glyph_changes_may_match_approved_underlay_visual_policy",
+    ] if isinstance(config.get("keyInput"), dict) and "caretUnderlay" in config["keyInput"] else [])
 
 
 def _point_region(rect, window):
@@ -185,6 +208,10 @@ def keyboard_contract(value, definition):
     if "keyInput" in value:
         from .mobile_visual_ios_keys import key_input_contract
         key_input_contract(value["keyInput"], definition)
+        if "caretUnderlay" in value["keyInput"]:
+            if "caret" not in value:
+                fail("VISUAL_CARET_UNDERLAY_CONFIG_INVALID")
+            caret_underlay_contract(value["keyInput"]["caretUnderlay"], value["caret"])
     region = _region(value["region"])
     source = _region(value.get("sourceRegion", region))
     if _split_contract(value, definition) is not None:
@@ -749,9 +776,13 @@ def _validated_caret_result(result, before):
     return result["equivalent"]
 
 
-def _caret_equivalent(session, config, definition, before, after, geometry, masks, *, task=None):
+def _caret_equivalent(session, config, definition, before, after, geometry, masks, *, task=None, underlay=None):
     """Bounded local Node helper; all failure paths reap the owned process."""
     policy = caret_contract(config["keyboard"]["caret"])
+    # Only _fresh_key explicitly passes this validated local option. Merely
+    # finding it in config must not broaden any other caret caller/phase.
+    if underlay is not None:
+        policy = {**policy, "underlay": caret_underlay_contract(underlay, policy)}
     if task is not None:
         return task.caret(before, after, {"masks": masks, "valueRegion": definition["valueRegion"],
                                          "geometry": geometry, "policy": policy})

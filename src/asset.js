@@ -57,7 +57,7 @@ const RETIRED = new Set(['rootPool','rootPoolSize','overviewBatchSize','overview
 const OPTIONAL = ['startUrl','outputDir','storageState','persistentProfile','channel','extraLaunchArgs',
   'userAgent','proxy','authInject','credentialOrigins','navigationOrigins','requestOrigins','includeUrlPattern',
   'authProfileId','sessionWritebackTo','loginUrl','loginPageRe','loginLoggedInUrlContains',
-  'loginTimeoutMs','gotoRetries','relocateRetries','circuitBreakerMax','urlShapeDedup',
+  'loginTimeoutMs','gotoRetries','relocateRetries','circuitBreakerMax','urlShapeDedup','closedStagePlanning',
   'pageSimDedup','pageSimThreshold','discoverySeedBatch','formValues','fillTextValue', 'authEpoch','visual'];
 const POSITIVE = ['maxStates','maxDurationMs','maxRequests','maxTabs','maxActions','maxStatesPerHost',
   'gotoTimeoutMs','actionTimeoutMs','drainTimeoutMs','trafficMaxBodyBytes','trafficHarvestMaxBytes',
@@ -101,6 +101,12 @@ export function readSession(file) {
   }
   return state;
 }
+function closedStagePlanning(value,roots){
+  if(value===undefined)return undefined;
+  const invalid=()=>{throw Object.assign(new Error('CLOSED_STAGE_PLANNING_INVALID：需要已批准闭根及唯一明确的 workflowId'),{code:'CLOSED_STAGE_PLANNING_INVALID'});};
+  if(value===null||typeof value!=='object'||Array.isArray(value)||Object.keys(value).length!==1||!Object.hasOwn(value,'workflowId')||typeof value.workflowId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(value.workflowId)||['__proto__','constructor','prototype'].includes(value.workflowId)||!roots.length)invalid();
+  return {workflowId:value.workflowId};
+}
 export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false } = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('config 必须是 JSON 对象');
   if(input.auth!=null&&(typeof input.auth!=='object'||Array.isArray(input.auth)))throw new Error('auth 必须是对象');
@@ -114,6 +120,8 @@ export function normalizeConfig(input, { baseDir = process.cwd(), legacy = false
   cfg.ariaVirtualLists = normalizeAriaVirtualLists(cfg.ariaVirtualLists);
   cfg.closedShadowRoots = normalizeClosedShadowRoots(cfg.closedShadowRoots);
   if(cfg.closedShadowRoots.length&&cfg.browserType!=='chromium')throw new Error('closed Shadow 后端仅支持 Chromium');
+  const stagePlanning=closedStagePlanning(cfg.closedStagePlanning,cfg.closedShadowRoots);
+  if(stagePlanning)cfg.closedStagePlanning=stagePlanning;else delete cfg.closedStagePlanning;
   cfg.startUrl = canonicalAsset(cfg.startUrl);
   cfg._migration = [...(input._migration||[]),...Object.keys(input).filter(k => RETIRED.has(k)).map(k => RETIRED_NOTES[k] || `${k} 已退役；统一调度器串行探索，安全守卫始终启用`)];
   for (const k of RETIRED) delete cfg[k];

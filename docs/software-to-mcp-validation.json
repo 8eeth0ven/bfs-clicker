@@ -64,7 +64,10 @@
     "closedMultistage": "node --test test/software-closed-multistage.test.mjs",
     "openApiRefresh": "node --test test/software-openapi-refresh.test.mjs test/artifact-text.test.mjs",
     "adbCaptureIdentity": "PYTHONPATH=apk_tools python -m unittest discover -s apk_tools/tests -p test_adb_capture_identity.py",
-    "iosSplit": "node --test test/ios-keyboard-envelope.test.mjs test/ios-keyboard-owner-approval.test.mjs"
+    "iosSplit": "node --test test/ios-keyboard-envelope.test.mjs test/ios-keyboard-owner-approval.test.mjs",
+    "closedStagePlanning": "node --test test/closed-stage-planning-policy.test.mjs test/software-closed-stage-planner.test.mjs",
+    "iosCaretUnderlay": "node --test test/visual-caret.test.mjs test/visual-caret-underlay.test.mjs",
+    "iosCaretUnderlayPython": "PYTHONPATH=apk_tools python -m unittest discover -s apk_tools/tests -p test_mobile_visual_ios_underlay.py"
   },
   "publicEvidence": {
     "roiFusionTests": "../test/visual-observation-regions.test.mjs",
@@ -127,7 +130,11 @@
     "iosGeometryTests": "../apk_tools/tests/test_mobile_visual_ios_keyboard_geometry.py",
     "iosEnvelopeTests": "../test/ios-keyboard-envelope.test.mjs",
     "iosOwnerApprovalTests": "../test/ios-keyboard-owner-approval.test.mjs",
-    "iosGeometryExample": "../examples/software/ios-visual-keyboard-device.example.json"
+    "iosGeometryExample": "../examples/software/ios-visual-keyboard-device.example.json",
+    "closedStagePlannerTests": "../test/software-closed-stage-planner.test.mjs",
+    "closedStagePlanningPolicyTests": "../test/closed-stage-planning-policy.test.mjs",
+    "iosCaretUnderlayTests": "../test/visual-caret-underlay.test.mjs",
+    "iosCaretUnderlayPythonTests": "../apk_tools/tests/test_mobile_visual_ios_underlay.py"
   },
   "failureHistory": [
     {
@@ -205,6 +212,10 @@
     {
       "kind": "普通iOS第18轮",
       "status": "实际终态失败：VISUAL_FRAME_CHANGED；phase=learning_second_sample_key_freshness。保留真实进度、清理与source范围，不能由准备/旧17产物追认为成功。"
+    },
+    {
+      "kind": "普通iOS第19轮",
+      "status": "实际终态失败：CALIBRATION_UNRELATED_PIXELS_CHANGED；phase=keyboard_calibration。保留真实进度、清理与source范围，不能由准备或旧设备产物追认为成功。"
     }
   ],
   "previousCompiler12FullRegression": {
@@ -1991,12 +2002,323 @@
     "countingRule": "Source cohorts, focused/independent repeats, installed package and device evidence are separate and overlap. Do not add38/54/earlier49/101 or metadata/native mock counts into a claimed independent total.",
     "scopeNote": "完整保留compiler17当时current、focused、package、device、release、limits和storage；不是compiler18重跑。"
   },
-  "compilerVersion": "software-to-mcp-18",
+  "previousCompiler18PreFinalSourceRun": {
+    "status": "superseded_not_final_source_verification",
+    "software": {
+      "total": 457,
+      "passed": 457,
+      "failed": 0,
+      "skipped": 0
+    },
+    "sourceMatchedAtEnd": false,
+    "scope": "早期全套运行期间随后发生stage-entry来源修复；旧绿日志保留，不当最终同源通过。最终postfix239/457另列。"
+  },
+  "previousCompiler18": {
+    "compilerVersion": "software-to-mcp-18",
+    "status": "full_regressions_and_installed_sdk_verified_with_scoped_device_outcome_draft_checkpoint",
+    "scope": "有限Web/APK/iOS契约；不同源码cohort和设备范围分别记录，非通用网站/App全部业务证明。",
+    "asOf": "2026-11-02",
+    "currentFullRegression": {
+      "compilerVersion": "software-to-mcp-18",
+      "status": "passed",
+      "currentRuntimeCoveredBySingleFullSoftwareRun": true,
+      "legacy": {
+        "status": "passed",
+        "command": "npm test",
+        "total": 239,
+        "passed": 239,
+        "failed": 0,
+        "skipped": 0,
+        "durationMs": 85798.78521,
+        "all119RuntimeFilesMatchedAtEnd": true,
+        "all436PublicCodeFilesMatchedAtEnd": true
+      },
+      "software": {
+        "status": "passed",
+        "command": "npm run test:software",
+        "total": 457,
+        "passed": 457,
+        "failed": 0,
+        "skipped": 0,
+        "durationMs": 750311.040791,
+        "all119RuntimeFilesMatchedAtEnd": true,
+        "all436PublicCodeFilesMatchedAtEnd": true
+      },
+      "python": {
+        "status": "passed_with_one_skipped_fixture",
+        "total": 571,
+        "passed": 570,
+        "failed": 0,
+        "skipped": 1,
+        "durationSeconds": 142.037,
+        "sourceFiles": 73,
+        "allSourceHashesMatchedAtRunEnd": true,
+        "realSignedApkFixtureProvided": true,
+        "skipReason": "缺少编译后的Hermes fixture",
+        "scope": "73份Python及关联helper源码范围，独立于119/436完整JS和503设备快照；不把跳过计为通过。"
+      },
+      "combinedSourceCohort": {
+        "runtimeFiles": 119,
+        "publicCodeFiles": 436,
+        "status": "same_frozen_bytes_verified_at_both_JS_suite_ends",
+        "scope": "119runtime/436公开代码的最终postfix；Python73、installed SDK和503设备各自分列。"
+      }
+    },
+    "currentFocused": {
+      "closedMultistage": {
+        "status": "passed",
+        "producer": {
+          "total": 11,
+          "passed": 11,
+          "scope": "真实Chromium、官方SDK两样本/统一/生成入口及注入故障反例"
+        },
+        "independent": {
+          "pureVmControls": 11,
+          "scope": "实际内部函数的纯VM独审，不是另11次浏览器或设备测试"
+        },
+        "groupsNotSummed": true,
+        "explicitOwnerSpecAndStartupGrant": true,
+        "defaultLegacyUnchanged": true,
+        "sameDocumentObservedOriginsNotLaundered": true,
+        "unknownNotRetried": true,
+        "sameDocumentSdkBusiness": {
+          "discovery": 1,
+          "learning": 2,
+          "unified": 1,
+          "generated": 1,
+          "wholeFixture": 5,
+          "eachIntentExactlyOnce": true
+        },
+        "newDocumentScope": "真实浏览器direct compile/execute两样本和第三值；与独立生成入口证明分列。"
+      },
+      "openapiRefresh": {
+        "status": "passed",
+        "refreshTests": 15,
+        "existingReaderTests": 6,
+        "relatedOpenapiReferenceTests": 21,
+        "groupsNotSummed": true,
+        "originalsRereadOnExplicitRefresh": true,
+        "sameDescriptorBytesAndMetadata": true,
+        "operationDecodedCacheMiB": 16,
+        "singleFileMiB": 8,
+        "perBundleMiB": 16,
+        "referencesPerBundle": 32,
+        "maximumSupplements": 32,
+        "oldCurrentPreservedOnFailure": true,
+        "noUrlFetch": true,
+        "noAtomicFilesystemClaim": true
+      },
+      "adbCaptureIdentity": {
+        "status": "passed",
+        "targetedTests": 11,
+        "includedInPythonFull": true,
+        "onlyOlderDuplicateProofRemoved": true,
+        "finalPreAndPostCaptureProofKept": true,
+        "localProtocolBenchmark": {
+          "trials": 3,
+          "oldCommands": 13,
+          "newCommands": 10,
+          "oldMedianMs": 1120.818292,
+          "newMedianMs": 894.507333,
+          "realDevice": false,
+          "notEndToEndSpeed": true
+        }
+      },
+      "iosOwnerSplit": {
+        "status": "scoped_tests_passed",
+        "pythonAffected": 217,
+        "nodeSnapshotFiles": 21,
+        "groupsOverlapFullSuitesNotSummed": true,
+        "localMode": "owner_approved_split",
+        "actualAppWindowImageAxOcrStillRequired": true,
+        "shaIsProvenanceNotUiAuthorization": true,
+        "defaultGuardsUnchanged": true,
+        "deviceAcceptanceSeparate": true
+      }
+    },
+    "currentPackageCheck": {
+      "compilerVersion": "software-to-mcp-18",
+      "status": "actual_independent_production_install_SDK_and_finite_business_chains_passed",
+      "files": 365,
+      "gatewayDistFiles": 32,
+      "officialSdkTools": 28,
+      "stderrBytes": 0,
+      "clientClosed": true,
+      "serverProcessClosed": true,
+      "producerFilesMatched": 7,
+      "producerFilesAreNotSevenBusinessScenarios": true,
+      "productionModulesImported": true,
+      "allEightDirectDependenciesLocal": true,
+      "allPackedSourceBytesAndModesMatchedAtSdkCheck": true,
+      "sourceArchiveAndLockUnchanged": true,
+      "installedRuntimeResolvedLocally": true,
+      "externalClientAndFixtureFromWorkspacePermitted": true,
+      "installedLiveState": {
+        "status": "passed",
+        "modes": [
+          "ordinary_dom",
+          "open_shadow_dom"
+        ],
+        "wholeBusinessRequestsPerMode": 5,
+        "explorationPerMode": 1,
+        "learningPerMode": 2,
+        "unifiedPerMode": 1,
+        "generatedPerMode": 1,
+        "eachIntentExactlyOnce": true,
+        "retiredFormsDetachedNotHidden": true
+      },
+      "installedProviderFidelity": {
+        "status": "passed",
+        "discoveryNativeBusinessRequests": 1,
+        "afterDiscoveryNativeBusinessRequests": 4,
+        "wholeNativeFixtureBusinessRequests": 5,
+        "explicitHttpBusinessRequests": 2,
+        "explicitHttpAddedNativeUiCalls": 0,
+        "scope": "协议provider与显式HTTP，非物理App或OCR验收。"
+      },
+      "installedClosedMultistage": {
+        "status": "passed",
+        "counts": {
+          "discovery": 1,
+          "learning": 2,
+          "unified": 1,
+          "generated": 1,
+          "wholeFixture": 5
+        },
+        "retiredHostsFieldsAndFormsDetached": true,
+        "eachIntentExactlyOnce": true,
+        "scope": "同document实际销毁闭根/表单；new-document direct源码测试另列。"
+      },
+      "installedOpenApiRefresh": {
+        "status": "passed",
+        "counts": {
+          "initialGenerated": 1,
+          "refreshHttp": 0,
+          "staleHttp": 0,
+          "unifiedChanged": 1,
+          "newGenerated": 1,
+          "totalBusiness": 3
+        },
+        "oldGeneratedStaleBeforeRequest": true,
+        "scope": "原始red、统一blue、生成cyan三次真实业务；refresh及stale请求均0。"
+      },
+      "productionInstallCommand": "npm ci --omit=dev --ignore-scripts --prefer-offline",
+      "finalDocumentationArchiveProjection": {
+        "onlyPermittedDeltaPaths": [
+          "docs/software-to-mcp-verification.md",
+          "docs/software-to-mcp-validation.json"
+        ],
+        "unchangedPackedFileCount": 363,
+        "rule": "提交前核实际暂存index及精确tar，只有两验证文档可相对SDK基线投影，其他bytes/modes及runtime须同。"
+      },
+      "fullContentPrivacyAudit": {
+        "rule": "提交前对实际index与精确tar全内容审核；本投影不自批通过。"
+      }
+    },
+    "deviceEvidence": {
+      "iosOrdinarySoftKeyboard": {
+        "latestCompletedAttempt": 18,
+        "attempt18": {
+          "attempt": 18,
+          "status": "terminal_failed",
+          "phase": "learning_second_sample_key_freshness",
+          "actualError": "VISUAL_FRAME_CHANGED",
+          "runtime": "owned iOS27.0 simulator",
+          "physicalDevice": false,
+          "source": {
+            "copiedFiles": 503,
+            "gatewayDistFiles": 32,
+            "runtimeFiles": 119,
+            "publicCodeFiles": 436,
+            "allBytesMatchedBefore": true,
+            "allBytesMatchedAfter": true,
+            "hostDependenciesShared": true,
+            "hermetic": false
+          },
+          "outcome": {
+            "discoveryStarted": true,
+            "learningStarted": true,
+            "twoSampleValidated": false,
+            "readyPublished": false,
+            "unifiedPassed": false,
+            "generatedPassed": false,
+            "mcpAcceptancePassed": false,
+            "calibrationSetupFocusActions": 1,
+            "mcpKeyboardActions": 38,
+            "businessSubmissions": 1
+          },
+          "cleanup": {
+            "sixFlagsAllTrue": true,
+            "existingDevicesPreserved": true,
+            "ownedSimulatorAbsent": true,
+            "independentFreshHostAudit": true,
+            "ownedProcessesRemaining": 0,
+            "listeningOwnPorts": 0
+          },
+          "storage": {
+            "storageAbort": false,
+            "reserveMetAtEnd": true
+          },
+          "cachedWda": {
+            "used": true,
+            "artifactByteCopyVerified": true,
+            "minOsRuntimeCompatible": true,
+            "scope": "复用已清理的兼容WDA构建，不复用旧校准图/source或MCP成功结论。"
+          },
+          "scope": "自建模拟器本轮实际终态；setup focus与MCP按键/业务计数分开，非物理设备或任意App证明。"
+        }
+      },
+      "historicalPlatforms": "previousCompiler17.deviceEvidence以及更早previousCompiler*完整保留；Android/Web/原生语义历史不是18新跑。"
+    },
+    "deviceEvidenceScope": "第18轮实际503份source/119runtime/436code；本地缓存WDA仅构建复用。其他平台历史不换绑本轮源码或重新计数。",
+    "release": {
+      "compilerVersion": "software-to-mcp-18",
+      "status": "draft_pull_request_checkpoint",
+      "distributionType": "draft_pull_request_checkpoint",
+      "mainMerged": false,
+      "npmPublished": false,
+      "basePublishedCheckpoint": {
+        "compilerVersion": "software-to-mcp-17",
+        "commit": "af4cfa90be06ed951ccee602360e97704e68a2ef",
+        "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/af4cfa90be06ed951ccee602360e97704e68a2ef",
+        "draftPr": "https://github.com/8eeth0ven/bfs-clicker/pull/1",
+        "scope": "已存在的compiler17历史检查点，不自称当前18远端head。"
+      },
+      "finalGate": "提交前实际核验暂存index、精确tar、只批准的两文档delta和完整内容隐私；由PR/交付报告记录，不把未来commit/tar哈希自嵌文档。"
+    },
+    "limits": [
+      "闭根阶段必须owner本地spec及startup精确allowClosedStages，不自动推导阶段或扩大动作/请求/导航授权。",
+      "旧workflow整次稳定默认保留；新模式同阶段固定身份，只在成功primitive后按完整合同准入新generation，未知不重试。",
+      "同doc已观察节点的最近root来源不得洗白，rollback不清历史；经验证new document才清，不能证明未观察历史或任意网页原子性。",
+      "OpenAPI刷新只重读明确本地原件，保持origin范围；操作缓存16MiB不等于整轮或进程内存上限，不承诺恶意FS原子快照。",
+      "ADB局部协议子进程耗时不是真机、端到端MCP或固定通用速度。",
+      "iOS split仅本地owner授权；app/window/image/实际AX/OCR、输入/结果/Dismiss/freshness/caret/预算门禁保留，SHA不证明OS所有权。",
+      "字段分区研究仍未进入MCP/npm生产策略，真实上 海被OCR读作上海的已知假接受不被新功能抹除。",
+      "设备、provider协议、DOM、OCR与HTTP各有范围，能力目录不自动切换通路或证明业务等价。"
+    ],
+    "storagePolicy": {
+      "minimumAvailableReserveGiB": 10,
+      "plannedOutputPreflight": "大输出前要求free减planned至少10GiB；实际启动另做fresh准入。",
+      "productRuntimeAutomaticCleanup": false,
+      "device18": {
+        "plannedGiB": 4,
+        "interruptBelowGiB": 11,
+        "monitorIntervalSeconds": 15,
+        "storageAbort": false,
+        "reserveMetAtEnd": true
+      },
+      "historicalCleanup": "previousCompiler17.storagePolicy及previousCompiler16.storagePolicy原值保留，不把旧回收量加为本轮释放。",
+      "scope": "任务运维约束，不是产品自动删除、文件系统quota或对其他OS并发写入的保证。"
+    },
+    "countingRule": "最终同源239/457、Python571、focused/independent、installed SDK与设备证据分列并有交叠；11+VM11、OpenAPI15/reader6/related21及iOS217/21不累加为独立全球总数。",
+    "scopeNote": "完整保留compiler18当时current、focused、package、device、release、limits和storage；不是compiler19重跑。"
+  },
+  "compilerVersion": "software-to-mcp-19",
   "status": "full_regressions_and_installed_sdk_verified_with_scoped_device_outcome_draft_checkpoint",
   "scope": "有限Web/APK/iOS契约；不同源码cohort和设备范围分别记录，非通用网站/App全部业务证明。",
-  "asOf": "2026-11-02",
+  "asOf": "2026-11-04",
   "currentFullRegression": {
-    "compilerVersion": "software-to-mcp-18",
+    "compilerVersion": "software-to-mcp-19",
     "status": "passed",
     "currentRuntimeCoveredBySingleFullSoftwareRun": true,
     "legacy": {
@@ -2006,124 +2328,108 @@
       "passed": 239,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 85798.78521,
-      "all119RuntimeFilesMatchedAtEnd": true,
-      "all436PublicCodeFilesMatchedAtEnd": true
+      "durationMs": 86355.147165,
+      "all120RuntimeFilesMatchedAtEnd": true,
+      "all441PublicCodeFilesMatchedAtEnd": true
     },
     "software": {
       "status": "passed",
       "command": "npm run test:software",
-      "total": 457,
-      "passed": 457,
+      "total": 476,
+      "passed": 476,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 750311.040791,
-      "all119RuntimeFilesMatchedAtEnd": true,
-      "all436PublicCodeFilesMatchedAtEnd": true
+      "durationMs": 779675.928584,
+      "all120RuntimeFilesMatchedAtEnd": true,
+      "all441PublicCodeFilesMatchedAtEnd": true
     },
     "python": {
       "status": "passed_with_one_skipped_fixture",
-      "total": 571,
-      "passed": 570,
+      "total": 579,
+      "passed": 578,
       "failed": 0,
       "skipped": 1,
-      "durationSeconds": 142.037,
-      "sourceFiles": 73,
+      "durationSeconds": 144.763,
+      "sourceFiles": 74,
       "allSourceHashesMatchedAtRunEnd": true,
       "realSignedApkFixtureProvided": true,
       "skipReason": "缺少编译后的Hermes fixture",
-      "scope": "73份Python及关联helper源码范围，独立于119/436完整JS和503设备快照；不把跳过计为通过。"
+      "scope": "74份Python及关联helper源码范围，独立于120/441完整JS和508设备快照；不把跳过计为通过。"
     },
     "combinedSourceCohort": {
-      "runtimeFiles": 119,
-      "publicCodeFiles": 436,
+      "runtimeFiles": 120,
+      "publicCodeFiles": 441,
       "status": "same_frozen_bytes_verified_at_both_JS_suite_ends",
-      "scope": "119runtime/436公开代码的最终postfix；Python73、installed SDK和503设备各自分列。"
+      "scope": "120runtime/441公开代码最终冻结；Python74、installed SDK和508设备快照各自分列。"
     }
   },
   "currentFocused": {
-    "closedMultistage": {
-      "status": "passed",
-      "producer": {
-        "total": 11,
-        "passed": 11,
-        "scope": "真实Chromium、官方SDK两样本/统一/生成入口及注入故障反例"
-      },
-      "independent": {
-        "pureVmControls": 11,
-        "scope": "实际内部函数的纯VM独审，不是另11次浏览器或设备测试"
-      },
-      "groupsNotSummed": true,
-      "explicitOwnerSpecAndStartupGrant": true,
-      "defaultLegacyUnchanged": true,
-      "sameDocumentObservedOriginsNotLaundered": true,
-      "unknownNotRetried": true,
-      "sameDocumentSdkBusiness": {
-        "discovery": 1,
-        "learning": 2,
-        "unified": 1,
-        "generated": 1,
-        "wholeFixture": 5,
-        "eachIntentExactlyOnce": true
-      },
-      "newDocumentScope": "真实浏览器direct compile/execute两样本和第三值；与独立生成入口证明分列。"
-    },
-    "openapiRefresh": {
-      "status": "passed",
-      "refreshTests": 15,
-      "existingReaderTests": 6,
-      "relatedOpenapiReferenceTests": 21,
-      "groupsNotSummed": true,
-      "originalsRereadOnExplicitRefresh": true,
-      "sameDescriptorBytesAndMetadata": true,
-      "operationDecodedCacheMiB": 16,
-      "singleFileMiB": 8,
-      "perBundleMiB": 16,
-      "referencesPerBundle": 32,
-      "maximumSupplements": 32,
-      "oldCurrentPreservedOnFailure": true,
-      "noUrlFetch": true,
-      "noAtomicFilesystemClaim": true
-    },
-    "adbCaptureIdentity": {
-      "status": "passed",
-      "targetedTests": 11,
-      "includedInPythonFull": true,
-      "onlyOlderDuplicateProofRemoved": true,
-      "finalPreAndPostCaptureProofKept": true,
-      "localProtocolBenchmark": {
-        "trials": 3,
-        "oldCommands": 13,
-        "newCommands": 10,
-        "oldMedianMs": 1120.818292,
-        "newMedianMs": 894.507333,
-        "realDevice": false,
-        "notEndToEndSpeed": true
-      }
-    },
-    "iosOwnerSplit": {
+    "closedStagePlanning": {
       "status": "scoped_tests_passed",
-      "pythonAffected": 217,
-      "nodeSnapshotFiles": 21,
+      "producerAndLegacyPlanner": {
+        "total": 19,
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0
+      },
+      "sourceSdk": {
+        "counts": {
+          "discovery": 1,
+          "learning": 2,
+          "unified": 1,
+          "generated": 1,
+          "wholeFixture": 5
+        },
+        "scope": "源码SDK真实Chromium、同document阶段销毁重建、2参数。"
+      },
+      "threeParameterScope": "同阶段双字段加下一阶段字段的实际探索候选；未宣称该3参数链已完成学习/双入口。",
+      "independentScope": "原3阻断项修复后纯函数/DOM模型复核；与19及全套交叠，不相加。",
+      "automaticHardDocumentNavigationProven": false,
+      "startupPolicyBoundToSourceIdentity": true,
+      "readOnlyEvidenceDoesNotGrantExecution": true,
+      "inputValuesNotPersistedInNewStageEvidence": true,
+      "unknownNotRetried": true
+    },
+    "iosCaretUnderlay": {
+      "status": "scoped_tests_passed_not_device_acceptance",
+      "nodePngAndArchiveRegression": 19,
+      "pythonAffected": 191,
       "groupsOverlapFullSuitesNotSummed": true,
-      "localMode": "owner_approved_split",
-      "actualAppWindowImageAxOcrStillRequired": true,
-      "shaIsProvenanceNotUiAuthorization": true,
-      "defaultGuardsUnchanged": true,
-      "deviceAcceptanceSeparate": true
+      "defaultStrictComparatorUnchanged": true,
+      "explicitMode": "paired_revealed_grayscale",
+      "fullUnmaskedRescan": true,
+      "singleObservedGrayscaleEndpoint": true,
+      "whiteCoreOnlySharedOpacityFit": true,
+      "notOsCaretOrHiddenBufferProof": true,
+      "knownVisualAmbiguityDisclosed": true,
+      "phase": "fresh_key_only",
+      "actualDeviceOutcomeSeparate": true
     }
   },
   "currentPackageCheck": {
-    "compilerVersion": "software-to-mcp-18",
+    "compilerVersion": "software-to-mcp-19",
+    "expectedRejectedWorker": {
+      "expectedRejections": 1,
+      "exitCode": 1,
+      "signal": null,
+      "errorCode": "WORKFLOW_CLOSED_STAGES_NOT_APPROVED",
+      "normalTraceSeparate": true,
+      "allSpawnClosePairsMatched": true,
+      "noUnclosed": true,
+      "installedSourceOnly": true,
+      "parentSdkExitCode": 0,
+      "parentSdkStderrBytes": 0,
+      "noAdditionalHttpOrUiIngress": true
+    },
     "status": "actual_independent_production_install_SDK_and_finite_business_chains_passed",
-    "files": 365,
+    "files": 367,
     "gatewayDistFiles": 32,
     "officialSdkTools": 28,
     "stderrBytes": 0,
     "clientClosed": true,
     "serverProcessClosed": true,
-    "producerFilesMatched": 7,
-    "producerFilesAreNotSevenBusinessScenarios": true,
+    "producerFilesMatched": 8,
+    "producerFilesAreNotEightBusinessScenarios": true,
     "productionModulesImported": true,
     "allEightDirectDependenciesLocal": true,
     "allPackedSourceBytesAndModesMatchedAtSdkCheck": true,
@@ -2179,61 +2485,68 @@
       "oldGeneratedStaleBeforeRequest": true,
       "scope": "原始red、统一blue、生成cyan三次真实业务；refresh及stale请求均0。"
     },
+    "installedClosedStagePlanner": {
+      "status": "passed",
+      "planningMode": "closed-stages-v1",
+      "workflowInput": "discovered_candidateId_no_specPath",
+      "counts": {
+        "discovery": 1,
+        "learning": 2,
+        "unified": 1,
+        "generated": 1,
+        "wholePositiveFixture": 5
+      },
+      "retiredHostsFieldsAndFormsDetached": true,
+      "missingOwnerGrantAddedHttp": 0,
+      "offlineEvidenceCases": 8,
+      "offlineMutationAddedHttp": 0,
+      "actualInputEchoCandidates": 0,
+      "scope": "实际同document阶段重建，2参数两样本/统一/生成；3参数只在源码探索候选证明，不推定自动跨新document或任意网站。"
+    },
     "productionInstallCommand": "npm ci --omit=dev --ignore-scripts --prefer-offline",
     "finalDocumentationArchiveProjection": {
       "onlyPermittedDeltaPaths": [
         "docs/software-to-mcp-verification.md",
         "docs/software-to-mcp-validation.json"
       ],
-      "unchangedPackedFileCount": 363,
+      "unchangedPackedFileCount": 365,
       "rule": "提交前核实际暂存index及精确tar，只有两验证文档可相对SDK基线投影，其他bytes/modes及runtime须同。"
     },
     "fullContentPrivacyAudit": {
       "rule": "提交前对实际index与精确tar全内容审核；本投影不自批通过。"
     }
   },
-  "previousCompiler18PreFinalSourceRun": {
-    "status": "superseded_not_final_source_verification",
-    "software": {
-      "total": 457,
-      "passed": 457,
-      "failed": 0,
-      "skipped": 0
-    },
-    "sourceMatchedAtEnd": false,
-    "scope": "早期全套运行期间随后发生stage-entry来源修复；旧绿日志保留，不当最终同源通过。最终postfix239/457另列。"
-  },
   "deviceEvidence": {
     "iosOrdinarySoftKeyboard": {
-      "latestCompletedAttempt": 18,
-      "attempt18": {
-        "attempt": 18,
+      "latestCompletedAttempt": 19,
+      "attempt19": {
+        "attempt": 19,
         "status": "terminal_failed",
-        "phase": "learning_second_sample_key_freshness",
-        "actualError": "VISUAL_FRAME_CHANGED",
+        "phase": "keyboard_calibration",
+        "actualError": "CALIBRATION_UNRELATED_PIXELS_CHANGED",
         "runtime": "owned iOS27.0 simulator",
         "physicalDevice": false,
         "source": {
-          "copiedFiles": 503,
+          "copiedFiles": 508,
           "gatewayDistFiles": 32,
-          "runtimeFiles": 119,
-          "publicCodeFiles": 436,
+          "runtimeFiles": 120,
+          "publicCodeFiles": 441,
           "allBytesMatchedBefore": true,
           "allBytesMatchedAfter": true,
           "hostDependenciesShared": true,
           "hermetic": false
         },
         "outcome": {
-          "discoveryStarted": true,
-          "learningStarted": true,
+          "discoveryStarted": false,
+          "learningStarted": false,
           "twoSampleValidated": false,
           "readyPublished": false,
           "unifiedPassed": false,
           "generatedPassed": false,
           "mcpAcceptancePassed": false,
           "calibrationSetupFocusActions": 1,
-          "mcpKeyboardActions": 38,
-          "businessSubmissions": 1
+          "mcpKeyboardActions": 0,
+          "businessSubmissions": 0
         },
         "cleanup": {
           "sixFlagsAllTrue": true,
@@ -2253,50 +2566,59 @@
           "minOsRuntimeCompatible": true,
           "scope": "复用已清理的兼容WDA构建，不复用旧校准图/source或MCP成功结论。"
         },
-        "scope": "自建模拟器本轮实际终态；setup focus与MCP按键/业务计数分开，非物理设备或任意App证明。"
+        "caretUnderlay": {
+          "mode": "paired_revealed_grayscale",
+          "maxUnderlayPixels": 16,
+          "minWhiteCoreFraction": 0.8,
+          "minSharedOpacity": 0.125,
+          "visualEquivalenceOnly": true,
+          "scope": "owner显式视觉等价合同；单一实测灰阶端点和白色核心拟合仍可能与伪造覆盖或被盖字形同像素，不能证明OS光标或隐藏缓冲区。"
+        },
+        "scope": "本轮自建模拟器实际终态；setup与MCP/业务计数分列，非物理设备或任意App证明。未知保持null。"
       }
     },
-    "historicalPlatforms": "previousCompiler17.deviceEvidence以及更早previousCompiler*完整保留；Android/Web/原生语义历史不是18新跑。"
+    "historicalPlatforms": "previousCompiler18.deviceEvidence及更早previousCompiler*完整保留；其他Android/Web/原生语义历史不是19新跑。"
   },
-  "deviceEvidenceScope": "第18轮实际503份source/119runtime/436code；本地缓存WDA仅构建复用。其他平台历史不换绑本轮源码或重新计数。",
+  "deviceEvidenceScope": "第19轮实际508份source/120runtime/441code；共享依赖非hermetic。缓存WDA仅构建复用，其他平台历史不换绑本轮源码或重新计数。",
   "release": {
-    "compilerVersion": "software-to-mcp-18",
+    "compilerVersion": "software-to-mcp-19",
     "status": "draft_pull_request_checkpoint",
     "distributionType": "draft_pull_request_checkpoint",
     "mainMerged": false,
     "npmPublished": false,
     "basePublishedCheckpoint": {
-      "compilerVersion": "software-to-mcp-17",
-      "commit": "af4cfa90be06ed951ccee602360e97704e68a2ef",
-      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/af4cfa90be06ed951ccee602360e97704e68a2ef",
+      "compilerVersion": "software-to-mcp-18",
+      "commit": "bed2d4c55f3758d7772c957d40460f9aece60504",
+      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/bed2d4c55f3758d7772c957d40460f9aece60504",
       "draftPr": "https://github.com/8eeth0ven/bfs-clicker/pull/1",
-      "scope": "已存在的compiler17历史检查点，不自称当前18远端head。"
+      "scope": "已存在的compiler18历史检查点，不自称当前19远端head。"
     },
-    "finalGate": "提交前实际核验暂存index、精确tar、只批准的两文档delta和完整内容隐私；由PR/交付报告记录，不把未来commit/tar哈希自嵌文档。"
+    "finalGate": "提交前实际核验暂存index、精确tar、只批准的两文档delta和完整内容隐私；最终分发由PR/交付记录核验，不自嵌未来commit或tar哈希。"
   },
   "storagePolicy": {
     "minimumAvailableReserveGiB": 10,
     "plannedOutputPreflight": "大输出前要求free减planned至少10GiB；实际启动另做fresh准入。",
     "productRuntimeAutomaticCleanup": false,
-    "device18": {
+    "device19": {
       "plannedGiB": 4,
       "interruptBelowGiB": 11,
       "monitorIntervalSeconds": 15,
       "storageAbort": false,
       "reserveMetAtEnd": true
     },
-    "historicalCleanup": "previousCompiler17.storagePolicy及previousCompiler16.storagePolicy原值保留，不把旧回收量加为本轮释放。",
+    "historicalCleanup": "previousCompiler18及更早storagePolicy原值保留；本次投影不推断已回收字节。",
     "scope": "任务运维约束，不是产品自动删除、文件系统quota或对其他OS并发写入的保证。"
   },
   "limits": [
-    "闭根阶段必须owner本地spec及startup精确allowClosedStages，不自动推导阶段或扩大动作/请求/导航授权。",
-    "旧workflow整次稳定默认保留；新模式同阶段固定身份，只在成功primitive后按完整合同准入新generation，未知不重试。",
-    "同doc已观察节点的最近root来源不得洗白，rollback不清历史；经验证new document才清，不能证明未观察历史或任意网页原子性。",
-    "OpenAPI刷新只重读明确本地原件，保持origin范围；操作缓存16MiB不等于整轮或进程内存上限，不承诺恶意FS原子快照。",
-    "ADB局部协议子进程耗时不是真机、端到端MCP或固定通用速度。",
-    "iOS split仅本地owner授权；app/window/image/实际AX/OCR、输入/结果/Dismiss/freshness/caret/预算门禁保留，SHA不证明OS所有权。",
-    "字段分区研究仍未进入MCP/npm生产策略，真实上 海被OCR读作上海的已知假接受不被新功能抹除。",
-    "设备、provider协议、DOM、OCR与HTTP各有范围，能力目录不自动切换通路或证明业务等价。"
+    "自动闭根阶段仅显式本地closedStagePlanning启用，并另需精确allowClosedStages执行授权；候选与只读证据不授予执行。",
+    "自动SDK正例仅同document重建、2参数；3参数只有探索候选，自动跨new-document的实际学习/双入口尚未证明；旧手写spec跨文档证据另列。",
+    "主frame批准closed host的原生text/search、固定独立语义锚点与DOM文本结果子集；不支持自动closed textarea/select/ARIA/visual/table/frame。",
+    "完整有序输入准备、实际execution与父路径绑定；未知不重试、4096每backend等原预算不变；局部调用计数不是通用端到端加速。",
+    "新阶段证据不持久化输入原文、值摘要或DOM handle；该范围不扩展到全部私有配置/checkpoint/API账本。",
+    "iOS underlay仅显式fresh_key视觉等价：全图未mask扫描、单灰端点、white-only共享alpha拟合与局部像素cap；不能证明OS光标、覆盖字形或隐藏buffer。",
+    "默认strict与其他iOS派发/结果/预算/取消守卫保留；设备验收与原帧离线重放分列，不能由旧第18轮失败追认新通过。",
+    "字段分区研究仍未进入MCP/npm生产策略，真实上 海被OCR读作上海的已知假接受保留。",
+    "设备、provider协议、DOM、OCR与HTTP分别有界，入口不自动证明通路业务等价或任意网站/App全覆盖。"
   ],
-  "countingRule": "最终同源239/457、Python571、focused/independent、installed SDK与设备证据分列并有交叠；11+VM11、OpenAPI15/reader6/related21及iOS217/21不累加为独立全球总数。"
+  "countingRule": "最终同源239/476、Python579、focused/independent、installed SDK与设备证据分列并有交叠；19/191等局部组不累加为全球独立总数。"
 }

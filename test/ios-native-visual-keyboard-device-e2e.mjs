@@ -21,12 +21,13 @@ import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 
 const project=path.resolve(import.meta.dirname,'..'),reportDir=path.join(project,'output-vision-implementation');
-const {values}=parseArgs({options:{output:{type:'string'},python:{type:'string'},'appium-prefix':{type:'string'},runtime:{type:'string'},'device-type':{type:'string'},'prepare-only':{type:'boolean'},'await-ocr-ready':{type:'string'},'prebuilt-wda-from':{type:'string'},'keyboard-transport-probe':{type:'boolean'},'keyboard-probe-text':{type:'string'},'onscreen-key-input':{type:'boolean'},'onscreen-complete-text':{type:'boolean'},'onscreen-fixed-clear':{type:'boolean'},'owner-keyboard-envelope':{type:'string'}}});
+const {values}=parseArgs({options:{output:{type:'string'},python:{type:'string'},'appium-prefix':{type:'string'},runtime:{type:'string'},'device-type':{type:'string'},'prepare-only':{type:'boolean'},'await-ocr-ready':{type:'string'},'prebuilt-wda-from':{type:'string'},'keyboard-transport-probe':{type:'boolean'},'keyboard-probe-text':{type:'string'},'onscreen-key-input':{type:'boolean'},'onscreen-complete-text':{type:'boolean'},'onscreen-fixed-clear':{type:'boolean'},'owner-keyboard-envelope':{type:'string'},'onscreen-caret-underlay':{type:'boolean'}}});
 assert(!values['keyboard-probe-text']||values['keyboard-transport-probe']&&['alpha','Ab7z'].includes(values['keyboard-probe-text']),'Probe text requires transport-only mode and one fixed diagnostic sequence');
 assert(!(values['onscreen-key-input']&&values['keyboard-transport-probe']),'Production acceptance and transport-only diagnostic are separate runs');
 assert(!values['onscreen-complete-text']||values['onscreen-key-input'],'Complete text confirmation requires explicit onscreen key input');
 assert(!values['onscreen-fixed-clear']||values['onscreen-key-input'],'Fixed clear requires explicit onscreen key input');
 assert(!values['owner-keyboard-envelope']||values['onscreen-key-input'],'An explicit owner envelope requires onscreen key acceptance');
+assert(!values['onscreen-caret-underlay']||values['onscreen-key-input']&&values['onscreen-complete-text'],'An explicit caret underlay allowance requires onscreen keys and complete text confirmation');
 const output=path.resolve(values.output||path.join(reportDir,'ios-text-next-device-'+Date.now())),python=path.resolve(values.python||path.join(project,'.venv/bin/python'));
 const appiumPrefix=path.resolve(values['appium-prefix']||path.join(reportDir,'ios-appium-owned-20261029')),appiumHome=path.join(appiumPrefix,'appium-home'),appiumEntry=path.join(appiumPrefix,'node_modules/appium/build/lib/main.js');
 const appId='com.example.bfsmcp.iosvisualkeyboard',hash=value=>createHash('sha256').update(value).digest('hex'),record={date:new Date().toISOString(),kind:'real_ios_simulator',interface:'unified_and_generated_mcp',status:'running',outputDir:output,scope:{userDevicesErased:false,userAppsTouched:false,licensesAccepted:false,developerDirectoryChanged:false,globalAppiumInstalled:false,runtimeDownloadedByThisScript:false},steps:[],cleanup:{}};
@@ -274,6 +275,9 @@ async function main(){
    keyboardPolicy.keyInput={mode:'onscreen',controls:{shift:{type:'XCUIElementTypeButton',name:'shift',label:'shift'},numbers:{type:'XCUIElementTypeKey',name:'more',label:'numbers'},letters:{type:'XCUIElementTypeKey',name:'more',label:'letters'},delete:{type:'XCUIElementTypeKey',name:'delete',label:'delete'}}};
    if(values['onscreen-complete-text'])keyboardPolicy.keyInput.confirmation='complete_text';
    if(values['onscreen-fixed-clear'])keyboardPolicy.keyInput.clearPlan='fixed_max_length';
+   // Explicit allowance for this owned fixture's observed pixel class. It does
+   // not establish OS caret ownership or unchanged characters under the bar.
+   if(values['onscreen-caret-underlay'])keyboardPolicy.keyInput.caretUnderlay={mode:'paired_revealed_grayscale',maxUnderlayPixels:16,minWhiteCoreFraction:.8,minSharedOpacity:.125};
    record.keyboardCalibration.ownerApprovedKeyInput=keyboardPolicy.keyInput;
   }
   record.keyboardCalibration.ownerApprovedCaretPolicy=caretPolicy;

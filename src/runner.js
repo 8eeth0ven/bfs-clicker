@@ -19,7 +19,9 @@ import { buildSiteGraph } from './graph.js';
 import { writeSiteGraph, updateGraphRun } from './graph-export.js';
 import {inputScope,isTextPreparation} from './input-prefix.js';
 import {beginLiveTransition,bindLiveState} from './browser-live-state.js';
-import {beginClosedExplorationGeneration} from './closed-shadow.js';
+import {beginClosedExplorationGeneration,captureClosedStagePlanningDocument,collectClosedStagePlanningEvidence} from './closed-shadow.js';
+import {bindClosedStageObservation,closedStageSensitiveValues} from './closed-stage-evidence.js';
+import {fillValueFor} from './formfill.js';
 
 const isPending=a=>a.status==='planned'||a.status==='running';
 const hasPending=s=>(s.interactives||[]).some(isPending);
@@ -44,7 +46,7 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
   let lastPublished=0,lastCheckpoint=0,journaledEdges=backEdges.length,actionsSinceSeed=0;
   const dirtyStates=new Map();
   const perf={stateReuses:0,replayActions:0,checkpoints:0,journalWrites:0,persistenceMs:0,fingerprints:0,fingerprintMs:0,graphMs:0};
-  let inputLease=null,liveLease=null,liveNext=null;
+  let inputLease=null,liveLease=null,liveNext=null,stageSensitiveValues;
   const unsafePath=state=>state.path.some(step=>step.safeReplay===false||isTextPreparation(step));
   const releaseLiveLease=async reason=>{const previous=liveLease;liveLease=null;if(previous){const state=states.get(previous.stateId);if(state?.liveOnly){state.liveOnly.outcome=reason;dirtyStates.set(state.id,state);}await previous.dispose();}};
   const liveGap=(state,cause)=>{store.emit('coverage_gap',{reason:'live_state_unavailable',stateId:state.id,cause});throw Object.assign(new Error('live_state_unavailable'),{name:'PolicyError',reason:'live_state_unavailable'});};
@@ -116,9 +118,14 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
     }
     return actions.map(a=>({...a,...(isTextPreparation(a)?{safeReplay:false}:{}),id:actionKey(a),status:a.skipped?'skipped':'planned',reason:a.skipped?a.skipReason:null,attempts:0}));
   };
-  const collectState=async(parent,pathSteps,depth)=>{
+  const collectState=async(parent,pathSteps,depth,beforeDocument,planningTransition)=>{
     budget.check();const decision=policy.navigation(page.url());if(!decision.allow){store.emit('coverage_gap',{reason:decision.reason,url:page.url()});return null;}
     await dialogs.stabilize();
+    const incoming=pathSteps.at(-1);
+    if(config.closedStagePlanning&&beforeDocument&&parent&&incoming?.closedShadow&&isTextPreparation(incoming)&&incoming.fromStateId===parent.id){
+      const unchanged=await observe();budget.check();
+      if(unchanged.fp===parent.fp&&unchanged.url===parent.url&&policy.navigation(page.url()).allow){lastObservation=unchanged;residentId=null;visitedHits++;return{dup:parent.id,url:unchanged.url};}
+    }
     // Inventory can perform bounded read-only waiting for a lazy ARIA mount
     // (or validate a completed finite scan). Its returned surface, rather than
     // an earlier pre-mount frame, is the basis for this state's one official
@@ -126,11 +133,22 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
     const items=await collectInteractives(page,config);
     await dialogs.stabilize();budget.check();
     const afterInventory=policy.navigation(page.url());if(!afterInventory.allow){store.emit('coverage_gap',{reason:afterInventory.reason,url:page.url()});return null;}
-    const f=lastObservation=await observe();
+    let f=lastObservation=await observe();
     if(visited.has(f.fp)){
       // Equal DOM does not prove equal hidden JavaScript state. A duplicate
       // reached after a click must replay before its next action, as before.
       residentId=null;visitedHits++;return {dup:visited.get(f.fp),url:f.url};
+    }
+    // A same-state text preparation has no new semantic stage to certify.
+    // Do not spend the existing per-backend CDP budget recapturing its anchors.
+    // New states still get a complete inventory bracketed by matching fresh
+    // fingerprints; a changed surface fails rather than renewing its lease.
+    let stageObservation=null;
+    if(config.closedStagePlanning){
+      stageSensitiveValues=closedStageSensitiveValues(config,stageSensitiveValues||[]);
+      const planning=await collectClosedStagePlanningEvidence(page,config,{beforeDocument,sensitiveValues:stageSensitiveValues}),after=await observe();
+      budget.check();if(after.fp!==f.fp||after.url!==f.url||!policy.navigation(page.url()).allow)throw new Error('CLOSED_STAGE_OBSERVATION_CHANGED');
+      f=lastObservation=after;stageObservation=bindClosedStageObservation(planning,f);
     }
     if(limitReached(config,'maxStates',states.size))throw new StopError('max_states');
     const host=new URL(f.url).host;if(limitReached(config,'maxStatesPerHost',hosts.get(host)||0))throw new StopError('max_states_per_host');
@@ -145,8 +163,9 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
         else store.emit('coverage_gap',{reason:'max_scroll_steps',url:f.url});
       }
     }
-    const evidenceId=store.emit('state',{stateId:id,url:f.url,title:f.title,fp:f.fp,diagnostics:f.diagnostics,depth,parentId:parent?.id||null});
-    const state={id,depth,parentId:parent?.id||null,path:pathSteps,url:f.url,title:f.title,fp:f.fp,diagnostics:f.diagnostics,evidenceId,children:[],interactives:actions,processed:[],failed:[],expanded:false};
+    const evidenceId=store.emit('state',{stateId:id,url:f.url,title:f.title,fp:f.fp,diagnostics:f.diagnostics,depth,parentId:parent?.id||null,...(stageObservation?{closedStageDigest:stageObservation.digest}:{})});
+    const state={id,depth,parentId:parent?.id||null,path:pathSteps,url:f.url,title:f.title,fp:f.fp,diagnostics:f.diagnostics,evidenceId,children:[],interactives:actions,processed:[],failed:[],expanded:false,...(stageObservation?{closedStagePlanning:stageObservation}:{})};
+    if(stageObservation)store.emit('closed_stage_planning_observed',{stateId:id,stateEvidenceId:evidenceId,digest:stageObservation.digest,parentId:parent?.id||null,...(planningTransition||{actionId:null,executionId:null,preparations:[]})});
     states.set(id,state);visited.set(f.fp,id);hosts.set(host,(hosts.get(host)||0)+1);residentId=id;
     dirtyStates.set(id,state);
     if(parent){parent.children.push(id);dirtyStates.set(parent.id,parent);}
@@ -377,6 +396,9 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
           // Any attempted action can mutate hidden state, including one rejected
           // by a dialog or request guard. Only a newly collected state re-arms reuse.
           residentId=null;
+          if(config.closedStagePlanning&&textPreparation){const seed=config.formValues?.[action.selector]??fillValueFor(action,config);stageSensitiveValues=closedStageSensitiveValues(config,[...(stageSensitiveValues||[]),...(typeof seed==='string'?[seed]:[])]);}
+          const planningBefore=config.closedStagePlanning?await captureClosedStagePlanningDocument(page,config):undefined;
+          const planningTransition=config.closedStagePlanning?{actionId:action.id,executionId:action.evidenceId,preparations:prefixSteps.map(step=>({actionId:step.id,executionId:state.interactives.find(item=>item.id===step.id)?.evidenceId}))}:undefined;
           receipt=await clickElement(page,dialogs,action,config,log,{inputReceipt:textPreparation,liveElement:transition.element});
           if(textPreparation&&!receipt)throw Object.assign(new Error('input_prefix_receipt_missing'),{name:'PolicyError',reason:'input_prefix_receipt_missing'});
           post=await transition.finish();await checkAuth(true);
@@ -390,7 +412,7 @@ export async function runAsset(input,{resume=false,log=console.log,manualLogin=f
               // Old preparations and control pins cannot cross that boundary.
               if(!textPreparation){await releaseInputLease('primitive_completed');await releaseLiveLease('primitive_completed');generation=await beginClosedExplorationGeneration(page,config);}
               await post.guard.verify();
-              const child=await collectState(state,[...state.path,...prefixSteps,step],state.depth+1);
+              const child=await collectState(state,[...state.path,...prefixSteps,step],state.depth+1,planningBefore,planningTransition);
               await post.guard.verify();
               if(child?.id&&unsafePath(child)&&hasPending(child)){
                 await releaseInputLease('new_state');await releaseLiveLease('new_state');

@@ -11,7 +11,7 @@ export function identity(config) {
   return {schemaVersion:SCHEMA_VERSION,canonicalTarget:config.startUrl,
     scopeFingerprint:hash([config.navigationOrigins,config.requestOrigins,config.credentialOrigins,config.includeUrlPattern||'',config.resourcePolicy]),
     authProfileId:hash(config.authProfileId),
-    policyFingerprint:hash([config.actionProfile,config.actionAllowlist,config.requestAllowlist,config.excludeSelectors,config.excludeTextPatterns,config.skipTextPatterns,config.clickEverything,config.fillText,config.formExplore,config.autoAgreeConsent,config.exploreHover,config.exploreScroll,config.maxScrollSteps,config.maxSelectOptions,config.fingerprintNoisePatterns,config.fingerprintIgnoreSelectors,...(config.ariaVirtualLists?.length?[config.ariaVirtualLists]:[]),...(config.closedShadowRoots?.length?[config.closedShadowRoots]:[])]),
+    policyFingerprint:hash([config.actionProfile,config.actionAllowlist,config.requestAllowlist,config.excludeSelectors,config.excludeTextPatterns,config.skipTextPatterns,config.clickEverything,config.fillText,config.formExplore,config.autoAgreeConsent,config.exploreHover,config.exploreScroll,config.maxScrollSteps,config.maxSelectOptions,config.fingerprintNoisePatterns,config.fingerprintIgnoreSelectors,...(config.ariaVirtualLists?.length?[config.ariaVirtualLists]:[]),...(config.closedShadowRoots?.length?[config.closedShadowRoots]:[]),...(config.closedStagePlanning?[config.closedStagePlanning]:[])]),
   };
 }
 export function atomicJson(file, value, backup=true) {

@@ -25,7 +25,8 @@ const number = value => typeof value === 'number' && Number.isFinite(value);
 
 export function validateCaretPolicy(policy) {
   const keys = ['enabled', 'color', 'background', 'colorTolerance', 'maxWidthPoints', 'minHeightPoints', 'maxHeightPoints', 'maxAreaPoints'];
-  if (!object(policy) || Object.keys(policy).length !== keys.length || keys.some(key => !Object.hasOwn(policy, key)) || policy.enabled !== true) invalid();
+  const paired = object(policy) && Object.hasOwn(policy, 'underlay');
+  if (!object(policy) || Object.keys(policy).length !== keys.length + Number(paired) || keys.some(key => !Object.hasOwn(policy, key)) || policy.enabled !== true) invalid();
   for (const key of ['color', 'background']) {
     if (!Array.isArray(policy[key]) || policy[key].length !== 3 || Array.from(policy[key]).some(value => !Number.isInteger(value) || value < 0 || value > 255)) invalid();
   }
@@ -33,6 +34,15 @@ export function validateCaretPolicy(policy) {
   if (!Number.isInteger(policy.colorTolerance) || policy.colorTolerance < 0 || policy.colorTolerance > 2) invalid();
   for (const key of ['maxWidthPoints', 'minHeightPoints', 'maxHeightPoints', 'maxAreaPoints']) if (!number(policy[key])) invalid();
   if (policy.maxWidthPoints <= 0 || policy.maxWidthPoints > 3 || policy.minHeightPoints < 8 || policy.minHeightPoints > policy.maxHeightPoints || policy.maxHeightPoints > 48 || policy.maxAreaPoints <= 0 || policy.maxAreaPoints > 144) invalid();
+  if (paired) {
+    const value = policy.underlay, fields = ['mode', 'maxUnderlayPixels', 'minWhiteCoreFraction', 'minSharedOpacity'];
+    if (!object(value) || Object.keys(value).length !== fields.length || fields.some(key => !Object.hasOwn(value, key))
+        || value.mode !== 'paired_revealed_grayscale' || !Number.isInteger(value.maxUnderlayPixels)
+        || value.maxUnderlayPixels < 1 || value.maxUnderlayPixels > 64
+        || !number(value.minWhiteCoreFraction) || value.minWhiteCoreFraction < .8 || value.minWhiteCoreFraction > 1
+        || !number(value.minSharedOpacity) || value.minSharedOpacity < .125 || value.minSharedOpacity > 1
+        || policy.background.some(c => c !== 255) || Math.max(...policy.color) - Math.min(...policy.color) < 64) invalid();
+  }
   return policy;
 }
 
@@ -131,6 +141,73 @@ function approvedColor(data, offset, policy) {
   return delta.every((value, index) => Math.abs(data[offset + index] - (policy.background[index] + alpha * value)) <= policy.colorTolerance);
 }
 
+// One observed endpoint supplies the grayscale at every changed coordinate.
+// This is an explicit owner pixel-equivalence class, never OS/glyph identity.
+// Only the native onscreen key-freshness caller may attach this permission.
+function pairedUnderlay(before, after, masks, value, geometry, policy) {
+  const {width, height} = before, scaleX = width / geometry[0], scaleY = height / geometry[1];
+  const result = (equivalent, mode, changedPixels) => ({width, height, equivalent, mode, changedPixels});
+  const permission = policy.underlay, sides = [
+    {revealed: before.data, covered: after.data, possible: true, nonwhite: 0, peak: 0},
+    {revealed: after.data, covered: before.data, possible: true, nonwhite: 0, peak: 0},
+  ];
+  const whiteDelta = policy.color.map(c => c - 255), denominator = whiteDelta.reduce((sum, c) => sum + c * c, 0);
+  const rows = new Map(); let count = 0, x0 = width, y0 = height, x1 = 0, y1 = 0;
+  // Revisit all changed pixels in these same two owned decoded snapshots.
+  // The strict comparator may have stopped early on its first invalid color.
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (masks.some(mask => contains(mask, x, y))) continue;
+    const offset = (y * width + x) * 4;
+    if (before.data[offset] === after.data[offset] && before.data[offset + 1] === after.data[offset + 1]
+        && before.data[offset + 2] === after.data[offset + 2] && before.data[offset + 3] === after.data[offset + 3]) continue;
+    count++;
+    if (!contains(value, x, y) || before.data[offset + 3] !== 255 || after.data[offset + 3] !== 255) return result(false, 'changed', count);
+    x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + 1); y1 = Math.max(y1, y + 1);
+    if ((x1 - x0) / scaleX > policy.maxWidthPoints || (y1 - y0) / scaleY > policy.maxHeightPoints
+        || (x1 - x0) * (y1 - y0) / scaleX / scaleY > policy.maxAreaPoints) return result(false, 'changed', count);
+    const row = rows.get(y) || {min: x, max: x, count: 0};
+    row.min = Math.min(row.min, x); row.max = Math.max(row.max, x); row.count++; rows.set(y, row);
+    for (const side of sides) {
+      if (!side.possible) continue;
+      const g = side.revealed[offset];
+      if (g !== side.revealed[offset + 1] || g !== side.revealed[offset + 2]) { side.possible = false; continue; }
+      if (g === 255) {
+        if (!approvedColor(side.covered, offset, policy)) { side.possible = false; continue; }
+        // The only alpha source is actual white-core pixels. Gray points can
+        // neither infer nor tune it, and white antialias may only be weaker.
+        const alpha = Math.max(0, Math.min(1, whiteDelta.reduce((sum, c, i) => sum + (side.covered[offset + i] - 255) * c, 0) / denominator));
+        side.peak = Math.max(side.peak, alpha);
+      } else if (++side.nonwhite > permission.maxUnderlayPixels) side.possible = false;
+    }
+  }
+  if (!count) return result(true, 'exact', 0);
+  const logicalWidth = (x1 - x0) / scaleX, logicalHeight = (y1 - y0) / scaleY;
+  if (logicalHeight < policy.minHeightPoints || logicalHeight < 4 * logicalWidth || count / ((x1 - x0) * (y1 - y0)) < .8) return result(false, 'changed', count);
+  let previous;
+  for (let y = y0; y < y1; y++) {
+    const row = rows.get(y);
+    if (!row || row.count !== row.max - row.min + 1 || (previous && (row.max < previous.min || row.min > previous.max))) return result(false, 'changed', count);
+    previous = row;
+  }
+  for (const side of sides) {
+    if (!side.possible || !side.nonwhite || side.peak < permission.minSharedOpacity) continue;
+    let whiteCore = 0, matches = true;
+    // A second bounded-box pass uses the same owned pixels, not another file
+    // read. It tests every gray point against the already fixed white alpha.
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const offset = (y * width + x) * 4;
+      if (before.data[offset] === after.data[offset] && before.data[offset + 1] === after.data[offset + 1]
+          && before.data[offset + 2] === after.data[offset + 2] && before.data[offset + 3] === after.data[offset + 3]) continue;
+      const g = side.revealed[offset];
+      const shared = policy.color.every((c, i) => Math.abs(side.covered[offset + i] - (g + side.peak * (c - g))) <= policy.colorTolerance);
+      if (g === 255) { if (shared) whiteCore++; }
+      else if (!shared) matches = false;
+    }
+    if (matches && whiteCore >= Math.ceil(permission.minWhiteCoreFraction * count)) return result(true, 'caret', count);
+  }
+  return result(false, 'changed', count);
+}
+
 export function visualCaretEquivalent(beforePath, afterPath, options) {
   const keys = ['masks', 'valueRegion', 'geometry', 'policy'];
   if (!object(options) || Object.keys(options).length !== keys.length || keys.some(key => !Object.hasOwn(options, key))) invalid();
@@ -144,6 +221,7 @@ export function visualCaretEquivalent(beforePath, afterPath, options) {
   if (masks.length === 2 && ['x0', 'y0', 'x1', 'y1'].every(key => masks[0][key] === masks[1][key])) invalid();
   if (masks.some(mask => mask.x0 < value.x1 && mask.x1 > value.x0 && mask.y0 < value.y1 && mask.y1 > value.y0)) invalid();
   const result = (equivalent, mode, changedPixels) => ({width, height, equivalent, mode, changedPixels});
+  const strict = () => {
   const rows = new Map();
   let count = 0, x0 = width, y0 = height, x1 = 0, y1 = 0;
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
@@ -169,4 +247,8 @@ export function visualCaretEquivalent(beforePath, afterPath, options) {
     previous = row;
   }
   return result(true, 'caret', count);
+  };
+  const original = strict();
+  if (original.equivalent || !Object.hasOwn(policy, 'underlay')) return original;
+  return pairedUnderlay(before, after, masks, value, geometry, policy);
 }
