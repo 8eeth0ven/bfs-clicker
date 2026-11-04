@@ -1,0 +1,29 @@
+{
+  "source": {"id": "ios_webview_demo", "kind": "ios"},
+  "backend": {
+    "type": "appium-webview",
+    "platform": "ios",
+    "url": "http://127.0.0.1:4723",
+    "sessionId": "REPLACE_WITH_OBSERVED_SESSION",
+    "appId": "com.example.authorized",
+    "commandTimeoutMs": 15000,
+    "webview": {
+      "context": "WEBVIEW_12345.1",
+      "windowHandle": "1",
+      "origin": "https://example.test",
+      "url": "https://example.test/form",
+      "controls": [
+        {"id": "query", "kind": "input", "selector": "#query", "group": "#searchForm"},
+        {"id": "detail", "kind": "input", "selector": "#detail", "group": "#searchForm"},
+        {"id": "run", "kind": "button", "selector": "#run", "group": "#searchForm"},
+        {"id": "result", "kind": "output", "selector": "#result", "group": null}
+      ]
+    }
+  },
+  "limits": {"maxActions": 100, "maxDurationMs": 60000},
+  "actionAllowlist": [
+    {"kind": "type", "selector": {"resourceId": "#query"}, "effect": "read"},
+    {"kind": "type", "selector": {"resourceId": "#detail"}, "effect": "read"},
+    {"kind": "click", "selector": {"resourceId": "#run"}, "effect": "read"}
+  ]
+}

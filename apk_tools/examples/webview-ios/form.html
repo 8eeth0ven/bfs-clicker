@@ -1,0 +1,57 @@
+<!doctype html>
+<html id="fixtureDocument" lang="en" data-generation="__BFS_GENERATION__">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BFS owned WKWebView</title>
+  <link rel="icon" href="data:,">
+  <style>
+    body { font:20px -apple-system,sans-serif; margin:24px; color:#172234; background:#fff; }
+    h1 { font-size:24px; margin:20px 0; }
+    label { display:block; margin:14px 0 6px; }
+    input,button { box-sizing:border-box; width:100%; min-height:48px; font:inherit; }
+    input { border:1px solid #8996aa; border-radius:8px; padding:8px; }
+    button { margin-top:18px; border:0; border-radius:8px; background:#1763d6; color:white; }
+    #result { margin-top:20px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  </style>
+</head>
+<body id="fixtureBody">
+  <h1>Owned WKWebView fixture</h1>
+  <form id="searchForm">
+    <label for="query">Query</label>
+    <input id="query" name="query" type="text" value="ATTRIBUTE_DECOY_QUERY" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <label for="detail">Detail</label>
+    <input id="detail" name="detail" type="text" value="ATTRIBUTE_DECOY_DETAIL" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button id="run" type="submit">Search</button>
+    <div id="result" role="status" aria-live="polite">IDLE</div>
+  </form>
+  <script>
+    (() => {
+      const events = {input:0, change:0, submit:0};
+      Object.defineProperty(window, 'bfsFixtureEvents', {value:events});
+      document.addEventListener('input', () => { events.input++; });
+      document.addEventListener('change', () => { events.change++; });
+      document.getElementById('searchForm').addEventListener('submit', event => {
+        event.preventDefault();
+        events.submit++;
+        // The business handler reads actual current DOM properties. The
+        // native app persists these values before acknowledging the result.
+        window.webkit.messageHandlers.bfsSubmit.postMessage({
+          query:document.getElementById('query').value,
+          detail:document.getElementById('detail').value
+        });
+      });
+      Object.defineProperty(window, 'bfsFixtureAck', {value:value => {
+        document.getElementById('result').textContent =
+          'RESULT ' + value.query + ' / ' + value.detail + ' ;COUNT:' + value.count;
+      }});
+      Object.defineProperty(window, 'bfsOwnerReplaceQuery', {value:() => {
+        const original = document.getElementById('query');
+        const replacement = original.cloneNode(true);
+        replacement.value = original.value;
+        original.replaceWith(replacement);
+      }});
+    })();
+  </script>
+</body>
+</html>

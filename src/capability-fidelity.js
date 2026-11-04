@@ -40,11 +40,48 @@ function nativeBranchFidelity(recipe,device,sourceKind){
  const result=profiles[0];
  return base('mobile-workflow',result.modality.channels,result.fidelity.inputText,result.fidelity.outputs,[...result.fidelity.limits,'native_branch_each_arm_requires_two_observed_samples','native_branch_selection_requires_unique_fresh_structure','native_branch_context_must_remain_native']);
 }
+function webViewFidelity(recipe,device,sourceKind){
+ const backend=device?.backend,config=backend?.webview,definition=recipe.definition,plan=recipe.webviewPlan;
+ const unknown=()=>unknownCapabilityFidelity('webview_workflow_contract_unrecognized');
+ if(sourceKind!=='ios'||backend?.type!=='appium-webview'||backend.platform!=='ios'||!plain(config)||recipe.recipeType!=='webview_workflow'||!plain(plan)||plan.schemaVersion!==1||plan.planningMode!=='webview-dom-linear-v1')return unknown();
+ const identity=plan.sourceIdentity;
+ if(!plain(identity)||identity.modality!=='appium_webview_dom'||identity.platform!=='ios'||identity.appId!==backend.appId||identity.documentScope!=='worker_live_reference_identity'||!/^[a-f0-9]{64}$/.test(identity.probeSha256||'')||!/^webview-dom-probe-[0-9]+$/.test(identity.probeVersion||'')||['context','windowHandle','origin','url'].some(key=>typeof config[key]!=='string'||identity[key]!==config[key])||!/^[a-f0-9]{64}$/.test(plan.sourceRevision||'')||!Array.isArray(plan.controls)||!plan.controls.length||plan.controls.length>512)return unknown();
+ const association=config.association,method=association?.mode||'reported_bundle_id_v1';
+ if(identity.associationMethod!==method)return unknown();
+ if(association===undefined){if(identity.contextBundleId!==backend.appId)return unknown();}
+ else{
+  if(!plain(association)||Object.keys(association).sort().join(',')!=='mode,reportedBundleId'||method!=='xcuitest_app_main_pid_v1'||typeof association.reportedBundleId!=='string'||!/^process-[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(association.reportedBundleId)||association.reportedBundleId.startsWith('process-com.apple.WebKit')||identity.contextBundleId!==association.reportedBundleId)return unknown();
+  const context=/^WEBVIEW_([1-9][0-9]{0,9})\.([1-9][0-9]{0,15})$/.exec(identity.context);
+  if(!context||!/^[1-9][0-9]{0,9}$/.test(identity.appMainPid||'')||context[1]!==identity.appMainPid||Number(context[1])>2147483647||!Number.isSafeInteger(Number(context[2])))return unknown();
+ }
+ if(!plain(definition)||definition.schemaVersion!==1||definition.effect!=='read'||definition.stagePlan||definition.branchPlan||!Array.isArray(definition.steps)||!definition.steps.length||definition.steps.length>30||definition.steps.some(step=>!plain(step)||!['type','click','assert','extract'].includes(step.kind)))return unknown();
+ const inputs=[],outputs=[],typed=new Set(),asserted=new Set();
+ const control=selector=>plan.controls.find(row=>plain(row)&&plain(row.selector)&&JSON.stringify(canonicalSelector(row.selector))===JSON.stringify(canonicalSelector(selector)));
+ for(const step of definition.steps){
+  const row=control(step.selector),kind=row?.domContract?.kind;
+  if(!row||kind!==(['type'].includes(step.kind)?'input':step.kind==='click'?'button':'output'))return unknown();
+  if(step.kind==='type'){
+   const parameter=name(step.input);
+   if(!parameter||step.replace!==true||definition.inputSchema?.properties?.[parameter]?.type!=='string')return unknown();
+   inputs.push({parameter,contract:'dom_value_echo_required',mode:'replace',domain:'utf8_no_controls_surrogates_or_webdriver_keys',maxCodePoints:2048});typed.add(parameter);
+  }else if(step.kind==='extract'){
+   const output=name(step.output);if(!output||step.valueType!==undefined&&step.valueType!=='string')return unknown();
+   outputs.push(projected(output,'webview_dom_text_projection'));
+  }else if(step.kind==='assert'){
+   const parameter=step.expect?.containsInput??step.expect?.equalsInput;
+   if(step.expect?.changed===true&&name(parameter))asserted.add(parameter);
+  }
+ }
+ if(!typed.size||!outputs.length||![...typed].every(parameter=>asserted.has(parameter))||!definition.steps.some(step=>step.kind==='click'))return unknown();
+ return base('mobile-workflow',['appium_webview_dom','fixed_w3c_element_commands'],inputs,outputs,['dom_values_are_not_app_buffer_or_business_truth','fixed_probe_does_not_prove_page_code_authenticity','fresh_source_checks_are_not_atomic','webview_context_window_origin_and_dom_contract_required','live_document_refs_scoped_to_one_worker','clear_value_click_can_dispatch_multiple_dom_events','unknown_command_outcomes_require_owner_review','single_document_linear_type_click_only','outputs_are_projected_redacted_and_bounded',association?'webview_app_association_uses_observed_main_pid':'webview_app_association_uses_reported_bundle_id']);
+}
+const canonicalSelector=value=>plain(value)?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a<b?-1:a>b?1:0)):null;
 export function deriveCapabilityFidelity({adapter,recipe,device,sourceKind}={}){
  if(adapter==='unresolved-http')return unknownCapabilityFidelity('http_method_unresolved');
  if(adapter==='http')return base('http',['http_wire'],[{scope:'request_parameters',contract:'schema_defined_wire_serialization',domain:'exposed_input_schema'}],[projected('response','decoded_redacted_bounded_response')],['http_response_is_not_business_equivalence','response_may_be_truncated_or_binary_summary']);
  const stagedBrowser=adapter==='browser-workflow'&&plain(recipe)&&recipe.schemaVersion===2&&recipe.kind==='browser-workflow'&&recipe.spec?.executionMode==='closed-stages-v1'&&recipe.spec?.closedStages?.schemaVersion===1&&Array.isArray(recipe.spec.closedStages.stages)&&recipe.spec.closedStages.stages.length>=2&&recipe.spec.closedStages.stages.length<=31&&Array.isArray(recipe.spec.steps)&&recipe.spec.steps.length>=1&&recipe.spec.steps.length<=30&&recipe.spec.steps.every(step=>plain(step)&&step.closedShadow&&['fill','click'].includes(step.kind));
  if(!plain(recipe)||(recipe.schemaVersion!==1&&!stagedBrowser))return unknownCapabilityFidelity();
+ if(['mobile','mobile-workflow'].includes(adapter)&&(device?.backend?.type==='appium-webview'||recipe.recipeType==='webview_workflow'||recipe.webviewPlan||recipe.definition?.webviewPlan))return adapter==='mobile-workflow'?webViewFidelity(recipe,device,sourceKind):unknownCapabilityFidelity('webview_workflow_contract_unrecognized');
  if(adapter==='mobile-workflow'&&['ios_visual_workflow','visual_workflow'].includes(recipe.recipeType)){
   const definition=recipe.definition,inputs=[],limits=['rendered_ocr_cannot_prove_source_codepoints','ocr_may_drop_or_normalize_spaces','visual_echo_is_not_semantic_provider_echo','result_is_bounded_and_redacted'];
   if(plain(definition)&&definition.mode==='text-replace'&&name(definition.inputName))inputs.push({parameter:definition.inputName,contract:'rendered_ocr_echo_required',mode:'replace',domain:device?.nativeVisualWorkflow?.keyboard?.keyInput?.mode==='onscreen'?'ascii_alphanumeric_1_16':'declared_visual_input_schema'});

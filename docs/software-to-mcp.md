@@ -51,6 +51,37 @@ WebDriver iOS/Android 的普通可编辑控件在输入前后读取新鲜语义�
 
 测试中的替换流程为精确验证增加3次 source 回读，追加路径另有对应的前后复核。这项改动提升可验证性，不宣称减少原生端到端耗时。无 API 来源的任意界面、多状态业务与物理设备仍需逐目标验收。
 
+### iOS WebView 的 DOM 通路
+
+compiler24 增加显式 `appium-webview` 后端，将已选中的 iOS WKWebView 接到探索、候选规划、两样本学习、统一调用和独立生成 MCP。它读取网页的 DOM 与实际 `.value`，使用固定 W3C element clear/value/click 命令。能力目录标注 `appium_webview_dom` 和 `fixed_w3c_element_commands`，输出标注 `webview_dom_text_projection`。原生语义控件、OCR 和 WebView 各自保留自己的合同。
+
+设备管理者先创建 Appium/XCUITest 会话，允许目标 WKWebView 被检查，并选择实际观察到的 context/window。后端不会安装、启动、导航、切换 context/window 或执行调用者提供的 JavaScript。当前配置支持 iOS；Android WebView、iframe、Shadow DOM、跨页流程、select/check、文件上传及写流程不在此版本的执行范围。
+
+从 [设备示例](../examples/software/ios-webview-device.example.json) 创建私有设备配置，替换真实 App、会话、context、window、origin、URL 和已授权控件，再在启动配置 `devices` 中绑定别名。示例中的选择器和参数不用于识别任意网页。输入、按钮和结果必须有唯一 ID 选择器；输入和按钮须属于实际观察到的同一个 form/div/section 组，真实表单 owner 也须匹配。独立结果区可设置 `group:null`。动作还需在 `actionAllowlist` 单独授权为 `effect:"read"`；观察到其他控件不授予操作权限。
+
+发现和候选规划只读，DOM 清单另记录未配置的可见控件、稳定 ID/data-testid 与缺口，扫描至多1024个节点、返回至多256项。候选限一个文档中的线性文本查询：
+
+1. `software_discover({kind:"ios", input:清单或App路径, deviceName:设备别名})`，等待操作结束。
+2. `software_workflows({sourceId})`，选取 `planningMode:"webview-dom-linear-v1"` 的候选。
+3. `software_bind_workflow` 使用该 `candidateId`、当前来源 revision、两组不同样本和覆盖全部输入的 `resultAssertions`。每个断言绑定候选公开的 `outputTargetId` 与输入 `param`；此通路默认要求结果相对提交前变化，拒绝显式关闭。不接受 `specPath` 注入定义。
+4. 从 `software_capabilities` 读取 ready 能力，分别经 `software_call` 和 `software_generate` 返回的入口调用。生成入口仍依赖原有会话、可信配置、私有运行目录与来源 revision。
+
+每次执行重新核对前台 App、rich context 的归属、唯一 window、完整 URL/origin、DOM 控件合同和固定探针版本。`nativeWebTap` 与 `nativeWebTapStrict` 均须为 false；后端只读检查设置。一个 worker 内用真实 element 引用的 `===` 比较文档、body、控件、组和 form owner；同 URL 重载、控件替换或归属漂移会拒绝后续动作。引用仅在该 worker 内有效，不写入 recipe；另一个 worker 新鲜附着后再建立自己的引用租约。
+
+文本采用替换模式，至多2048个 Unicode 码点，不裁剪或规范化中文、首尾/连续空格、emoji 与组合字符。C0/C1、DEL、孤立 surrogate 和 WebDriver 保留按键不作为普通文本发送。学习前检查全部样本；每次输入后检查精确回显，点击前用最近一次完整 DOM 观察重新核对所有绑定字段，防止较后字段事件改写先前字段。W3C 输入和点击可触发多个 DOM 事件；观察间仍存在时间窗口，DOM 回显和结果断言不证明隐藏缓冲区或任意业务等价。
+
+默认归属方式 `reported_bundle_id_v1` 要求 context 返回的 bundleId 与实际前台 App 一致。部分已验证版本的 XCUITest/RemoteDebugger 返回 `process-…` 别名；此时只有设备管理者明确配置以下 profile 才会采用进程关联：
+
+```json
+{"association":{"mode":"xcuitest_app_main_pid_v1","reportedBundleId":"process-ObservedAppName"}}
+```
+
+将该片段放入 `backend.webview`，名称必须来自实际 rich context。会话可用精确的 `appium:additionalWebviewBundleIds` 暴露该候选，但它本身不证明归属。执行仍要求实际 `mobile:activeAppInfo` 返回正确 bundleId 和有效主进程 PID，且实际 `WEBVIEW_<PID>.<page>` 使用同一主 PID；不接受 WebKit 子进程别名、通配符、手填 PID 或把别名改写为 App ID。私有来源身份分别保留实际 App ID、原始别名和关联方法。该 profile 是已知驱动来源上的观测关联，不是操作系统身份认证，App/驱动更新后需重新验证。
+
+同一 W3C 会话在首个请求前获取设备租约。clear/value/click 在派发前记录持久 intent；只有包含最终断言、提取及能力发布的执行范围完成后，独立且完全匹配的完成 receipt 才解除该 intent 的阻断。超时、取消、未知派发或不匹配 receipt 会使后续执行 worker 在发送 HTTP 前停止，不自动重输或重试业务；只读观察不会重放业务。默认记录按会话保存于当前用户的私有临时目录；可用绝对 `backend.intentJournal` 固定位置，其父目录须属于当前用户且权限为0700。遇到 unknown，需设备管理者核对实际业务和会话状态，不能通过删除记录自动恢复。
+
+协议模型与实际模拟器的验收范围分开记录，见[验证记录](software-to-mcp-verification.md)。已有 Appium 会话不证明已安装 App 字节；DOM 探针不证明页面脚本真实可信，公开输出继续脱敏、有界并保留缺口。
+
 ### 原生流程的时间预算
 
 `limits.maxDurationMs` 仍是 Python 原生执行器的 UI 预算，缺省 60 秒，须为 1–3,600,000 的整数。compiler15 将可信设备配置与派生时限绑定到同一份私有运行快照；修改原配置文件不会改变已经派发的那次运行。

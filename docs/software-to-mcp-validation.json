@@ -2652,185 +2652,97 @@
     "countingRule": "最终同源239/476、Python579、focused/independent、installed SDK与设备证据分列并有交叠；19/191等局部组不累加为全球独立总数。",
     "scopeNote": "完整保留compiler19当时current、focused、package、device、release、limits和storage；不是compiler20重跑。"
   },
-  "compilerVersion": "software-to-mcp-23",
-  "status": "native_semantic_branch_simulators_passed_full_regressions_and_fresh_installed_sdk_verified",
-  "scope": "有限原生双路径、逐参数结果断言与统一/独立生成MCP；真实自建模拟器及协议夹具分列。",
-  "asOf": "2026-11-04T18:45:47.818359+00:00",
+  "compilerVersion": "software-to-mcp-24",
+  "status": "webview_dom_installed_sdk_and_owned_ios_simulator_mcp_passed",
+  "scope": "显式iOS WebView DOM后端、有限线性文本查询的两样本学习与统一/独立MCP；原生与视觉通路范围各自保留。",
+  "asOf": "2026-11-04T20:57:20.560248+00:00",
   "currentFullRegression": {
-    "compilerVersion": "software-to-mcp-23",
-    "verificationAttempt": 25,
-    "status": "passed_full_regressions_with_two_test_only_source_changes",
-    "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
-    "combinedSourceCohort": {
-      "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
-      "runtimeFiles": 124,
-      "publicCodeFiles": 468,
-      "pythonScopeFiles": 89,
-      "finalReviewedBytesAndModesMatched": true,
-      "allPhasesSameFrozenBytesAndModes": false,
-      "runtimeBytesAndModesMatchAcrossPhases": true,
-      "softwareRegisteredTestsMatchFinal": true,
-      "sourceReconciliationSha256": "66b870f05fc0e20ffe3e1d8543e0f50a81011c89fc3f5d62b7c8319cabf16104"
-    },
     "legacy": {
       "tests": 239,
       "passed": 239,
       "failed": 0,
       "skipped": 0,
-      "cancelled": 0,
-      "logSha256": "aaea591f0ebb64b205a0d15a3a1e03a34971fefd3e4b9aeabf8ccc610fa2d820",
-      "reportSha256": "a669ee0213a189dc52a6b6fc482c40c88a262ef97bd2fd569344d801a77725f6"
+      "cancelled": 0
     },
     "software": {
-      "tests": 525,
-      "passed": 525,
+      "tests": 537,
+      "passed": 537,
       "failed": 0,
       "skipped": 0,
-      "cancelled": 0,
-      "logSha256": "0dea2ebdb95acf58a9a72bc8f19822a8a8dfa44743303ea03aab0b5155d579b9",
-      "reportSha256": "f479e666d2c2afdcfea0566997cd3c2bd2ad4e326199791d21fe1c91ffc0f813"
+      "cancelled": 0
     },
     "python": {
-      "tests": 641,
-      "passed": 640,
+      "tests": 704,
+      "passed": 703,
       "failed": 0,
       "skipped": 1,
       "cancelled": 0,
-      "logSha256": "4d08cecb0c0db24687698dff9e7f42f9769aee019777010ed54254d7910cd713",
-      "reportSha256": "3da6f2a5f68cb35e5b3a03af9cb0837f69ca729bbaa2a8029c94402583eba8a7",
-      "knownMissingHermesFixtureSkip": true,
-      "skipNotCountedAsPass": true
+      "knownHermesFixtureSkipOnly": true
     }
   },
   "currentPackageCheck": {
-    "compilerVersion": "software-to-mcp-23",
-    "verificationAttempt": 25,
-    "status": "passed_fresh_installed_native_branch_scenario",
-    "reportSha256": "41b920f67d628b4bbc89e7b94103284c6815e38ff4b28c9c06c690d950e7811a",
-    "baselineManifestSha256": "5c5514c0547a0c73f22afb85c0750a5c9ab67dc390ce0850782a9c282c28abd1",
-    "baselineArchiveSha256": "9fbb57c7e630e1cc606e2ffd7e963d021f2c26a95f7761d0cdd8e32bb6b32a16",
-    "files": 384,
+    "status": "passed",
+    "verificationAttempt": 26,
+    "runtimeCompilerVersion": "software-to-mcp-24",
+    "scope": "fresh_installed_WebView_local_protocol_model_only",
+    "successfulBusiness": 4,
+    "learning": 2,
+    "unified": 1,
+    "generated": 1,
+    "discoveryAndPlanUiWrites": 0,
+    "uncertainClickAdditionalBusiness": 1,
+    "businessTotalIncludingUnknown": 5,
+    "nextWorkerAdditionalHttp": 0,
+    "nextWorkerAdditionalUi": 0,
+    "nextWorkerAdditionalBusiness": 0,
+    "productionPythonInstalledOnly": true,
+    "wholeFrozenSourceBytesAndModesUnchanged": true,
+    "installedPackageFileCount": 395,
     "distFiles": 32,
-    "installedNativeBranches": {
-      "status": "passed",
-      "runtimeCompilerVersion": "software-to-mcp-23",
-      "verificationAttempt": 25,
-      "planningMode": "native-branch-stages-v1",
-      "workflowInput": "automatic_native_branch_candidate_id",
-      "platforms": {
-        "android": {
-          "status": "passed",
-          "counts": {
-            "discoveryBusinessRequests": 2,
-            "learningBusinessRequests": 4,
-            "unifiedBusinessRequests": 2,
-            "generatedBusinessRequests": 2,
-            "totalBusinessRequests": 10,
-            "planningAdditionalBusinessRequests": 0,
-            "planningAdditionalUiWrites": 0
-          },
-          "candidateSchemaTypes": {
-            "route": "string",
-            "query": "string",
-            "detail": "string"
-          },
-          "bothArmsExplored": true,
-          "eachArmTwoSamplesLearned": true,
-          "literalSpacesEmojiAndNfdPreservedInUnifiedAndGenerated": true,
-          "generatedFullCatalogParity": true,
-          "generatedReadyOnlyRegistration": true,
-          "catalog": {
-            "total": 1,
-            "ready": 1,
-            "candidate": 0
-          },
-          "wrongArm": {
-            "operationStatus": "completed",
-            "resultOk": false,
-            "errorCode": "NATIVE_BRANCH_ROUTE_INPUT_MISMATCH",
-            "additionalBusinessRequests": 0,
-            "additionalSearch": 0,
-            "additionalNext": 1,
-            "afterForkUiWrites": 0,
-            "automaticRetry": false
-          },
-          "fixtureCleanupPassed": true
-        },
-        "ios": {
-          "status": "passed",
-          "counts": {
-            "discoveryBusinessRequests": 2,
-            "learningBusinessRequests": 4,
-            "unifiedBusinessRequests": 2,
-            "generatedBusinessRequests": 2,
-            "totalBusinessRequests": 10,
-            "planningAdditionalBusinessRequests": 0,
-            "planningAdditionalUiWrites": 0
-          },
-          "candidateSchemaTypes": {
-            "route": "string",
-            "query": "string",
-            "detail": "string"
-          },
-          "bothArmsExplored": true,
-          "eachArmTwoSamplesLearned": true,
-          "literalSpacesEmojiAndNfdPreservedInUnifiedAndGenerated": true,
-          "generatedFullCatalogParity": true,
-          "generatedReadyOnlyRegistration": true,
-          "catalog": {
-            "total": 1,
-            "ready": 1,
-            "candidate": 0
-          },
-          "wrongArm": {
-            "operationStatus": "completed",
-            "resultOk": false,
-            "errorCode": "NATIVE_BRANCH_ROUTE_INPUT_MISMATCH",
-            "additionalBusinessRequests": 0,
-            "additionalSearch": 0,
-            "additionalNext": 1,
-            "afterForkUiWrites": 0,
-            "automaticRetry": false
-          },
-          "fixtureCleanupPassed": true
-        }
-      },
-      "productionPythonInstalledOnly": true,
-      "productionPythonDriverCounts": {
-        "mobileUi": 14,
-        "mobilePlanner": 6,
-        "total": 20
-      },
-      "externalFixtureIsTestOnly": true,
-      "installedPackageFileCount": 384,
-      "sourceBytesAndModesUnchanged": true,
-      "sdkClientsClosed": 4,
-      "sdkCleanupPassed": true,
-      "fixtureCleanupPassed": true,
-      "normalTraceSpawned": 36,
-      "normalTraceClosed": 36,
-      "normalTraceAllExit0": true,
-      "expectedDeniedWorkers": 0,
-      "noPhysicalDeviceClaim": true,
-      "noOrdinaryKeyboardClaim": true,
-      "otherSdkScenariosNotRerunHere": true
+    "sdkClientsClosed": 2,
+    "pythonDriverCounts": {
+      "webview": 6,
+      "planner": 2,
+      "total": 8
     },
-    "otherSdkScenariosNotRerunHere": true
+    "normalSubprocesses": 15,
+    "normalSubprocessesAllExit0": true,
+    "externalPythonProcessesClosed": 2,
+    "generatedFullCatalogParity": true,
+    "literalSpacesEmojiNfdExact": true,
+    "noDeviceOrBrowserClaim": true,
+    "rawInstalledArchiveSha256": "cb06c52480c084e0a84ae1f742c6f5149a4a90d1d494b9ca48de9056cc6e43a1",
+    "productionOnlyOfflineInstall": true,
+    "rawArchiveContainsPrior25VerificationDocuments": true,
+    "finalDocumentationProjection": {
+      "changedPackedFiles": [
+        "docs/software-to-mcp-validation.json",
+        "docs/software-to-mcp-verification.md"
+      ],
+      "allOther393PackedFilesBytesAndModesUnchanged": true,
+      "newSdkExecutionForProjectionClaimed": false
+    }
   },
   "currentFocused": {
-    "iosKeyboardRoleRegression": {
-      "tests": 8,
-      "passed": 8
+    "webviewBackendAndPlanner": {
+      "tests": 63,
+      "passed": 63,
+      "backend": 42,
+      "planner": 21
     },
-    "capabilityFidelity": {
-      "tests": 11,
-      "passed": 11
+    "javascriptDomFixture": {
+      "checks": 26,
+      "includedInOnePythonTest": true
     },
-    "independentParserXPathComparisons": 132,
-    "setupReadinessOfflineChecks": 15,
-    "hashTimeoutModule": {
-      "tests": 11,
-      "passed": 11
+    "routingAndFidelity": {
+      "tests": 21,
+      "passed": 21,
+      "includedInSoftwareFullRegression": true
+    },
+    "sdkProtocolWorkflow": {
+      "tests": 2,
+      "passed": 2,
+      "includedInSoftwareFullRegression": true
     },
     "countsAreOverlappingAndNotAdded": true
   },
@@ -3199,18 +3111,18 @@
     },
     "historicalPlatforms": "previousCompiler19.deviceEvidence及更早previousCompiler*完整保留；旧失败与其他平台历史不换绑当前20源码。"
   },
-  "deviceEvidenceScope": "旧deviceEvidence与currentIOS23保留历史原值；本轮实际原生语义模拟器结果见nativeSemanticDevices25。",
+  "deviceEvidenceScope": "旧deviceEvidence/currentIOS23与nativeSemanticDevices25保留原范围；本轮实际WKWebView结果仅见webviewMcp26.actualOwnedIOS。",
   "release": {
-    "runtimeCompilerVersion": "software-to-mcp-23",
-    "verificationAttempt": 25,
+    "runtimeCompilerVersion": "software-to-mcp-24",
+    "verificationAttempt": 26,
     "branch": "codex/ios-calibration-performance",
     "pullRequestUrl": "https://github.com/8eeth0ven/bfs-clicker/pull/2",
     "draft": true,
     "mainMergedThisIteration": false,
     "npmPublished": false,
     "basePublishedCheckpoint": {
-      "commit": "f411107494d54955aef1deb069a10c6bd3aaede8",
-      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/f411107494d54955aef1deb069a10c6bd3aaede8"
+      "commit": "2954ccdb55eb6ac950699e2d0561973f80ac54ae",
+      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/2954ccdb55eb6ac950699e2d0561973f80ac54ae"
     }
   },
   "storagePolicy": {
@@ -3221,14 +3133,14 @@
     "scope": "任务运维约束，不是产品自动删除或并发写入quota。"
   },
   "limits": [
-    "原生自动阶段仅有限协议fixture完成Android/iOS两平台4字段链；候选、两样本和统一/生成均按实际安装包证据分列，不证明任意App。",
-    "未知原生页面不自动back；仅已证明合法阶段与入口匹配的恢复路径允许动作；协议模型不能外推真机导航。",
-    "iOS有界只读采样不放宽完整校准guard，不重放业务；未知差异立即拒绝，原件逐次保留。",
-    "采样、underlay仍为视觉等价，不能证明OS caret、隐藏buffer或源字符串精确；旧19校准失败保留。",
-    "既有自动closed-stage授权、closed DOM/new-document范围、HTTP/provider/OCR限制保留在previousCompiler19及更早历史，当前未增加通用覆盖承诺。",
-    "字段分区研究仍未进入MCP/npm生产策略，空格OCR已知假接受历史不改写。"
+    "WebView仅显式可信iOS会话与已观察控件中的单文档、只读、线性type/click查询；Android WebView、iframe、Shadow DOM、跨页及写流程未支持。",
+    "DOM与W3C观测不证明页面代码、操作系统身份、安装字节或任意第三方业务等价；WebView网络请求不受浏览器网络scope策略拦截。",
+    "真实WKWebView本轮只验正向调用；控件替换、同URL重载、耦合输入与未知结果的阻断另由协议/DOM夹具验证，未声称设备故障注入通过。",
+    "MCP学习失败暂未透传结构化webviewOutcome；私有CLI/intent保留结果，实际rebind仅只读规划且不重放UI。显式association:null可能得到unknown元数据，默认配置省略该字段。",
+    "已有原生分支设备结果是第25轮runtime23的自建模拟器，未作为本轮runtime24设备重验；普通iOS视觉键盘第23次失败及未知业务范围保留。",
+    "物理设备与任意软件的全部业务未证明；既有HTTP、原生语义、closed DOM、OCR及研究分区限制仍按各自历史范围保留。"
   ],
-  "countingRule": "最终3套完整回归、focused、installed SDK与设备证据有交叠且来源范围不同；跳过不计为通过，不累加全球独立总数。",
+  "countingRule": "三套完整回归、定向检查、全新安装协议模型与真实模拟器分列；重叠用例不累加，跳过不计通过。",
   "postCompiler20HarnessVerification": {
     "schemaVersion": 1,
     "compilerVersion": "software-to-mcp-20",
@@ -3416,19 +3328,19 @@
     }
   },
   "currentFullRegressionScope": {
-    "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
-    "runtimeFiles": 124,
-    "publicCodeFiles": 468,
-    "pythonScopeFiles": 89,
-    "currentPublicCodeFullSuitePassed": false,
-    "currentRuntimeAndRegisteredSoftwareTestsValidated": true,
-    "softwareWholeSourceFreezeSha256": "04ac978776e6a26a731a3c30321eb6b9ee5f77e629e8e869c36aef2bb9f84c10",
-    "sourceReconciliationSha256": "66b870f05fc0e20ffe3e1d8543e0f50a81011c89fc3f5d62b7c8319cabf16104",
-    "testOnlyChangedPaths": [
-      "apk_tools/tests/test_adb_capture_identity.py",
-      "test/android-native-branch-e2e.mjs"
-    ],
-    "explanation": "software先通过；之后仅两份未被software套件加载的测试文件修正。最终主项目与Python全套重新执行，运行时及82份注册software测试字节不变；不宣称三套同一整仓快照。"
+    "sourceFreezeSha256": "e0df7f0107af4065dc88802f8a87a3bc0156a93144f4964182791c7574ddfbaa",
+    "publicFiles": 520,
+    "frozenFiles": 550,
+    "runtimeFiles": 127,
+    "publicCodeFiles": 485,
+    "pythonScopeFiles": 95,
+    "gatewayDistFiles": 32,
+    "allPhasesSameFrozenBytesAndModes": true,
+    "currentPublicCodeFullSuitePassed": true,
+    "excludedReportDocuments": [
+      "docs/software-to-mcp-validation.json",
+      "docs/software-to-mcp-verification.md"
+    ]
   },
   "previousPublishedAttempt21Checkpoint": {
     "publishedCommit": "cc27c268708e57eeecd7e95c3ec883eefe4e2c42",
@@ -4418,7 +4330,7 @@
       "keyUiActionRetries": 0
     }
   },
-  "verificationAttempt": 25,
+  "verificationAttempt": 26,
   "nativeBranchWorkflows24": {
     "planningMode": "native-branch-stages-v1",
     "optIn": "nativeBranchPlanning",
@@ -5067,6 +4979,351 @@
       "iosKeyboardRoleBoundary25",
       "sourceCohorts25",
       "webviewStatus25"
+    ]
+  },
+  "previousPublishedAttempt25Checkpoint": {
+    "publishedFeatureCommit": "2954ccdb55eb6ac950699e2d0561973f80ac54ae",
+    "jsonSha256": "ab8b416ae2dd81a2a0b9d97cf4c816f616f627731cf4442f4f2cb13df3db82b1",
+    "markdownSha256": "326eec4c4f55751d1da8b5d64fecfc21981628a64d35919285c3016da09ac71f",
+    "preservedFields": {
+      "compilerVersion": "software-to-mcp-23",
+      "status": "native_semantic_branch_simulators_passed_full_regressions_and_fresh_installed_sdk_verified",
+      "scope": "有限原生双路径、逐参数结果断言与统一/独立生成MCP；真实自建模拟器及协议夹具分列。",
+      "asOf": "2026-11-04T18:45:47.818359+00:00",
+      "currentFullRegression": {
+        "compilerVersion": "software-to-mcp-23",
+        "verificationAttempt": 25,
+        "status": "passed_full_regressions_with_two_test_only_source_changes",
+        "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
+        "combinedSourceCohort": {
+          "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
+          "runtimeFiles": 124,
+          "publicCodeFiles": 468,
+          "pythonScopeFiles": 89,
+          "finalReviewedBytesAndModesMatched": true,
+          "allPhasesSameFrozenBytesAndModes": false,
+          "runtimeBytesAndModesMatchAcrossPhases": true,
+          "softwareRegisteredTestsMatchFinal": true,
+          "sourceReconciliationSha256": "66b870f05fc0e20ffe3e1d8543e0f50a81011c89fc3f5d62b7c8319cabf16104"
+        },
+        "legacy": {
+          "tests": 239,
+          "passed": 239,
+          "failed": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "logSha256": "aaea591f0ebb64b205a0d15a3a1e03a34971fefd3e4b9aeabf8ccc610fa2d820",
+          "reportSha256": "a669ee0213a189dc52a6b6fc482c40c88a262ef97bd2fd569344d801a77725f6"
+        },
+        "software": {
+          "tests": 525,
+          "passed": 525,
+          "failed": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "logSha256": "0dea2ebdb95acf58a9a72bc8f19822a8a8dfa44743303ea03aab0b5155d579b9",
+          "reportSha256": "f479e666d2c2afdcfea0566997cd3c2bd2ad4e326199791d21fe1c91ffc0f813"
+        },
+        "python": {
+          "tests": 641,
+          "passed": 640,
+          "failed": 0,
+          "skipped": 1,
+          "cancelled": 0,
+          "logSha256": "4d08cecb0c0db24687698dff9e7f42f9769aee019777010ed54254d7910cd713",
+          "reportSha256": "3da6f2a5f68cb35e5b3a03af9cb0837f69ca729bbaa2a8029c94402583eba8a7",
+          "knownMissingHermesFixtureSkip": true,
+          "skipNotCountedAsPass": true
+        }
+      },
+      "currentFullRegressionScope": {
+        "sourceFreezeSha256": "3db353cb7f22db5c7bb60a7028bdee25dfe7a0f3b046593ec061de1fc3f729d5",
+        "runtimeFiles": 124,
+        "publicCodeFiles": 468,
+        "pythonScopeFiles": 89,
+        "currentPublicCodeFullSuitePassed": false,
+        "currentRuntimeAndRegisteredSoftwareTestsValidated": true,
+        "softwareWholeSourceFreezeSha256": "04ac978776e6a26a731a3c30321eb6b9ee5f77e629e8e869c36aef2bb9f84c10",
+        "sourceReconciliationSha256": "66b870f05fc0e20ffe3e1d8543e0f50a81011c89fc3f5d62b7c8319cabf16104",
+        "testOnlyChangedPaths": [
+          "apk_tools/tests/test_adb_capture_identity.py",
+          "test/android-native-branch-e2e.mjs"
+        ],
+        "explanation": "software先通过；之后仅两份未被software套件加载的测试文件修正。最终主项目与Python全套重新执行，运行时及82份注册software测试字节不变；不宣称三套同一整仓快照。"
+      },
+      "currentPackageCheck": {
+        "compilerVersion": "software-to-mcp-23",
+        "verificationAttempt": 25,
+        "status": "passed_fresh_installed_native_branch_scenario",
+        "reportSha256": "41b920f67d628b4bbc89e7b94103284c6815e38ff4b28c9c06c690d950e7811a",
+        "baselineManifestSha256": "5c5514c0547a0c73f22afb85c0750a5c9ab67dc390ce0850782a9c282c28abd1",
+        "baselineArchiveSha256": "9fbb57c7e630e1cc606e2ffd7e963d021f2c26a95f7761d0cdd8e32bb6b32a16",
+        "files": 384,
+        "distFiles": 32,
+        "installedNativeBranches": {
+          "status": "passed",
+          "runtimeCompilerVersion": "software-to-mcp-23",
+          "verificationAttempt": 25,
+          "planningMode": "native-branch-stages-v1",
+          "workflowInput": "automatic_native_branch_candidate_id",
+          "platforms": {
+            "android": {
+              "status": "passed",
+              "counts": {
+                "discoveryBusinessRequests": 2,
+                "learningBusinessRequests": 4,
+                "unifiedBusinessRequests": 2,
+                "generatedBusinessRequests": 2,
+                "totalBusinessRequests": 10,
+                "planningAdditionalBusinessRequests": 0,
+                "planningAdditionalUiWrites": 0
+              },
+              "candidateSchemaTypes": {
+                "route": "string",
+                "query": "string",
+                "detail": "string"
+              },
+              "bothArmsExplored": true,
+              "eachArmTwoSamplesLearned": true,
+              "literalSpacesEmojiAndNfdPreservedInUnifiedAndGenerated": true,
+              "generatedFullCatalogParity": true,
+              "generatedReadyOnlyRegistration": true,
+              "catalog": {
+                "total": 1,
+                "ready": 1,
+                "candidate": 0
+              },
+              "wrongArm": {
+                "operationStatus": "completed",
+                "resultOk": false,
+                "errorCode": "NATIVE_BRANCH_ROUTE_INPUT_MISMATCH",
+                "additionalBusinessRequests": 0,
+                "additionalSearch": 0,
+                "additionalNext": 1,
+                "afterForkUiWrites": 0,
+                "automaticRetry": false
+              },
+              "fixtureCleanupPassed": true
+            },
+            "ios": {
+              "status": "passed",
+              "counts": {
+                "discoveryBusinessRequests": 2,
+                "learningBusinessRequests": 4,
+                "unifiedBusinessRequests": 2,
+                "generatedBusinessRequests": 2,
+                "totalBusinessRequests": 10,
+                "planningAdditionalBusinessRequests": 0,
+                "planningAdditionalUiWrites": 0
+              },
+              "candidateSchemaTypes": {
+                "route": "string",
+                "query": "string",
+                "detail": "string"
+              },
+              "bothArmsExplored": true,
+              "eachArmTwoSamplesLearned": true,
+              "literalSpacesEmojiAndNfdPreservedInUnifiedAndGenerated": true,
+              "generatedFullCatalogParity": true,
+              "generatedReadyOnlyRegistration": true,
+              "catalog": {
+                "total": 1,
+                "ready": 1,
+                "candidate": 0
+              },
+              "wrongArm": {
+                "operationStatus": "completed",
+                "resultOk": false,
+                "errorCode": "NATIVE_BRANCH_ROUTE_INPUT_MISMATCH",
+                "additionalBusinessRequests": 0,
+                "additionalSearch": 0,
+                "additionalNext": 1,
+                "afterForkUiWrites": 0,
+                "automaticRetry": false
+              },
+              "fixtureCleanupPassed": true
+            }
+          },
+          "productionPythonInstalledOnly": true,
+          "productionPythonDriverCounts": {
+            "mobileUi": 14,
+            "mobilePlanner": 6,
+            "total": 20
+          },
+          "externalFixtureIsTestOnly": true,
+          "installedPackageFileCount": 384,
+          "sourceBytesAndModesUnchanged": true,
+          "sdkClientsClosed": 4,
+          "sdkCleanupPassed": true,
+          "fixtureCleanupPassed": true,
+          "normalTraceSpawned": 36,
+          "normalTraceClosed": 36,
+          "normalTraceAllExit0": true,
+          "expectedDeniedWorkers": 0,
+          "noPhysicalDeviceClaim": true,
+          "noOrdinaryKeyboardClaim": true,
+          "otherSdkScenariosNotRerunHere": true
+        },
+        "otherSdkScenariosNotRerunHere": true
+      },
+      "currentFocused": {
+        "iosKeyboardRoleRegression": {
+          "tests": 8,
+          "passed": 8
+        },
+        "capabilityFidelity": {
+          "tests": 11,
+          "passed": 11
+        },
+        "independentParserXPathComparisons": 132,
+        "setupReadinessOfflineChecks": 15,
+        "hashTimeoutModule": {
+          "tests": 11,
+          "passed": 11
+        },
+        "countsAreOverlappingAndNotAdded": true
+      },
+      "deviceEvidenceScope": "旧deviceEvidence与currentIOS23保留历史原值；本轮实际原生语义模拟器结果见nativeSemanticDevices25。",
+      "release": {
+        "runtimeCompilerVersion": "software-to-mcp-23",
+        "verificationAttempt": 25,
+        "branch": "codex/ios-calibration-performance",
+        "pullRequestUrl": "https://github.com/8eeth0ven/bfs-clicker/pull/2",
+        "draft": true,
+        "mainMergedThisIteration": false,
+        "npmPublished": false,
+        "basePublishedCheckpoint": {
+          "commit": "f411107494d54955aef1deb069a10c6bd3aaede8",
+          "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/f411107494d54955aef1deb069a10c6bd3aaede8"
+        }
+      },
+      "limits": [
+        "原生自动阶段仅有限协议fixture完成Android/iOS两平台4字段链；候选、两样本和统一/生成均按实际安装包证据分列，不证明任意App。",
+        "未知原生页面不自动back；仅已证明合法阶段与入口匹配的恢复路径允许动作；协议模型不能外推真机导航。",
+        "iOS有界只读采样不放宽完整校准guard，不重放业务；未知差异立即拒绝，原件逐次保留。",
+        "采样、underlay仍为视觉等价，不能证明OS caret、隐藏buffer或源字符串精确；旧19校准失败保留。",
+        "既有自动closed-stage授权、closed DOM/new-document范围、HTTP/provider/OCR限制保留在previousCompiler19及更早历史，当前未增加通用覆盖承诺。",
+        "字段分区研究仍未进入MCP/npm生产策略，空格OCR已知假接受历史不改写。"
+      ],
+      "countingRule": "最终3套完整回归、focused、installed SDK与设备证据有交叠且来源范围不同；跳过不计为通过，不累加全球独立总数。",
+      "verificationAttempt": 25
+    },
+    "addedTopLevelKeys": [
+      "webviewMcp26"
+    ]
+  },
+  "webviewMcp26": {
+    "runtimeCompilerVersion": "software-to-mcp-24",
+    "planningMode": "webview-dom-linear-v1",
+    "modalityChannels": [
+      "appium_webview_dom",
+      "fixed_w3c_element_commands"
+    ],
+    "associationProfiles": [
+      "reported_bundle_id_v1",
+      "xcuitest_app_main_pid_v1"
+    ],
+    "inputContract": "dom_value_echo_required",
+    "outputContract": "webview_dom_text_projection",
+    "inputLimitCodePoints": 2048,
+    "beforeClickAllBoundInputsReverified": true,
+    "documentIdentityScope": "fresh_worker_attach_then_live_reference_equality_within_worker",
+    "unknownIntentProtocol": "schema2_prepared_intent_and_exact_independent_completion_receipt",
+    "actualOwnedIOS": {
+      "status": "passed",
+      "fixture": "owned_iOS27_0_UIKit_WKWebView",
+      "appiumVersion": "3.9.0",
+      "xcuitestVersion": "12.22.3",
+      "remoteDebuggerVersion": "17.7.13",
+      "sourceFreezeSha256": "e0df7f0107af4065dc88802f8a87a3bc0156a93144f4964182791c7574ddfbaa",
+      "actualAssociationMethod": "xcuitest_app_main_pid_v1",
+      "business": {
+        "initial": 0,
+        "discovery": 0,
+        "planning": 0,
+        "learning": 2,
+        "unified": 1,
+        "generated": 1,
+        "total": 4
+      },
+      "literalSpacesEmojiNfdExactInIndependentAppLedger": true,
+      "sdkClientsClosedExit0": 2,
+      "actualProductionProbe": {
+        "requests": 146,
+        "sha256": "439f5411f7fa90765586385c4c161794d093db74b1e6a10b35dd79e2acb5a32d",
+        "allHttp200": true
+      },
+      "actualHttpRequests": 1261,
+      "completeObservations": 73,
+      "uiCommands": {
+        "clear": 8,
+        "value": 8,
+        "click": 4,
+        "total": 20,
+        "allHttp200": true
+      },
+      "cleanup": {
+        "ownedSimulatorDeleted": true,
+        "originalDeviceProfilesRetained": 11,
+        "ownedPortsClosed": 5,
+        "ownedProcessesRemaining": 0
+      },
+      "source550AndInstalledDriver1042BytesModesExact": true,
+      "originalWdaCache236Exact": true,
+      "negativeDeviceFaultInjectionPerformed": false,
+      "physicalDeviceClaimed": false
+    },
+    "latency": {
+      "scope": "one_owned_simulator_run; RPC_start_to_first_observed_terminal; includes_polling_delay",
+      "milliseconds": {
+        "discovery": 1644,
+        "planningSynchronous": 469,
+        "learningTwoSamples": 7277,
+        "unified": 3250,
+        "generate": 408,
+        "generatedCall": 2852
+      },
+      "wholeDeviceRunIncludingSetupCleanupMs": 218045,
+      "buildPreparationIncludedInWholeRun": false,
+      "matchedBaselineSpeedupMeasured": false,
+      "unimplementedOptimizationCandidates": [
+        "explicit_observation_receipt_at_action_boundary",
+        "combine_assertions_for_same_fresh_output_observation"
+      ]
+    },
+    "priorDriverOnlyAttempts": [
+      {
+        "attempt": 1,
+        "status": "failed",
+        "independentBusiness": 0,
+        "mcpAcceptance": false,
+        "cause": "WebInspector returned process alias; strict reported bundle association had no accepted WebView"
+      },
+      {
+        "attempt": 2,
+        "status": "failed",
+        "independentBusiness": 1,
+        "mcpAcceptance": false,
+        "cause": "owner fixture endpoint returned numeric 1 rather than boolean true; pending replacement not replayed",
+        "uncompletedChecks": [
+          "target replacement rejection",
+          "same URL reload rejection"
+        ]
+      }
+    ],
+    "apiDiagnosticLimitations": [
+      "bind_failure_omits_structured_webviewOutcome",
+      "explicit_null_association_metadata_unknown"
+    ],
+    "evidenceLinks": [
+      "src/mobile-webview-route.js",
+      "apk_tools/apk_inventory/mobile_webview.py",
+      "apk_tools/apk_inventory/mobile_webview_planner.py",
+      "apk_tools/tests/test_mobile_webview.py",
+      "apk_tools/tests/test_mobile_webview_planner.py",
+      "test/software-webview-workflow.test.mjs",
+      "test/ios-webview-workflow-e2e.mjs",
+      "examples/software/ios-webview-device.example.json"
     ]
   }
 }

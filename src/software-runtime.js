@@ -13,6 +13,7 @@ import {runPython} from './software-python.js';
 import {createNativeDeviceSnapshot} from './native-workflow-budget.js';
 import {CAPABILITY_FIDELITY_VERSION,capabilityFidelity,unknownCapabilityFidelity,sourceRouteDiscovery} from './capability-fidelity.js';
 import {bindNativeBranchResults,nativeBranchParameters} from './native-branch-binding.js';
+import {isWebViewDevice,mobileBackendKind,webViewModuleFor} from './mobile-webview-route.js';
 export {runPython} from './software-python.js';
 
 const ID=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
@@ -140,7 +141,7 @@ export function createSoftwareRuntime(options={}){
     const id='cap_'+digest([sourceId,cap.kind,cap.id]),binding={adapter,sourceId,runDir:item.runDir||runDir||null,mobileDir:mobileDir||null,workflowDir:item.directory||null,deviceName:item.deviceName||deviceName||null,deviceConfigPath:item.deviceConfigPath||deviceConfigPath||null,recipe:item.recipes[cap.id]};
     const metadata=bindCatalogContract(binding,kind,services.credentials.redactor,deviceFidelityCache);preparedCapabilities.push({item,cap,id,binding,metadata});
    }
-   const revision=digest({compilerVersion:'software-to-mcp-23',sourceId,http:snapshot.revision,browser:browser?.manifest.source.revision||null,mobile:mobile?.manifest.source.revision||null,deviceName:deviceName||null,deviceConfigPath:deviceConfigPath||null,workflows:workflows.map(item=>[item.id,item.manifest.source.revision,item.adapter]),workflowPermissions:config.workflowPermissions[sourceId]||null,nativeVisual:config.nativeVisual?.[sourceId]||null,supplements:httpSupplements,scope,binding:config.bindings?.[sourceId]||null,sourceGaps,sourceWarnings,specificationInput,fidelityContracts:{version:CAPABILITY_FIDELITY_VERSION,items:preparedCapabilities.map(item=>[item.id,item.binding.catalogContract])}});
+   const revision=digest({compilerVersion:'software-to-mcp-24',sourceId,http:snapshot.revision,browser:browser?.manifest.source.revision||null,mobile:mobile?.manifest.source.revision||null,deviceName:deviceName||null,deviceConfigPath:deviceConfigPath||null,workflows:workflows.map(item=>[item.id,item.manifest.source.revision,item.adapter]),workflowPermissions:config.workflowPermissions[sourceId]||null,nativeVisual:config.nativeVisual?.[sourceId]||null,supplements:httpSupplements,scope,binding:config.bindings?.[sourceId]||null,sourceGaps,sourceWarnings,specificationInput,fidelityContracts:{version:CAPABILITY_FIDELITY_VERSION,items:preparedCapabilities.map(item=>[item.id,item.binding.catalogContract])}});
    const capabilities=[],recipes={},gaps=[...sourceGaps,...supplementGaps,...supplements.flatMap(item=>item.gaps||[]),...(adapted?.gaps||[]),...(browser?.manifest.source.gaps||[]),...mobileProofs.flatMap(source=>source.gaps||[]).filter(gap=>!appArtifactVerified||(typeof gap==='string'?gap:gap.reason)!=='app_artifact_not_verified'),...(mobileProofs.length?[...(!appArtifactVerified?[{reason:'app_artifact_not_verified'}]:[]),{reason:'mobile_network_scope_not_enforced'}]:[])];
    for(const endpoint of snapshot.endpoints){
     for(const method of endpoint.methods){
@@ -200,7 +201,7 @@ export function createSoftwareRuntime(options={}){
    const recipeFile=path.join(outputDir,'recipe.json');mkdirSync(outputDir,{recursive:true,mode:0o700});atomicJson(recipeFile,binding.recipe);
    const visualType=binding.adapter==='mobile-workflow'?binding.recipe.recipeType:null;
    if(visualType==='ios_visual_workflow'&&g.ref.kind!=='ios'||visualType==='visual_workflow'&&g.ref.kind!=='apk')throw new Error('VISUAL_APP_IDENTITY_MISMATCH');
-   const module=visualType==='ios_visual_workflow'?'apk_inventory.mobile_visual_ios':visualType==='visual_workflow'?'apk_inventory.mobile_visual_android':'apk_inventory.mobile_ui';
+   const module=webViewModuleFor(dc,{sourceKind:g.ref.kind,operation:'execute',recipe:binding.recipe})||(visualType==='ios_visual_workflow'?'apk_inventory.mobile_visual_ios':visualType==='visual_workflow'?'apk_inventory.mobile_visual_android':'apk_inventory.mobile_ui');
    await runNativePython(dc,['-m',module,'--operation','execute','--output',outputDir,'--recipe',recipeFile,'--revision',binding.recipe.revision],{signal,stdin:{inputs:params}});
    result=json(path.join(outputDir,'result.json'));
    if(['apk_inventory.mobile_visual_android','apk_inventory.mobile_visual_ios'].includes(module)){
@@ -239,7 +240,7 @@ export function createSoftwareRuntime(options={}){
   const descriptor=json(path.join(inventory,'source.json'));if(sourceId&&sourceId!==descriptor.source_id)throw new Error('SOURCE_IDENTITY_MISMATCH：移动来源标识取安装包source.json');let mobileDir,deviceConfigPath;
   if(deviceName){
    const device=config.devices?.[deviceName];if(!device)throw new Error('未知deviceName，先在启动配置绑定');const dc=readDevice(device),app=descriptor.app?.package_name||descriptor.app?.bundle_id;
-   const backendKind=dc.backend?.type==='adb'||dc.backend?.type==='webdriver'&&dc.backend.platform==='android'?'apk':dc.backend?.type==='webdriver'&&(!dc.backend.platform||dc.backend.platform==='ios')?'ios':null;
+   const backendKind=mobileBackendKind(dc.backend);
    if(backendKind!==kind||dc.source?.kind&&dc.source.kind!==kind||dc.source?.id&&dc.source.id!==descriptor.source_id||dc.backend?.appId&&dc.backend.appId!==app)throw new Error('移动UI设备配置与安装包身份不一致');
    if(!/^[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)+$/.test(app||''))throw new Error('APP_IDENTITY_REQUIRED');
    dc.source={...dc.source,id:descriptor.source_id,kind};dc.backend.appId=app;delete dc.workflowPermissions;const permission=config.workflowPermissions[descriptor.source_id];if(permission&&(permission.allowWrite.length||permission.allowWriteLearning.length))dc.workflowPermissions=clone({allowWrite:permission.allowWrite,allowWriteLearning:permission.allowWriteLearning});
@@ -247,7 +248,8 @@ export function createSoftwareRuntime(options={}){
    if(dc.expectedArtifact&&(kind!=='apk'||dc.expectedArtifact.kind!=='apk'||dc.expectedArtifact.sha256!==hash))throw new Error('ARTIFACT_BINDING_MISMATCH');
    if(kind==='apk'&&dc.backend.type==='adb'&&/\.apk$/i.test(artifact)&&/^[a-f0-9]{64}$/.test(hash||''))dc.expectedArtifact={kind:'apk',sha256:hash};
    deviceConfigPath=path.join(root,'private','device-'+digest(dc)+'.json');if(!existsSync(deviceConfigPath))atomicJson(deviceConfigPath,dc);
-   mobileDir=path.join(priorDir||outputDir,'mobile-ui');await runNativePython(dc,['-m','apk_inventory.mobile_ui','--operation','explore','--output',mobileDir,...(resume&&priorDir?['--resume']:[])],{signal});
+   const module=webViewModuleFor(dc,{sourceKind:kind,operation:'explore'})||'apk_inventory.mobile_ui';
+   mobileDir=path.join(priorDir||outputDir,'mobile-ui');await runNativePython(dc,['-m',module,'--operation','explore','--output',mobileDir,...(resume&&priorDir?['--resume']:[])],{signal});
   }
   return compile({sourceId:descriptor.source_id,inventoryPath:inventory,kind,mobileDir,deviceName,deviceConfigPath});
  }
@@ -384,7 +386,7 @@ export function createSoftwareRuntime(options={}){
   return {schemaVersion:1,sourceId,sourceRevision:expectedRevision,provenance:found.provenance,untrusted:true,coordinateSpace:found.coordinateSpace,capturedAt:found.capturedAt,width:found.width,height:found.height,imageSha256:found.imageSha256,text:Buffer.from(safe).subarray(0,4096).toString('utf8').replace(/\uFFFD$/,''),words,truncated,gaps:[...found.gaps,...(safe!==joined?['ocr_sensitive_content_redacted']:[]),...(truncated?['ocr_output_truncated']:[]),'screenshot_is_historical_revalidate_before_actions'],artifactVerification:found.artifactVerification,appArtifactVerified:found.appArtifactVerified};
  }
  async function workflowPlan(sourceId,args={}){const g=readGeneration(sourceId);if(!g.ref.runDir)throw new Error('BROWSER_RUN_REQUIRED');const {compileBrowserRun}=await import('./browser-capabilities.js');const proof=await compileBrowserRun({runDir:g.ref.runDir,sourceId});if(g.ref.browserSourceRevision&&proof.manifest.source.revision!==g.ref.browserSourceRevision)throw new Error('SOURCE_CHANGED：请先刷新来源');const {planBrowserWorkflows}=await import('./workflow-planner.js');return {g,plan:await planBrowserWorkflows({runDir:g.ref.runDir,sourceId,...args})};}
- async function nativeWorkflowPlan(sourceId){const g=readGeneration(sourceId),deviceFile=g.ref.deviceConfigPath||config.devices?.[g.ref.deviceName];if(!deviceFile)throw new Error('NEEDS_DEVICE_CONFIG');const device=deviceFor(deviceFile,sourceId),directory=path.join(root,'private','native-plans',randomUUID());await runPython(config,['-m','apk_inventory.mobile_planner','--config',device,'--output',directory,...(g.ref.mobileDir?['--inventory',g.ref.mobileDir]:[])],{timeoutMs:30000});const plan=artifactJson(directory,'plan.private.json');if(plan.source.id!==sourceId||plan.source.kind!==g.ref.kind)throw new Error('WORKFLOW_IDENTITY_MISMATCH');return {g,plan};}
+ async function nativeWorkflowPlan(sourceId){const g=readGeneration(sourceId),deviceFile=g.ref.deviceConfigPath||config.devices?.[g.ref.deviceName];if(!deviceFile)throw new Error('NEEDS_DEVICE_CONFIG');const device=deviceFor(deviceFile,sourceId),dc=readDevice(device),directory=path.join(root,'private','native-plans',randomUUID()),module=webViewModuleFor(dc,{sourceKind:g.ref.kind,operation:'plan'});if(module)await runNativePython(dc,['-m',module,'--output',directory]);else await runPython(config,['-m','apk_inventory.mobile_planner','--config',device,'--output',directory,...(g.ref.mobileDir?['--inventory',g.ref.mobileDir]:[])],{timeoutMs:30000});const plan=artifactJson(directory,'plan.private.json');if(plan.source.id!==sourceId||plan.source.kind!==g.ref.kind)throw new Error('WORKFLOW_IDENTITY_MISMATCH');return {g,plan};}
  async function planWorkflows({sourceId,offset=0,limit=20}){if(!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error('分页参数无效');const source=current(sourceId);const {g,plan}=source.kind==='web'?await workflowPlan(sourceId,{offset,limit}):await nativeWorkflowPlan(sourceId);const {specs,...catalog}=plan;if(source.kind!=='web'){catalog.items=plan.items.slice(offset,offset+limit);catalog.nextOffset=offset+catalog.items.length<plan.items.length?offset+catalog.items.length:null;}return redact({...catalog,source:{...g.manifest.source,workflowPlanRevision:plan.source?.revision}});}
  async function bindWorkflow(args,outputDir,signal){
   try{const result=await bindWorkflowInternal(args,outputDir,signal),writeOutcome=persistedWriteOutcome(outputDir);return {...result,...(writeOutcome?{writeOutcome}:{})};}
@@ -394,6 +396,8 @@ export function createSoftwareRuntime(options={}){
   signal?.throwIfAborted();
   const g=readGeneration(sourceId);if(g.ref.revision!==expectedRevision)throw new Error('SOURCE_CHANGED');if(!!specPath===!!candidateId)throw new Error('选择specPath或candidateId之一');
   if(g.ref.kind!=='web'){
+   const planningDeviceFile=g.ref.deviceConfigPath||config.devices?.[g.ref.deviceName],webview=planningDeviceFile&&isWebViewDevice(readDevice(planningDeviceFile));
+   if(webview&&specPath)throw Object.assign(new Error('WEBVIEW_SPEC_PATH_UNSUPPORTED'),{code:'WEBVIEW_SPEC_PATH_UNSUPPORTED'});
    if(!Array.isArray(samples)||samples.length<2||samples.length>5||Buffer.byteLength(JSON.stringify(samples))>65536)throw new Error('WORKFLOW_INPUT_LIMIT');let file;
    if(specPath){file=checkedArtifact(specPath,config.artifactRoots);if(!statSync(file).isFile()||statSync(file).size>524288)throw new Error('WORKFLOW_SPEC_LIMIT');}
    else{
@@ -402,7 +406,7 @@ export function createSoftwareRuntime(options={}){
     if(spec.branchPlan)spec=bindNativeBranchResults(spec,mappings);
     else{
      const targets=[...new Map(mappings.map(item=>[item.target.id,item.target])).values()];
-     for(const {rule,target} of mappings){if(rule.representation&&rule.representation!=='value'||rule.valueMap!==undefined||rule.separator!==undefined)throw new Error('WORKFLOW_REPRESENTATION_UNSUPPORTED');spec.steps.push({kind:'assert',selector:target.selector,expect:{containsInput:rule.param,...(rule.changedFromBefore?{changed:true}:{})},timeoutMs:rule.timeoutMs??5000});}
+     for(const {rule,target} of mappings){if(rule.representation&&rule.representation!=='value'||rule.valueMap!==undefined||rule.separator!==undefined)throw new Error('WORKFLOW_REPRESENTATION_UNSUPPORTED');if(webview&&rule.changedFromBefore===false)throw Object.assign(new Error('WEBVIEW_FRESHNESS_REQUIRED'),{code:'WEBVIEW_FRESHNESS_REQUIRED'});spec.steps.push({kind:'assert',selector:target.selector,expect:{containsInput:rule.param,...(webview||rule.changedFromBefore?{changed:true}:{})},timeoutMs:rule.timeoutMs??5000});}
      for(const [index,target]of targets.entries())spec.steps.push({kind:'extract',selector:target.selector,output:targets.length===1?'result':'result_'+(index+1),valueType:'string'});
      delete spec.outcomeCandidates;
     }
@@ -420,7 +424,7 @@ export function createSoftwareRuntime(options={}){
     try{if(typeof approvedPath!=='string'||!path.isAbsolute(approvedPath))throw new Error();const approvedFile=checkedArtifact(approvedPath,config.artifactRoots);if(!statSync(approvedFile).isFile()||statSync(approvedFile).size>524288)throw new Error();approved=JSON.parse(readFileSync(approvedFile,'utf8'));}catch{throw new Error('VISUAL_DEFINITION_NOT_APPROVED');}
     if(digest(canonical(approved))!==digest(canonical(definition)))throw new Error('VISUAL_DEFINITION_NOT_APPROVED');
    }
-   const sampleFile=path.join(outputDir,'workflow-samples.json');atomicJson(sampleFile,samples);const directory=path.join(outputDir,'workflow'),module=visual?(g.ref.kind==='ios'?'apk_inventory.mobile_visual_ios':'apk_inventory.mobile_visual_android'):'apk_inventory.mobile_ui';await runNativePython(dc,['-m',module,'--operation','workflow-learn','--workflow',file,'--samples',sampleFile,'--output',directory],{signal});const learningResult=json(path.join(directory,'result.json'));if(learningResult.ok!==true)throw Object.assign(new Error('WORKFLOW_NOT_VALIDATED：'+String(learningResult.error?.code||learningResult.status||'failed')),{writeOutcome:publicWriteOutcome(learningResult.writeOutcome)});const learned=json(path.join(directory,'manifest.json'));if(!learned.capabilities?.some(cap=>cap.readiness==='ready'))throw new Error('WORKFLOW_NOT_VALIDATED');signal?.throwIfAborted();const id=learned.capabilities[0].id,entry={id,adapter:'mobile-workflow',directory,appIdentity:g.ref.appIdentity,deviceName:g.ref.deviceName,deviceConfigPath:device};return compileCurrent({sourceId,expectedRevision,deviceConfigPath:device,workflowEntries:[...(g.ref.workflowEntries||[]).filter(item=>item.id!==id),entry]});
+   const sampleFile=path.join(outputDir,'workflow-samples.json');atomicJson(sampleFile,samples);const directory=path.join(outputDir,'workflow'),module=webViewModuleFor(dc,{sourceKind:g.ref.kind,operation:'learn',recipe:definition})||(visual?(g.ref.kind==='ios'?'apk_inventory.mobile_visual_ios':'apk_inventory.mobile_visual_android'):'apk_inventory.mobile_ui');await runNativePython(dc,['-m',module,'--operation','workflow-learn','--workflow',file,'--samples',sampleFile,'--output',directory],{signal});const learningResult=json(path.join(directory,'result.json'));if(learningResult.ok!==true)throw Object.assign(new Error('WORKFLOW_NOT_VALIDATED：'+String(learningResult.error?.code||learningResult.status||'failed')),{writeOutcome:publicWriteOutcome(learningResult.writeOutcome)});const learned=json(path.join(directory,'manifest.json'));if(!learned.capabilities?.some(cap=>cap.readiness==='ready'))throw new Error('WORKFLOW_NOT_VALIDATED');signal?.throwIfAborted();const id=learned.capabilities[0].id,entry={id,adapter:'mobile-workflow',directory,appIdentity:g.ref.appIdentity,deviceName:g.ref.deviceName,deviceConfigPath:device};return compileCurrent({sourceId,expectedRevision,deviceConfigPath:device,workflowEntries:[...(g.ref.workflowEntries||[]).filter(item=>item.id!==id),entry]});
   }
   if(!g.ref.runDir)throw new Error('BROWSER_RUN_REQUIRED');let file;
   if(specPath){file=checkedArtifact(specPath,config.artifactRoots);if(!statSync(file).isFile()||statSync(file).size>524288)throw new Error('WORKFLOW_SPEC_LIMIT');}

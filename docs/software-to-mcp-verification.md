@@ -1,3 +1,24 @@
+# 第26轮验证：iOS WebView 接通完整 MCP 调用链
+
+本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/2954ccdb55eb6ac950699e2d0561973f80ac54ae)，运行时更新为 `software-to-mcp-24`，在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)增加显式 WebView DOM 后端。PR #1 已由用户合并；下方第25轮及更早原文保持当时范围。
+
+- 已选定的 iOS WKWebView 可只读发现和规划，两组不同文本样本通过后供统一与独立生成 MCP 调用。每次复核实际 App/context/window/URL、DOM 合同及 worker 内真实引用；输入后精确回读，点击前核对全部字段。固定 DOM 探针与 W3C clear/value/click 分别标注，原生与视觉路径保留各自合同。
+- 新建自有 iOS27.0 模拟器的真实 App 账本为初始0、探索0、规划0、学习2、统一后3、生成入口后4。四笔逐项核对中文、首尾/连续空格、emoji 与 NFD；透传记录1261次实际HTTP、146次生产探针和20次W3C输入/点击均成功。两个SDK客户端正常退出；这些结果仅覆盖自建App的正向线性查询。
+- 同一份550文件冻结（520公开文件减2份随后编写的报告，加32份dist）完成主项目239/239、software537/537；Python704项中703通过、1个既有Hermes fixture跳过。127份运行时、485份公开代码与95份Python来源前后字节/模式相同。63项WebView定向检查和26个DOM夹具检查有交叠，不另加为全局总数。
+- 新395文件/32dist包经全新锁定依赖离线安装，由实际SDK验证安装目录生产代码：学习2、统一1、生成1，共4笔协议模型业务。另一次click执行后返回HTTP500，模型账本总5；后续新worker的HTTP/UI/业务均零新增。2个SDK客户端与15个正常运行子进程（7Node、8Python）均退出0；外部模型与模块解析进程另列。它们是协议模型证据，与真实模拟器分开计数。
+- 真实SDK请求起点至首次观察到终态：探索1.644秒、两样本学习7.277秒、统一调用3.250秒、生成入口调用2.852秒；同步规划0.469秒，生成入口文件0.408秒。这些时间含轮询观察延迟，未计入此前构建准备。整个device run含启动和清理为218.045秒。73次完整DOM观察各有17次请求，重复观察与同结果区断言是后续优化候选，尚无对应提速实测。
+- schema2在派发前持久记录intent，只有完整执行范围的匹配完成receipt才解除阻断。保留输入事件改写另一字段的旧错误学习证据；修复后在click前拒绝，零提交。等值W3C/legacy双标识只在内存规范化，冲突或额外键拒绝。首次intent发布前失败且未派发为not_started；已落盘或已尝试UI的未知结果保持阻断。
+- 两次driver-only失败保留：首次未取得可确认归属的WebView，独立账本0；第二次虽完成引用往返和Unicode输入，仍因自有fixture将布尔值输出为数字而失败，独立账本1，替换/重载检查未完成。修正fixture布尔类型并冻结新源码后，才执行本轮独立MCP验收；不追认旧轮通过。
+- 自建模拟器已删除，5个自有端口关闭、相关自有进程0；原11台设备profiles与运行前状态保留。550来源、1042份已安装驱动来源与236份原WDA缓存均核对字节/模式；共享Simulator/DeviceHub偏好保留前后快照，不盲目回滚。全程预留10GiB以上，原始设备/HTTP/会话日志仅私有保存。
+
+当前范围限显式iOS会话、已观察控件和单文档只读type/click。实际设备本轮未做控件替换、同URL重载或未知提交故障注入；对应拒绝合同由协议/DOM夹具覆盖。MCP学习失败暂未透传结构化webviewOutcome，私有CLI/intent仍保留结果且不会重放；显式association:null可能得到unknown元数据，默认配置省略该字段。Android WebView、跨页、写流程、物理设备与任意第三方软件的全部业务仍未证明。原生分支第25轮设备结果和普通iOS视觉键盘第23次失败各保留原范围。本轮未合并main、未发布npm。
+
+配置见[iOS WebView DOM通路](software-to-mcp.md#ios-webview-的-dom-通路)与[设备示例](../examples/software/ios-webview-device.example.json)，完整来源及计数见[验证JSON](software-to-mcp-validation.json)。安装验证使用的原始包仍含第25轮两份验收文档；最终审阅归档仅更新这两份文档，其余393份包成员字节/模式与实际安装验证一致，不把元数据投影称为新SDK执行。
+
+---
+
+## 第25轮及更早检查点原文（完整保留）
+
 # 第25轮验证：Android/iOS 原生分支 MCP 通过真实模拟器验收
 
 本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/f411107494d54955aef1deb069a10c6bd3aaede8)，产品运行时为 `software-to-mcp-23`，继续在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)完善。此前 PR #1 已由用户合并；下方第24轮及更早原文保留当时范围。
