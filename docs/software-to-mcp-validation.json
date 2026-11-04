@@ -237,6 +237,13 @@
       "phase": "keyboard_calibration",
       "errorCode": "CALIBRATION_SAMPLING_DEADLINE",
       "sourceFreezeSha256": "ececde02474cbc582e1d19d0a11fe528fef0aeedf99fff3100c63d0d4bd0364c"
+    },
+    {
+      "kind": "普通iOS第23次验收（源码产品21）",
+      "status": "terminal_failed",
+      "phase": "keyboard_calibration",
+      "errorCode": "CALIBRATION_SAMPLING_REQUEST_TIMEOUT",
+      "sourceFreezeSha256": "8a80f29b49b08d9162ab0854649eebada9c2611fb1244c72e22e64bbe0d0a25e"
     }
   ],
   "previousCompiler12FullRegression": {
@@ -2646,345 +2653,99 @@
     "scopeNote": "完整保留compiler19当时current、focused、package、device、release、limits和storage；不是compiler20重跑。"
   },
   "compilerVersion": "software-to-mcp-21",
-  "status": "new_full_and_sdk_passed_ordinary_ios22_terminal_failed",
-  "scope": "有限Web/APK/iOS及本地协议fixture；新源码产品21、设备attempt22、完整回归与安装SDK分别计证，不证明任意网站/App。",
+  "status": "fresh_focused39_passed_ordinary_ios23_terminal_failed",
+  "scope": "有限Web/APK/iOS合同；第23轮仅校准harness像素比较优化、新39项目标测试及失败设备终态，旧全套/SDK按原范围保留，不证明任意网站/App。",
   "asOf": "2026-11-04",
   "currentFullRegression": {
     "compilerVersion": "software-to-mcp-21",
-    "verificationAttempt": 22,
-    "status": "passed_fresh_same_source_full_regressions",
-    "currentRuntimeCoveredBySingleFullSoftwareRun": true,
-    "legacy": {
-      "tests": 239,
-      "passed": 239,
-      "skipped": 0,
-      "logSha256": "c9e0368eb6368de4381ee040ebe53b670a221ed46ba66e0ffcaa206812d9333e",
-      "reportSha256": "a28ec4c3bb97807a670202bcc06a80676c260b210cb116d7f62f4d9d9b205ce7",
-      "failed": 0,
-      "cancelled": 0
+    "verificationAttempt": 23,
+    "status": "not_rerun_for_attempt23",
+    "newFullSuitesRun": false,
+    "currentPublic449FullSuitePassed": false,
+    "historicalVerificationAttempt": 22,
+    "historicalSourceFreezeSha256": "ececde02474cbc582e1d19d0a11fe528fef0aeedf99fff3100c63d0d4bd0364c",
+    "historicalCounts": {
+      "legacy": {
+        "tests": 239,
+        "passed": 239,
+        "skipped": 0,
+        "logSha256": "c9e0368eb6368de4381ee040ebe53b670a221ed46ba66e0ffcaa206812d9333e",
+        "reportSha256": "a28ec4c3bb97807a670202bcc06a80676c260b210cb116d7f62f4d9d9b205ce7",
+        "failed": 0,
+        "cancelled": 0
+      },
+      "software": {
+        "tests": 516,
+        "passed": 516,
+        "skipped": 0,
+        "logSha256": "7d43b0e9c06182c3e54d08eb7bc66294744ece5f34861b418fc80a7da2ce197b",
+        "reportSha256": "e2cb42e6e519050aa00b132be50233fba95f2b91058577d05b19311e57b46947",
+        "failed": 0,
+        "cancelled": 0
+      },
+      "python": {
+        "tests": 606,
+        "passed": 605,
+        "skipped": 1,
+        "logSha256": "de88c41a6f7e89e0747a511a844ad26271ab1d2e3bb1188faf4f72235174a03d",
+        "reportSha256": "380255c26ebc1bc7bacdfefa029bd750b2c494f27a6f390fef1fbba8b9f937d2",
+        "failed": 0,
+        "cancelled": 0,
+        "knownMissingHermesFixtureSkip": true,
+        "skipNotCountedAsPass": true
+      }
     },
-    "software": {
-      "tests": 516,
-      "passed": 516,
-      "skipped": 0,
-      "logSha256": "7d43b0e9c06182c3e54d08eb7bc66294744ece5f34861b418fc80a7da2ce197b",
-      "reportSha256": "e2cb42e6e519050aa00b132be50233fba95f2b91058577d05b19311e57b46947",
-      "failed": 0,
-      "cancelled": 0
-    },
-    "python": {
-      "tests": 606,
-      "passed": 605,
-      "skipped": 1,
-      "logSha256": "de88c41a6f7e89e0747a511a844ad26271ab1d2e3bb1188faf4f72235174a03d",
-      "reportSha256": "380255c26ebc1bc7bacdfefa029bd750b2c494f27a6f390fef1fbba8b9f937d2",
-      "failed": 0,
-      "cancelled": 0,
-      "knownMissingHermesFixtureSkip": true,
-      "skipNotCountedAsPass": true
-    },
-    "combinedSourceCohort": {
-      "sourceFreezeSha256": "ececde02474cbc582e1d19d0a11fe528fef0aeedf99fff3100c63d0d4bd0364c",
-      "runtimeFiles": 121,
-      "publicCodeFiles": 449,
-      "pythonScopeFiles": 81,
-      "pythonUnchangedByteFiles": 80,
-      "changedLinkedPythonScopeFile": "src/visual-caret.js",
-      "allReviewedBytesAndModesMatched": true
-    }
+    "unchangedScopes": [
+      "runtime121",
+      "python81"
+    ],
+    "scope": "Prior22 full runs remain historical. Runtime121 and Python81 bytes/modes are unchanged; the current449 set has one changed test harness and no new full run."
   },
   "currentPackageCheck": {
     "compilerVersion": "software-to-mcp-21",
-    "verificationAttempt": 22,
-    "status": "passed_six_installed_fixture_scenarios",
+    "verificationAttempt": 23,
+    "status": "not_rerun_for_attempt23_historical22_sdk_reference",
+    "historicalVerificationAttempt": 22,
+    "newInstalledSdkRun": false,
     "reportSha256": "1baed5f4aedd3ed2bf2daaec345d619e1e80cc2251ff5e1197c3597080a44ecb",
     "baselineManifestSha256": "1a1f6792c4d99186e324912e3e6b5662d4c3fecb3149f8945c2784507b418724",
     "baselineArchiveSha256": "9cf8bcede324ad8bdb495be57fb134357d19238d09cbf06fce171160325edb27",
-    "schemaVersion": 1,
-    "sourceFreezeSha256": "ececde02474cbc582e1d19d0a11fe528fef0aeedf99fff3100c63d0d4bd0364c",
     "files": 370,
     "distFiles": 32,
-    "officialSdkTools": 28,
-    "stderrBytes": 0,
-    "clientClosed": true,
-    "serverProcessClosed": true,
-    "productionImportsPassed": true,
-    "allEightDependenciesLocal": true,
-    "allPackedBytesMatched": true,
-    "allPackedModesMatched": true,
-    "sourceUnchanged": true,
-    "archiveUnchanged": true,
-    "lockUnchanged": true,
-    "installedLiveState": {
-      "status": "passed",
-      "modes": {
-        "dom": {
-          "wholeFixtureBusinessRequests": 5,
-          "learningRequests": 2,
-          "unifiedRequests": 1,
-          "generatedRequests": 1,
-          "discoveryRequests": 1,
-          "eachIntentExactlyOnce": true,
-          "retiredFormsDetachedNotHidden": true
-        },
-        "open": {
-          "wholeFixtureBusinessRequests": 5,
-          "learningRequests": 2,
-          "unifiedRequests": 1,
-          "generatedRequests": 1,
-          "discoveryRequests": 1,
-          "eachIntentExactlyOnce": true,
-          "retiredFormsDetachedNotHidden": true
-        }
-      },
-      "sdkCleanupPassed": true
-    },
-    "installedProviderFidelity": {
-      "status": "passed",
-      "afterDiscoveryNativeBusinessRequests": 4,
-      "additionalNativeUiCallsForExplicitHttp": 0,
-      "sdkCleanupPassed": true
-    },
-    "installedClosedMultistage": {
-      "status": "passed",
-      "workflowInput": "explicit_local_specPath",
-      "counts": {
-        "discovery": 1,
-        "learning": 2,
-        "unified": 1,
-        "generated": 1,
-        "wholeFixture": 5
-      },
-      "retiredHostsFieldsAndFormsDetached": true,
-      "sdkCleanupPassed": true
-    },
-    "installedClosedStagePlanner": {
-      "status": "passed",
-      "planningMode": "closed-stages-v1",
-      "workflowInput": "discovered_candidateId_no_specPath",
-      "counts": {
-        "discovery": 1,
-        "learning": 2,
-        "unified": 1,
-        "generated": 1,
-        "wholePositiveFixture": 5
-      },
-      "negativeEvidence": {
-        "missingOwnerGrant": {
-          "status": "passed",
-          "errorCode": "WORKFLOW_CLOSED_STAGES_NOT_APPROVED",
-          "additionalBusinessRequests": 0,
-          "additionalHttpIngress": 0
-        },
-        "offlineEvidence": {
-          "status": "passed",
-          "cases": [
-            {
-              "name": "checkpoint-only digest corruption",
-              "stageCandidates": 0,
-              "gaps": [
-                "closed_stage_route_not_proven",
-                "closed_stage_complete_route_missing"
-              ],
-              "additionalHttpIngress": 0
-            },
-            {
-              "name": "missing observation event",
-              "stageCandidates": 0,
-              "gaps": [
-                "closed_stage_route_not_proven",
-                "closed_stage_complete_route_missing"
-              ],
-              "additionalHttpIngress": 0
-            },
-            {
-              "name": "unknown click outcome",
-              "stageCandidates": 0,
-              "gaps": [
-                "closed_stage_transition_execution_not_proven",
-                "closed_stage_complete_route_missing"
-              ],
-              "additionalHttpIngress": 0
-            },
-            {
-              "name": "missing live preparation",
-              "stageCandidates": 0,
-              "gaps": [
-                "closed_stage_transition_execution_not_proven",
-                "closed_stage_complete_route_missing"
-              ],
-              "additionalHttpIngress": 0
-            },
-            {
-              "name": "spliced transition execution",
-              "stageCandidates": 0,
-              "gaps": [
-                "closed_stage_transition_execution_not_proven",
-                "closed_stage_complete_route_missing"
-              ],
-              "additionalHttpIngress": 0
-            },
-            {
-              "name": "foreign path action",
-              "stageCandidates": 0,
-              "gaps": [
-                "closed_stage_transition_execution_not_proven",
-                "closed_stage_complete_route_missing"
-              ],
-              "additionalHttpIngress": 0
-            },
-            {
-              "name": "independent output absent",
-              "stageCandidates": 0,
-              "gaps": [
-                "closed_stage_independent_output_missing",
-                "closed_stage_complete_route_missing"
-              ],
-              "additionalHttpIngress": 0
-            },
-            {
-              "name": "input echo forged as output",
-              "stageCandidates": 0,
-              "gaps": [
-                "closed_stage_independent_output_missing",
-                "closed_stage_complete_route_missing"
-              ],
-              "additionalHttpIngress": 0
-            }
-          ],
-          "additionalBusinessRequests": 0,
-          "additionalHttpIngress": 0,
-          "checkpointAndEventBytesRestored": true
-        },
-        "actualInputEcho": {
-          "status": "passed",
-          "actualDiscoveryBusinessRequests": 1,
-          "stageCandidates": 0,
-          "gaps": [
-            "closed_stage_independent_output_missing",
-            "closed_stage_complete_route_missing"
-          ]
-        }
-      },
-      "negativeWorkerRejection": {
-        "expectedRejections": 1,
-        "exitCode": 1,
-        "signal": null,
-        "errorCode": "WORKFLOW_CLOSED_STAGES_NOT_APPROVED",
-        "normalTraceSeparate": true,
-        "allSpawnClosePairsMatched": true,
-        "noUnclosed": true,
-        "installedSourceOnly": true,
-        "parentSdkExitCode": 0,
-        "parentSdkStderrBytes": 0,
-        "noAdditionalHttpOrUiIngress": true
-      },
-      "traceExitAccounting": {
-        "normalSpawned": 12,
-        "normalClosedExit0": 12,
-        "expectedRejectionSpawned": 1,
-        "expectedRejectionClosedExit1": 1,
-        "allMatched": true
-      },
-      "retiredHostsFieldsAndFormsDetached": true,
-      "sdkCleanupPassed": true
-    },
-    "installedNativeStages": {
-      "status": "passed",
-      "planningMode": "native-stages-v1",
-      "workflowInput": "automatic_native_stage_candidate_id",
-      "platforms": {
-        "android": {
-          "status": "passed",
-          "counts": {
-            "discoveryBusinessRequests": 1,
-            "learningBusinessRequests": 2,
-            "unifiedBusinessRequests": 1,
-            "generatedBusinessRequests": 1,
-            "totalBusinessRequests": 5,
-            "planningAdditionalBusinessRequests": 0,
-            "planningAdditionalUiWrites": 0
-          },
-          "candidateSchemaTypes": {
-            "first": "string",
-            "mode": "string",
-            "second": "string",
-            "enabled": "boolean"
-          },
-          "repeatedPlanCandidateIdMatched": true,
-          "generatedFullCatalogParity": true,
-          "generatedReadyOnlyRegistration": true,
-          "catalog": {
-            "total": 1,
-            "ready": 1,
-            "candidate": 0
-          },
-          "fixtureCleanupPassed": true
-        },
-        "ios": {
-          "status": "passed",
-          "counts": {
-            "discoveryBusinessRequests": 1,
-            "learningBusinessRequests": 2,
-            "unifiedBusinessRequests": 1,
-            "generatedBusinessRequests": 1,
-            "totalBusinessRequests": 5,
-            "planningAdditionalBusinessRequests": 0,
-            "planningAdditionalUiWrites": 0
-          },
-          "candidateSchemaTypes": {
-            "first": "string",
-            "mode": "string",
-            "second": "string",
-            "enabled": "boolean"
-          },
-          "repeatedPlanCandidateIdMatched": true,
-          "generatedFullCatalogParity": true,
-          "generatedReadyOnlyRegistration": true,
-          "catalog": {
-            "total": 1,
-            "ready": 1,
-            "candidate": 0
-          },
-          "fixtureCleanupPassed": true
-        }
-      },
-      "productionPythonInstalledOnly": true,
-      "productionPythonDriverCounts": {
-        "mobileUi": 8,
-        "mobilePlanner": 6,
-        "total": 14
-      },
-      "externalFixtureIsTestOnly": true,
-      "sourceBytesAndModesUnchanged": true,
-      "sdkCleanupPassed": true,
-      "fixtureCleanupPassed": true,
-      "normalTraceAllExit0": true,
-      "noPhysicalDeviceClaim": true
-    },
-    "installedOpenApiRefresh": {
-      "status": "passed",
-      "counts": {
-        "initialGenerated": 1,
-        "refreshHttp": 0,
-        "staleHttp": 0,
-        "unifiedChanged": 1,
-        "newGenerated": 1,
-        "totalBusiness": 3
-      },
-      "oldGeneratedStaleBeforeRequest": true,
-      "sdkCleanupPassed": true
-    },
-    "ownedSdkClientsClosedExit0": 21,
-    "observedNormalChildrenClosedExit0": 86,
-    "expectedRejectedWorkers": 1,
-    "producerFilesMatched": 9,
-    "fixtureSdkDoesNotProveOrdinaryIosAcceptance": true,
-    "finalDocumentationArchiveAndPrivacy": "pending_separate_exact_review"
+    "unchangedNonDocBusinessFilesFromActual22Sdk": 368,
+    "all370ModesUnchangedFromActual22Sdk": true,
+    "before23DocumentationProjectionFilesExactPublished22Final": 370,
+    "published22FinalArchiveSha256": "11b4efee144af7b5bb3ebccbdac37f252f4522dfcf2fc8e38244b98d5ccf5833",
+    "historicalSdkClientsClosedExit0": 21,
+    "historicalNormalChildrenClosedExit0": 86,
+    "historicalExpectedRejectedWorkersExit1": 1,
+    "historicalFixtureScenarios": 6,
+    "historicalProducerFiles": 9,
+    "historicalProtocolFixtureDoesNotProveOrdinaryIosAcceptance": true,
+    "finalDocumentationArchiveAndPrivacy": "pending_separate_exact_review",
+    "scope": "The changed calibration harness is not packed. Reuse covers368 non-document business files and370 modes; two22 doc projections differ from the original SDK tar and remain separately bound. New23 docs require another final tar/privacy review; no new install/SDK run."
   },
   "currentFocused": {
-    "status": "covered_by_fresh_software516_no_separate_count",
-    "countingRule": "与完整回归/SDK重叠，不另加全球总数。"
+    "compilerVersion": "software-to-mcp-21",
+    "verificationAttempt": 23,
+    "status": "passed_fresh_focused_calibration39",
+    "tests": 39,
+    "passed": 39,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "reportSha256": "a8180161a12f61ba8f29a6466d28b98280624557a94ae3f3e4a852b8f770ec22",
+    "logSha256": "6714c6eab7553c4768bd505c308a27e3fdc3d1eee7394f70e69e6e548df6ef83",
+    "sourceFiles": {
+      "test/ios-keyboard-envelope.mjs": "4216868c0540acb6bb00f35edff27d6bafd08eea8a0772f447bfb8f415f739a3",
+      "test/ios-keyboard-envelope.test.mjs": "709cf25a4d75914d0ffd5ad3edcc19cf98a757b06a941ab14a8f48a4c9abe225",
+      "test/ios-keyboard-calibration-sampling.mjs": "93f3639f6045d2c72a4ff5e55f5164abe2b1af8c1e81d67f1c3e76248e0c2cbd",
+      "test/ios-keyboard-calibration-sampling.test.mjs": "29b6d61ea20cae94b5e098018d43fadbb86046d7f50fa63b46b88244731688c8"
+    },
+    "currentPublic449FullSuitePassed": false,
+    "scope": "Fresh envelope and bounded sampler guard tests only; not a full449, installed SDK or device acceptance result.",
+    "countingRule": "Historical full suites, fresh39, offline paired calls, SDK and device observations overlap and are not summed."
   },
   "deviceEvidence": {
     "iosOrdinarySoftKeyboard": {
@@ -3057,7 +2818,7 @@
           "visualEquivalenceOnly": true
         }
       },
-      "latestCompletedAttempt": 22,
+      "latestCompletedAttempt": 23,
       "attempt21": {
         "schemaVersion": 1,
         "compilerVersion": "software-to-mcp-20",
@@ -3247,20 +3008,127 @@
           "basis": "No MCP software tree/windows; proxied writes counted from raw rows. Direct setup focus is separate; no exact fixture business count inferred without independent fixture evidence.",
           "keyUiActionRetries": 0
         }
+      },
+      "attempt23": {
+        "schemaVersion": 1,
+        "compilerVersion": "software-to-mcp-21",
+        "attempt": 23,
+        "verificationAttempt": 23,
+        "status": "terminal_failed",
+        "phase": "keyboard_calibration",
+        "actualError": "CALIBRATION_SAMPLING_REQUEST_TIMEOUT",
+        "sourceFreezeSha256": "8a80f29b49b08d9162ab0854649eebada9c2611fb1244c72e22e64bbe0d0a25e",
+        "sourceManifestSha256": "d621d17faf2f0f87c7393e37769fee5e5fe08775d935b984093d7d20d604979c",
+        "source": {
+          "copiedFiles": 516,
+          "gatewayDistFiles": 32,
+          "runtimeFiles": 121,
+          "publicCodeFiles": 449,
+          "pythonSourceFiles": 81,
+          "allBytesMatchedBefore": true,
+          "allBytesMatchedAfter": true,
+          "hostDependenciesShared": true,
+          "hermetic": false
+        },
+        "outcome": {
+          "discoveryStarted": false,
+          "learningStarted": false,
+          "twoSampleValidated": false,
+          "readyPublished": false,
+          "unifiedPassed": false,
+          "generatedPassed": false,
+          "mcpAcceptancePassed": false,
+          "calibrationSetupFocusActions": 1,
+          "mcpKeyboardActions": 0,
+          "businessSubmissions": null
+        },
+        "cleanup": {
+          "sixFlagsAllTrue": true,
+          "existingDeviceCount": 11,
+          "existingDevicesPreserved": true,
+          "ownedSimulatorAbsent": true,
+          "independentFreshHostAudit": true,
+          "ownedProcessesRemaining": 0,
+          "listeningOwnPorts": 0
+        },
+        "storage": {
+          "storageAbort": false,
+          "reserveMetAtEnd": true
+        },
+        "verificationScopes": {
+          "runtimeCompilerVersion": "software-to-mcp-21",
+          "verificationAttempt": 23,
+          "focusedCalibrationTests": 39,
+          "currentPublic449FullSuitePassed": false,
+          "historicalCompiler22UnchangedScopes": [
+            "runtime121",
+            "python81",
+            "npm368_non_doc_business"
+          ],
+          "packageModesUnchangedFromActual22Sdk": 370,
+          "currentPackageExactPublished22FinalFiles": 370,
+          "projected22DocsSeparatelyVerified": 2,
+          "newFullSuitesRun": false,
+          "newInstalledSdkRun": false,
+          "deviceAcceptanceSeparate": true
+        },
+        "cachedWda": {
+          "used": true,
+          "artifactByteCopyVerified": true,
+          "cached236BytesAndModesMatchedBeforeAfter": true,
+          "minOsRuntimeCompatible": null
+        },
+        "calibrationSampling": {
+          "attempted": true,
+          "status": "failed",
+          "errorCode": "CALIBRATION_SAMPLING_REQUEST_TIMEOUT",
+          "elapsedMs": 12007.648875000014,
+          "candidateCount": 6,
+          "acceptedCandidate": null,
+          "strictEnvelopeReplayPassed": false,
+          "terminalCandidateFullGuardReplayPassed": null,
+          "returnedAcceptedCandidate": false,
+          "terminalGuardReplayDoesNotOverrideDeadline": true,
+          "rawSourceAndPngPairsPinned": false,
+          "readonlyRequests": 51,
+          "sourceRequestLimitMs": 4000,
+          "otherAndParserLimitMs": 1500,
+          "uiActions": 0
+        },
+        "caretUnderlay": {
+          "mode": "paired_revealed_grayscale",
+          "maxUnderlayPixels": 16,
+          "minWhiteCoreFraction": 0.8,
+          "minSharedOpacity": 0.125,
+          "visualEquivalenceOnly": true
+        },
+        "learningBoundary": {
+          "normalBusinessSubmissions": null,
+          "observedProxiedKeyOrPointerWrites": 0,
+          "basis": "No MCP software tree/windows; proxied writes counted from raw rows. Direct setup focus is separate; no exact fixture business count inferred without independent fixture evidence.",
+          "keyUiActionRetries": 0
+        }
       }
     },
     "historicalPlatforms": "previousCompiler19.deviceEvidence及更早previousCompiler*完整保留；旧失败与其他平台历史不换绑当前20源码。"
   },
-  "deviceEvidenceScope": "currentIOS22完整复制独立summary.safeProjection；未提供精确summary/audit时为null。采样不等于两样本/ready/统一/生成；协议fixture SDK与普通iOS设备验收分列。",
+  "deviceEvidenceScope": "currentIOS23及attempt23完整复制并双重匹配独立终态safeProjection；审计通过不等于设备通过。历史22全套/SDK、当前39与设备结果分列。",
   "release": {
     "compilerVersion": "software-to-mcp-21",
-    "verificationAttempt": 22,
-    "status": "draft_pull_request_checkpoint",
-    "publishedParentCommit": "cc27c268708e57eeecd7e95c3ec883eefe4e2c42",
+    "verificationAttempt": 23,
+    "status": "new_branch_checkpoint_publication_pending",
+    "baseMainCommit": "44be51b12ef6eb01ac6a172287eec5bb4596821a",
     "currentAttemptCommit": null,
-    "mainMerged": false,
+    "previousPullRequest": "https://github.com/8eeth0ven/bfs-clicker/pull/1",
+    "previousPullRequestState": "MERGED",
+    "previousPullRequestMergedByUser": true,
+    "mainMerged": true,
+    "mainMergedScope": "Previously published22 changes only; new23 branch is not merged.",
+    "currentAttemptMerged": false,
+    "newPullRequest": null,
+    "continuationBranch": "codex/ios-calibration-performance",
     "npmPublished": false,
-    "finalGate": "另核实际index、精确最终tar及全量内容隐私；本文档候选不自批提交。"
+    "finalGate": "另核实际index、精确最终tar及完整内容隐私；候选不自批提交，不自嵌未来commit/tar。"
   },
   "storagePolicy": {
     "minimumAvailableReserveGiB": 10,
@@ -3465,8 +3333,15 @@
     }
   },
   "currentFullRegressionScope": {
-    "sourceFreezeSha256": "ececde02474cbc582e1d19d0a11fe528fef0aeedf99fff3100c63d0d4bd0364c",
-    "currentPublic449FullSuitePassed": true,
+    "sourceFreezeSha256": "8a80f29b49b08d9162ab0854649eebada9c2611fb1244c72e22e64bbe0d0a25e",
+    "currentPublic449FullSuitePassed": false,
+    "newFullSuitesRun": false,
+    "newInstalledSdkRun": false,
+    "historicalCompiler22UnchangedScopes": [
+      "runtime121",
+      "python81",
+      "npm368_non_doc_business"
+    ],
     "historicalFactsUnchanged": true
   },
   "previousPublishedAttempt21Checkpoint": {
@@ -3873,6 +3748,572 @@
       "terminalGuardReplayDoesNotOverrideDeadline": true,
       "rawSourceAndPngPairsPinned": true,
       "readonlyRequests": 54,
+      "sourceRequestLimitMs": 4000,
+      "otherAndParserLimitMs": 1500,
+      "uiActions": 0
+    },
+    "caretUnderlay": {
+      "mode": "paired_revealed_grayscale",
+      "maxUnderlayPixels": 16,
+      "minWhiteCoreFraction": 0.8,
+      "minSharedOpacity": 0.125,
+      "visualEquivalenceOnly": true
+    },
+    "learningBoundary": {
+      "normalBusinessSubmissions": null,
+      "observedProxiedKeyOrPointerWrites": 0,
+      "basis": "No MCP software tree/windows; proxied writes counted from raw rows. Direct setup focus is separate; no exact fixture business count inferred without independent fixture evidence.",
+      "keyUiActionRetries": 0
+    }
+  },
+  "previousPublishedAttempt22Checkpoint": {
+    "publishedFeatureCommit": "33ff891790c52fca5c12ee1b304d74d205fc0217",
+    "userMergedMainCommit": "44be51b12ef6eb01ac6a172287eec5bb4596821a",
+    "jsonSha256": "b6e4b0e3555e46dda300cbc56b02458dea209a514c980c888fd8366190bdc9da",
+    "markdownSha256": "a3ee581615eda67bffbaf7e88dd34a06830e538ae90450615e9c8b5b7d195990",
+    "preservedFields": {
+      "compilerVersion": "software-to-mcp-21",
+      "status": "new_full_and_sdk_passed_ordinary_ios22_terminal_failed",
+      "scope": "有限Web/APK/iOS及本地协议fixture；新源码产品21、设备attempt22、完整回归与安装SDK分别计证，不证明任意网站/App。",
+      "asOf": "2026-11-04",
+      "currentFullRegression": {
+        "compilerVersion": "software-to-mcp-21",
+        "verificationAttempt": 22,
+        "status": "passed_fresh_same_source_full_regressions",
+        "currentRuntimeCoveredBySingleFullSoftwareRun": true,
+        "legacy": {
+          "tests": 239,
+          "passed": 239,
+          "skipped": 0,
+          "logSha256": "c9e0368eb6368de4381ee040ebe53b670a221ed46ba66e0ffcaa206812d9333e",
+          "reportSha256": "a28ec4c3bb97807a670202bcc06a80676c260b210cb116d7f62f4d9d9b205ce7",
+          "failed": 0,
+          "cancelled": 0
+        },
+        "software": {
+          "tests": 516,
+          "passed": 516,
+          "skipped": 0,
+          "logSha256": "7d43b0e9c06182c3e54d08eb7bc66294744ece5f34861b418fc80a7da2ce197b",
+          "reportSha256": "e2cb42e6e519050aa00b132be50233fba95f2b91058577d05b19311e57b46947",
+          "failed": 0,
+          "cancelled": 0
+        },
+        "python": {
+          "tests": 606,
+          "passed": 605,
+          "skipped": 1,
+          "logSha256": "de88c41a6f7e89e0747a511a844ad26271ab1d2e3bb1188faf4f72235174a03d",
+          "reportSha256": "380255c26ebc1bc7bacdfefa029bd750b2c494f27a6f390fef1fbba8b9f937d2",
+          "failed": 0,
+          "cancelled": 0,
+          "knownMissingHermesFixtureSkip": true,
+          "skipNotCountedAsPass": true
+        },
+        "combinedSourceCohort": {
+          "sourceFreezeSha256": "ececde02474cbc582e1d19d0a11fe528fef0aeedf99fff3100c63d0d4bd0364c",
+          "runtimeFiles": 121,
+          "publicCodeFiles": 449,
+          "pythonScopeFiles": 81,
+          "pythonUnchangedByteFiles": 80,
+          "changedLinkedPythonScopeFile": "src/visual-caret.js",
+          "allReviewedBytesAndModesMatched": true
+        }
+      },
+      "currentPackageCheck": {
+        "compilerVersion": "software-to-mcp-21",
+        "verificationAttempt": 22,
+        "status": "passed_six_installed_fixture_scenarios",
+        "reportSha256": "1baed5f4aedd3ed2bf2daaec345d619e1e80cc2251ff5e1197c3597080a44ecb",
+        "baselineManifestSha256": "1a1f6792c4d99186e324912e3e6b5662d4c3fecb3149f8945c2784507b418724",
+        "baselineArchiveSha256": "9cf8bcede324ad8bdb495be57fb134357d19238d09cbf06fce171160325edb27",
+        "schemaVersion": 1,
+        "sourceFreezeSha256": "ececde02474cbc582e1d19d0a11fe528fef0aeedf99fff3100c63d0d4bd0364c",
+        "files": 370,
+        "distFiles": 32,
+        "officialSdkTools": 28,
+        "stderrBytes": 0,
+        "clientClosed": true,
+        "serverProcessClosed": true,
+        "productionImportsPassed": true,
+        "allEightDependenciesLocal": true,
+        "allPackedBytesMatched": true,
+        "allPackedModesMatched": true,
+        "sourceUnchanged": true,
+        "archiveUnchanged": true,
+        "lockUnchanged": true,
+        "installedLiveState": {
+          "status": "passed",
+          "modes": {
+            "dom": {
+              "wholeFixtureBusinessRequests": 5,
+              "learningRequests": 2,
+              "unifiedRequests": 1,
+              "generatedRequests": 1,
+              "discoveryRequests": 1,
+              "eachIntentExactlyOnce": true,
+              "retiredFormsDetachedNotHidden": true
+            },
+            "open": {
+              "wholeFixtureBusinessRequests": 5,
+              "learningRequests": 2,
+              "unifiedRequests": 1,
+              "generatedRequests": 1,
+              "discoveryRequests": 1,
+              "eachIntentExactlyOnce": true,
+              "retiredFormsDetachedNotHidden": true
+            }
+          },
+          "sdkCleanupPassed": true
+        },
+        "installedProviderFidelity": {
+          "status": "passed",
+          "afterDiscoveryNativeBusinessRequests": 4,
+          "additionalNativeUiCallsForExplicitHttp": 0,
+          "sdkCleanupPassed": true
+        },
+        "installedClosedMultistage": {
+          "status": "passed",
+          "workflowInput": "explicit_local_specPath",
+          "counts": {
+            "discovery": 1,
+            "learning": 2,
+            "unified": 1,
+            "generated": 1,
+            "wholeFixture": 5
+          },
+          "retiredHostsFieldsAndFormsDetached": true,
+          "sdkCleanupPassed": true
+        },
+        "installedClosedStagePlanner": {
+          "status": "passed",
+          "planningMode": "closed-stages-v1",
+          "workflowInput": "discovered_candidateId_no_specPath",
+          "counts": {
+            "discovery": 1,
+            "learning": 2,
+            "unified": 1,
+            "generated": 1,
+            "wholePositiveFixture": 5
+          },
+          "negativeEvidence": {
+            "missingOwnerGrant": {
+              "status": "passed",
+              "errorCode": "WORKFLOW_CLOSED_STAGES_NOT_APPROVED",
+              "additionalBusinessRequests": 0,
+              "additionalHttpIngress": 0
+            },
+            "offlineEvidence": {
+              "status": "passed",
+              "cases": [
+                {
+                  "name": "checkpoint-only digest corruption",
+                  "stageCandidates": 0,
+                  "gaps": [
+                    "closed_stage_route_not_proven",
+                    "closed_stage_complete_route_missing"
+                  ],
+                  "additionalHttpIngress": 0
+                },
+                {
+                  "name": "missing observation event",
+                  "stageCandidates": 0,
+                  "gaps": [
+                    "closed_stage_route_not_proven",
+                    "closed_stage_complete_route_missing"
+                  ],
+                  "additionalHttpIngress": 0
+                },
+                {
+                  "name": "unknown click outcome",
+                  "stageCandidates": 0,
+                  "gaps": [
+                    "closed_stage_transition_execution_not_proven",
+                    "closed_stage_complete_route_missing"
+                  ],
+                  "additionalHttpIngress": 0
+                },
+                {
+                  "name": "missing live preparation",
+                  "stageCandidates": 0,
+                  "gaps": [
+                    "closed_stage_transition_execution_not_proven",
+                    "closed_stage_complete_route_missing"
+                  ],
+                  "additionalHttpIngress": 0
+                },
+                {
+                  "name": "spliced transition execution",
+                  "stageCandidates": 0,
+                  "gaps": [
+                    "closed_stage_transition_execution_not_proven",
+                    "closed_stage_complete_route_missing"
+                  ],
+                  "additionalHttpIngress": 0
+                },
+                {
+                  "name": "foreign path action",
+                  "stageCandidates": 0,
+                  "gaps": [
+                    "closed_stage_transition_execution_not_proven",
+                    "closed_stage_complete_route_missing"
+                  ],
+                  "additionalHttpIngress": 0
+                },
+                {
+                  "name": "independent output absent",
+                  "stageCandidates": 0,
+                  "gaps": [
+                    "closed_stage_independent_output_missing",
+                    "closed_stage_complete_route_missing"
+                  ],
+                  "additionalHttpIngress": 0
+                },
+                {
+                  "name": "input echo forged as output",
+                  "stageCandidates": 0,
+                  "gaps": [
+                    "closed_stage_independent_output_missing",
+                    "closed_stage_complete_route_missing"
+                  ],
+                  "additionalHttpIngress": 0
+                }
+              ],
+              "additionalBusinessRequests": 0,
+              "additionalHttpIngress": 0,
+              "checkpointAndEventBytesRestored": true
+            },
+            "actualInputEcho": {
+              "status": "passed",
+              "actualDiscoveryBusinessRequests": 1,
+              "stageCandidates": 0,
+              "gaps": [
+                "closed_stage_independent_output_missing",
+                "closed_stage_complete_route_missing"
+              ]
+            }
+          },
+          "negativeWorkerRejection": {
+            "expectedRejections": 1,
+            "exitCode": 1,
+            "signal": null,
+            "errorCode": "WORKFLOW_CLOSED_STAGES_NOT_APPROVED",
+            "normalTraceSeparate": true,
+            "allSpawnClosePairsMatched": true,
+            "noUnclosed": true,
+            "installedSourceOnly": true,
+            "parentSdkExitCode": 0,
+            "parentSdkStderrBytes": 0,
+            "noAdditionalHttpOrUiIngress": true
+          },
+          "traceExitAccounting": {
+            "normalSpawned": 12,
+            "normalClosedExit0": 12,
+            "expectedRejectionSpawned": 1,
+            "expectedRejectionClosedExit1": 1,
+            "allMatched": true
+          },
+          "retiredHostsFieldsAndFormsDetached": true,
+          "sdkCleanupPassed": true
+        },
+        "installedNativeStages": {
+          "status": "passed",
+          "planningMode": "native-stages-v1",
+          "workflowInput": "automatic_native_stage_candidate_id",
+          "platforms": {
+            "android": {
+              "status": "passed",
+              "counts": {
+                "discoveryBusinessRequests": 1,
+                "learningBusinessRequests": 2,
+                "unifiedBusinessRequests": 1,
+                "generatedBusinessRequests": 1,
+                "totalBusinessRequests": 5,
+                "planningAdditionalBusinessRequests": 0,
+                "planningAdditionalUiWrites": 0
+              },
+              "candidateSchemaTypes": {
+                "first": "string",
+                "mode": "string",
+                "second": "string",
+                "enabled": "boolean"
+              },
+              "repeatedPlanCandidateIdMatched": true,
+              "generatedFullCatalogParity": true,
+              "generatedReadyOnlyRegistration": true,
+              "catalog": {
+                "total": 1,
+                "ready": 1,
+                "candidate": 0
+              },
+              "fixtureCleanupPassed": true
+            },
+            "ios": {
+              "status": "passed",
+              "counts": {
+                "discoveryBusinessRequests": 1,
+                "learningBusinessRequests": 2,
+                "unifiedBusinessRequests": 1,
+                "generatedBusinessRequests": 1,
+                "totalBusinessRequests": 5,
+                "planningAdditionalBusinessRequests": 0,
+                "planningAdditionalUiWrites": 0
+              },
+              "candidateSchemaTypes": {
+                "first": "string",
+                "mode": "string",
+                "second": "string",
+                "enabled": "boolean"
+              },
+              "repeatedPlanCandidateIdMatched": true,
+              "generatedFullCatalogParity": true,
+              "generatedReadyOnlyRegistration": true,
+              "catalog": {
+                "total": 1,
+                "ready": 1,
+                "candidate": 0
+              },
+              "fixtureCleanupPassed": true
+            }
+          },
+          "productionPythonInstalledOnly": true,
+          "productionPythonDriverCounts": {
+            "mobileUi": 8,
+            "mobilePlanner": 6,
+            "total": 14
+          },
+          "externalFixtureIsTestOnly": true,
+          "sourceBytesAndModesUnchanged": true,
+          "sdkCleanupPassed": true,
+          "fixtureCleanupPassed": true,
+          "normalTraceAllExit0": true,
+          "noPhysicalDeviceClaim": true
+        },
+        "installedOpenApiRefresh": {
+          "status": "passed",
+          "counts": {
+            "initialGenerated": 1,
+            "refreshHttp": 0,
+            "staleHttp": 0,
+            "unifiedChanged": 1,
+            "newGenerated": 1,
+            "totalBusiness": 3
+          },
+          "oldGeneratedStaleBeforeRequest": true,
+          "sdkCleanupPassed": true
+        },
+        "ownedSdkClientsClosedExit0": 21,
+        "observedNormalChildrenClosedExit0": 86,
+        "expectedRejectedWorkers": 1,
+        "producerFilesMatched": 9,
+        "fixtureSdkDoesNotProveOrdinaryIosAcceptance": true,
+        "finalDocumentationArchiveAndPrivacy": "pending_separate_exact_review"
+      },
+      "currentFocused": {
+        "status": "covered_by_fresh_software516_no_separate_count",
+        "countingRule": "与完整回归/SDK重叠，不另加全球总数。"
+      },
+      "currentFullRegressionScope": {
+        "sourceFreezeSha256": "ececde02474cbc582e1d19d0a11fe528fef0aeedf99fff3100c63d0d4bd0364c",
+        "currentPublic449FullSuitePassed": true,
+        "historicalFactsUnchanged": true
+      },
+      "deviceEvidenceScope": "currentIOS22完整复制独立summary.safeProjection；未提供精确summary/audit时为null。采样不等于两样本/ready/统一/生成；协议fixture SDK与普通iOS设备验收分列。",
+      "release": {
+        "compilerVersion": "software-to-mcp-21",
+        "verificationAttempt": 22,
+        "status": "draft_pull_request_checkpoint",
+        "publishedParentCommit": "cc27c268708e57eeecd7e95c3ec883eefe4e2c42",
+        "currentAttemptCommit": null,
+        "mainMerged": false,
+        "npmPublished": false,
+        "finalGate": "另核实际index、精确最终tar及全量内容隐私；本文档候选不自批提交。"
+      }
+    },
+    "originalFailureHistoryLength": 23,
+    "previousLatestCompletedIosAttempt": 22,
+    "scope": "Exact pre-update values. Prior main-not-merged/Draft wording is historical publication state; user subsequently merged PR1. No older result is relabeled fresh attempt23."
+  },
+  "currentFocusedCalibration": {
+    "compilerVersion": "software-to-mcp-21",
+    "verificationAttempt": 23,
+    "status": "passed_fresh_focused_calibration39",
+    "tests": 39,
+    "passed": 39,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "reportSha256": "a8180161a12f61ba8f29a6466d28b98280624557a94ae3f3e4a852b8f770ec22",
+    "logSha256": "6714c6eab7553c4768bd505c308a27e3fdc3d1eee7394f70e69e6e548df6ef83",
+    "sourceFiles": {
+      "test/ios-keyboard-envelope.mjs": "4216868c0540acb6bb00f35edff27d6bafd08eea8a0772f447bfb8f415f739a3",
+      "test/ios-keyboard-envelope.test.mjs": "709cf25a4d75914d0ffd5ad3edcc19cf98a757b06a941ab14a8f48a4c9abe225",
+      "test/ios-keyboard-calibration-sampling.mjs": "93f3639f6045d2c72a4ff5e55f5164abe2b1af8c1e81d67f1c3e76248e0c2cbd",
+      "test/ios-keyboard-calibration-sampling.test.mjs": "29b6d61ea20cae94b5e098018d43fadbb86046d7f50fa63b46b88244731688c8"
+    },
+    "currentPublic449FullSuitePassed": false,
+    "scope": "Fresh envelope and bounded sampler guard tests only; not a full449, installed SDK or device acceptance result.",
+    "countingRule": "Historical full suites, fresh39, offline paired calls, SDK and device observations overlap and are not summed."
+  },
+  "postCompiler22CalibrationPerformanceVerification": {
+    "runtimeCompilerVersion": "software-to-mcp-21",
+    "verificationAttempt": 23,
+    "sourceChanges": {
+      "test/ios-keyboard-envelope.mjs": "4216868c0540acb6bb00f35edff27d6bafd08eea8a0772f447bfb8f415f739a3"
+    },
+    "sourceFreezeSha256": "8a80f29b49b08d9162ab0854649eebada9c2611fb1244c72e22e64bbe0d0a25e",
+    "technique": {
+      "scope": "test-owner keyboard calibration envelope helper only",
+      "exactRgbaByteComparisonReplacesTemporaryBufferViews": true,
+      "alphaComparisonRetained": true,
+      "roiAndFullShellGuardsRetained": true,
+      "sourceIdentityPngCrcAndDimensionsRetained": true,
+      "sourceRequestLimitMs": 4000,
+      "otherAndParserLimitMs": 1500,
+      "completionBudgetMs": 12000,
+      "maxCandidates": 6,
+      "intervalMs": 125,
+      "uiActionRetriesAdded": 0,
+      "productionRuntimeChanged": false
+    },
+    "offlineMicrobenchmark": {
+      "diagnosisSha256": "48e0bc3e8f7db57e35bc21ce7d8404a8f44c37ab105add2dad36deca46cbc41f",
+      "comparisonSha256": "973c6136d8f66badcd4b5b75b7776e8472cfa83bcb662e61532f729b6952fee3",
+      "retainedFramePairs": 6,
+      "pairedRoundsPerPair": 3,
+      "exactOriginalOutputsAndErrors": true,
+      "sixthPairMedianMs": {
+        "original": 397.03266600000006,
+        "candidate": 120.87754099999984,
+        "reductionPercent": 69.55476177368242,
+        "ratioOriginalOverCandidate": 3.2845858934208514
+      },
+      "scope": "Same-process retained-frame microbenchmark with n=3 paired rounds, duplicate PNG/JIT limitations. Not end-to-end, device, runtime or arbitrary-App speed evidence; does not change prior22 failure."
+    },
+    "focusedReportSha256": "a8180161a12f61ba8f29a6466d28b98280624557a94ae3f3e4a852b8f770ec22",
+    "deviceSummarySha256": "92e10ae9416b308cfce5f97b1836be24e14aa5d7f13527e2e32d36826889d3da",
+    "deviceIndependentAuditSha256": "82220f3b3af365baaec3c393247910eeca4a5e4208d7b190783809b747ecc992",
+    "deviceProjectionCompleteDeepEqual": true,
+    "verificationScope": {
+      "runtimeCompilerVersion": "software-to-mcp-21",
+      "verificationAttempt": 23,
+      "focusedCalibrationTests": 39,
+      "currentPublic449FullSuitePassed": false,
+      "historicalCompiler22UnchangedScopes": [
+        "runtime121",
+        "python81",
+        "npm368_non_doc_business"
+      ],
+      "packageModesUnchangedFromActual22Sdk": 370,
+      "currentPackageExactPublished22FinalFiles": 370,
+      "projected22DocsSeparatelyVerified": 2,
+      "newFullSuitesRun": false,
+      "newInstalledSdkRun": false,
+      "deviceAcceptanceSeparate": true
+    },
+    "packageScope": {
+      "unchangedVsPublished22Final": 370,
+      "unchangedNonDocsVsActual22SdkBaseline": 368,
+      "all370ModesUnchanged": true,
+      "projected22DocsRequireSeparatePublicationPrivacyPins": [
+        "docs/software-to-mcp-validation.json",
+        "docs/software-to-mcp-verification.md"
+      ],
+      "newPackInstallSdkRun": false,
+      "mayLaunch": false
+    },
+    "terminalSourceRequest": {
+      "kind": "source",
+      "status": "failed",
+      "remainingCompletionBudgetAtDispatchMs": 151,
+      "scope": "Last source-after request had151ms remaining global completion budget; not a4-second source-cap overrun."
+    },
+    "manualMergeBindingSha256": "8f4d9236c5164765cd49e5073052f3d0e7fe7ab08d340cabcea5592969f8c72f",
+    "ordinaryIosDevicePassed": false
+  },
+  "currentIOS23": {
+    "schemaVersion": 1,
+    "compilerVersion": "software-to-mcp-21",
+    "attempt": 23,
+    "verificationAttempt": 23,
+    "status": "terminal_failed",
+    "phase": "keyboard_calibration",
+    "actualError": "CALIBRATION_SAMPLING_REQUEST_TIMEOUT",
+    "sourceFreezeSha256": "8a80f29b49b08d9162ab0854649eebada9c2611fb1244c72e22e64bbe0d0a25e",
+    "sourceManifestSha256": "d621d17faf2f0f87c7393e37769fee5e5fe08775d935b984093d7d20d604979c",
+    "source": {
+      "copiedFiles": 516,
+      "gatewayDistFiles": 32,
+      "runtimeFiles": 121,
+      "publicCodeFiles": 449,
+      "pythonSourceFiles": 81,
+      "allBytesMatchedBefore": true,
+      "allBytesMatchedAfter": true,
+      "hostDependenciesShared": true,
+      "hermetic": false
+    },
+    "outcome": {
+      "discoveryStarted": false,
+      "learningStarted": false,
+      "twoSampleValidated": false,
+      "readyPublished": false,
+      "unifiedPassed": false,
+      "generatedPassed": false,
+      "mcpAcceptancePassed": false,
+      "calibrationSetupFocusActions": 1,
+      "mcpKeyboardActions": 0,
+      "businessSubmissions": null
+    },
+    "cleanup": {
+      "sixFlagsAllTrue": true,
+      "existingDeviceCount": 11,
+      "existingDevicesPreserved": true,
+      "ownedSimulatorAbsent": true,
+      "independentFreshHostAudit": true,
+      "ownedProcessesRemaining": 0,
+      "listeningOwnPorts": 0
+    },
+    "storage": {
+      "storageAbort": false,
+      "reserveMetAtEnd": true
+    },
+    "verificationScopes": {
+      "runtimeCompilerVersion": "software-to-mcp-21",
+      "verificationAttempt": 23,
+      "focusedCalibrationTests": 39,
+      "currentPublic449FullSuitePassed": false,
+      "historicalCompiler22UnchangedScopes": [
+        "runtime121",
+        "python81",
+        "npm368_non_doc_business"
+      ],
+      "packageModesUnchangedFromActual22Sdk": 370,
+      "currentPackageExactPublished22FinalFiles": 370,
+      "projected22DocsSeparatelyVerified": 2,
+      "newFullSuitesRun": false,
+      "newInstalledSdkRun": false,
+      "deviceAcceptanceSeparate": true
+    },
+    "cachedWda": {
+      "used": true,
+      "artifactByteCopyVerified": true,
+      "cached236BytesAndModesMatchedBeforeAfter": true,
+      "minOsRuntimeCompatible": null
+    },
+    "calibrationSampling": {
+      "attempted": true,
+      "status": "failed",
+      "errorCode": "CALIBRATION_SAMPLING_REQUEST_TIMEOUT",
+      "elapsedMs": 12007.648875000014,
+      "candidateCount": 6,
+      "acceptedCandidate": null,
+      "strictEnvelopeReplayPassed": false,
+      "terminalCandidateFullGuardReplayPassed": null,
+      "returnedAcceptedCandidate": false,
+      "terminalGuardReplayDoesNotOverrideDeadline": true,
+      "rawSourceAndPngPairsPinned": false,
+      "readonlyRequests": 51,
       "sourceRequestLimitMs": 4000,
       "otherAndParserLimitMs": 1500,
       "uiActions": 0

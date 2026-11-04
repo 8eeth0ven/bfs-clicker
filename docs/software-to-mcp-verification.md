@@ -1,3 +1,20 @@
+# 第23次验收：校准像素比较优化，普通iOS仍未通过
+
+用户已将此前PR#1合并到[主分支检查点](https://github.com/8eeth0ven/bfs-clicker/commit/44be51b12ef6eb01ac6a172287eec5bb4596821a)。本轮在新分支继续，产品运行时仍为 `software-to-mcp-21`，设备编号为 `attempt23`；本轮提交和新PR尚未预填。下方原文中的Draft、main未合并等表述保留为当时的历史发布状态。
+
+- 一份校准验收helper改为直接比较RGBA四字节，减少逐像素临时Buffer视图；alpha、ROI、完整外壳、PNG/CRC/尺寸、source身份、caret及全部超时守卫保持。该helper不进入npm生产包，生产运行时未改变。
+- 当前目标测试实际39/39，0失败、0跳过。第22轮主项目239/239、software516/516、Python606项中605通过和1个既有Hermes fixture跳过，以及安装SDK结果均为历史运行。当前121运行时、81 Python-linked及368份非文档包业务原件未变；449份公开代码有1份harness变化，本轮未重跑全套或安装SDK。
+- 离线保留图像的6对样本各做3轮配对，结果与拒绝码一致；第6对同进程中位耗时约397.03→120.88毫秒。它只说明该图像对上的局部比较耗时，受n=3、重复PNG及JIT等限制，不代表设备端到端或任意App提速。
+- 普通iOS第23次在键盘校准阶段以 `CALIBRATION_SAMPLING_REQUEST_TIMEOUT` 失败，约12007.65毫秒；候选6、只读采样请求51、采样UI动作0、接受候选为null。第6候选的末次source-after请求发出时仅剩151毫秒全局完成预算，未完成返回；这不是4秒source单请求上限被超过。
+- 本次未进入MCP发现、学习和两样本验证，ready、统一及生成入口均未完成。setup focus为1，MCP键动作为0；主投影业务提交仍为未知(null)，代理写动作0不推成第三方真实业务0。
+- 独立终态复核确认六项清理标志均为真、原有11台设备保留，自有模拟器已移除，自有进程和监听端口均为0，结束时10GiB存储保留要求满足。516份源副本及32份dist按本次原件核对，依赖共享，非hermetic。
+
+机器摘要的 `currentIOS23` 与 `deviceEvidence.iosOrdinarySoftKeyboard.attempt23` 完整保留独立审计和终态摘要一致的safeProjection。审计通过表示终态与清理证据核对通过，设备验收结果仍为失败。历史全套、当前39、离线配对、安装SDK及设备结果不累加为独立总数；本轮不宣称任意网站/App、物理设备或普通系统键盘MCP已通过，也未发布npm。
+
+---
+
+## 第22次及更早检查点原文（完整保留）
+
 # 源码产品21 / 设备验收第22次：完整回归与安装SDK更新
 
 本轮基于已发布的[cc27c268](https://github.com/8eeth0ven/bfs-clicker/commit/cc27c268708e57eeecd7e95c3ec883eefe4e2c42)，源码产品版本为 `software-to-mcp-21`，设备编号为 `attempt22`；当前轮次提交尚未预填。

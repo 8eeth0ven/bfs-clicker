@@ -72,7 +72,7 @@ export function approvedKeyboardEnvelope(beforePath,visiblePath,{valueRegion,res
  const rois=[valueRegion,resultRegion].map(box),shellBox=box(region),inBox=(x,y,r)=>x>=r[0]&&x<r[2]&&y>=r[1]&&y<r[3];
  let changes=0;
  for(let y=0;y<image.height;y++)for(let x=0;x<image.width;x++){
-  const i=(y*image.width+x)*4;if(a.decoded.data.subarray(i,i+4).equals(b.decoded.data.subarray(i,i+4)))continue;
+  const i=(y*image.width+x)*4;if(a.decoded.data[i]===b.decoded.data[i]&&a.decoded.data[i+1]===b.decoded.data[i+1]&&a.decoded.data[i+2]===b.decoded.data[i+2]&&a.decoded.data[i+3]===b.decoded.data[i+3])continue;
   if(rois.some(r=>inBox(x,y,r))||!inBox(x,y,shellBox))throw Error('CALIBRATION_UNRELATED_PIXELS_CHANGED');
   changes++;
  }
