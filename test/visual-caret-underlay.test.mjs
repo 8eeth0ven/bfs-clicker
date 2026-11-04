@@ -178,3 +178,96 @@ test('optional retained ordinary UIKit frames keep both strict rejections and ac
     assert.deepEqual(visualCaretEquivalent(original, revealed, {...opts, policy: {...base, underlay}}),
       {width: 1206, height: 2622, equivalent: true, mode: 'caret', changedPixels: 682});
   });
+
+// Entirely synthetic raster fixtures: no screenshots or private source copies.
+// Fixed RGB clusters exercise quantization at the shared-opacity boundary.
+function roundingPair(t, {scale = 3, uniform = false, edit} = {}) {
+  const dir = realpathSync(temp(t));
+  const revealed = new PNG({width: 100 * scale, height: 200 * scale}); revealed.data.fill(255);
+  const overlaid = new PNG({width: revealed.width, height: revealed.height}); revealed.data.copy(overlaid.data);
+  const offsets = {gray: [], dominant: [], low: [], bridge: [], weak: []};
+  let changed = 0;
+  for (let y = 30 * scale; y < 68 * scale; y++) for (let x = 20 * scale; x < 22 * scale; x++, changed++) {
+    const offset = (y * revealed.width + x) * 4, gray = changed < 16 ? 171 : 255;
+    let kind, rgb;
+    if (gray !== 255) {
+      kind = 'gray'; rgb = blend(gray, uniform ? .75 : .7415475654912275);
+    } else if (uniform) {
+      kind = 'dominant'; rgb = blend(255, .75);
+    } else {
+      const white = changed - 16;
+      // At scale3: 538 dominant +104 low +1 bridge +25 weaker white.
+      // Larger rasters retain a sufficient shared core but exceed the work cap.
+      kind = scale === 3 ? white < 538 ? 'dominant' : white < 642 ? 'low' : white === 642 ? 'bridge' : 'weak'
+        : white === 0 ? 'bridge' : white % 10 < 7 ? 'dominant' : 'low';
+      rgb = {dominant: [114, 144, 246], low: [116, 146, 246], bridge: [115, 145, 246], weak: blend(255, .5)}[kind];
+    }
+    revealed.data.set([gray, gray, gray, 255], offset);
+    overlaid.data.set([...rgb, 255], offset);
+    offsets[kind].push(offset);
+  }
+  edit?.({revealed, overlaid, offsets});
+  const files = [revealed, overlaid].map((image, n) => {
+    const file = path.join(dir, n + '.png'); writeFileSync(file, PNG.sync.write(image)); return file;
+  });
+  return {files, changed, offsets};
+}
+
+test('synthetic RGB rounding accepts an observed shared opacity without enabling strict equivalence', t => {
+  const {files, changed, offsets} = roundingPair(t);
+  assert.equal(changed, 684);
+  assert.deepEqual(Object.fromEntries(Object.entries(offsets).map(([key, points]) => [key, points.length])),
+    {gray: 16, dominant: 538, low: 104, bridge: 1, weak: 25});
+  // The strongest observed projection explains539 white points, below548.
+  // The actual [115,145,246] projection explains643; no arbitrary alpha is needed.
+  assert.equal(compare(...files, null).equivalent, false);
+  for (const [a, b] of [files, [...files].reverse()])
+    assert.deepEqual(compare(a, b), {width: 300, height: 600, equivalent: true, mode: 'caret', changedPixels: 684});
+});
+
+test('synthetic RGB rounding cannot invent a shared opacity absent from the actual white pixels', t => {
+  const {files} = roundingPair(t, {edit: ({overlaid, offsets}) => {
+    assert.equal(offsets.bridge.length, 1);
+    overlaid.data.set([114, 144, 246, 255], offsets.bridge[0]);
+  }});
+  // An intermediate mathematical fit remains possible, but no observed white
+  // pixel supplies it after removal of the only bridge RGB.
+  assert.equal(compare(...files).equivalent, false);
+});
+
+test('one independently stronger white point cannot hide behind a sufficient synthetic shared core', t => {
+  const {files} = roundingPair(t, {edit: ({overlaid, offsets}) => {
+    overlaid.data.set([...base.color, 255], offsets.dominant[0]);
+  }});
+  assert.equal(compare(...files).equivalent, false);
+});
+
+test('synthetic gray subsets at incompatible intensities cannot choose separate shared opacities', t => {
+  const {files} = roundingPair(t, {edit: ({revealed, overlaid, offsets}) => {
+    assert.equal(offsets.gray.length, 16);
+    for (const [index, offset] of offsets.gray.entries())
+      overlaid.data.set([...blend(revealed.data[offset], index < 8 ? .25 : .75), 255], offset);
+  }});
+  assert.equal(compare(...files).equivalent, false);
+});
+
+test('excess distinct observed white projections refuse the optional search instead of a favorable prefix', t => {
+  const {files} = roundingPair(t, {edit: ({overlaid, offsets}) => {
+    const colors = Array.from({length: 40}, (_, index) => blend(255, .13 + index * .012));
+    assert.equal(new Set(colors.map(rgb => rgb.join(','))).size, 40);
+    // All channels decrease monotonically: these40 distinct RGBs also have
+    // distinct projections. They are weaker than the shared core;603 core
+    // points would remain sufficient without the search-work limit.
+    for (const [index, rgb] of colors.entries()) overlaid.data.set([...rgb, 255], offsets.low[index]);
+  }});
+  assert.equal(compare(...files).equivalent, false);
+});
+
+test('large synthetic scale bounds optional search while preserving a legacy uniform-opacity acceptance', t => {
+  const nonuniform = roundingPair(t, {scale: 9});
+  assert.equal(nonuniform.changed, 6156, '18x342 actual pixels exceed the optional4096-pixel box');
+  assert.equal(compare(...nonuniform.files).equivalent, false);
+  const uniform = roundingPair(t, {scale: 9, uniform: true});
+  assert.equal(compare(...uniform.files, null).equivalent, false);
+  assert.deepEqual(compare(...uniform.files), {width: 900, height: 1800, equivalent: true, mode: 'caret', changedPixels: 6156});
+});

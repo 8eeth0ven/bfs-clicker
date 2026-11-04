@@ -1,3 +1,20 @@
+# 源码产品21 / 设备验收第22次：完整回归与安装SDK更新
+
+本轮基于已发布的[cc27c268](https://github.com/8eeth0ven/bfs-clicker/commit/cc27c268708e57eeecd7e95c3ec883eefe4e2c42)，源码产品版本为 `software-to-mcp-21`，设备编号为 `attempt22`；当前轮次提交尚未预填。
+
+- 仅三份源码变化：caret比较器、其合成测试，以及runtime版本字面量。白底核心像素可以提供至多32个实际alpha候选，扩展候选的包围盒上限为4096像素；方向独立、复用同一对快照，灰底像素不能推断alpha。超限不启用额外候选，原有peak检查仍保留。
+- color tolerance仍为2，白底核心比例0.8、共享opacity下限0.125、underlay上限16及完整校准守卫均保留。该修正不构成速度提升、OS光标身份或任意App保证。
+- 新同源完整回归为239/239、516/516；Python606项中605通过、1项既有Hermes缺少fixture的跳过，跳过不计为通过。源码范围121runtime/449公开代码/81Python-linked，其中Python范围80份字节不变、1份linked caret JS改变。
+- 新官方基线包370文件/32dist，生产依赖8项在安装包本地解析；六类SDK场景重新执行通过，21个SDK客户端正常退出，86个正常子进程exit0，另1个缺授权worker预期exit1独立计数。原生Android/iOS是有限协议fixture，不替代普通键盘设备验收。
+- 普通iOS第22次独立终态：`terminal_failed`，阶段`keyboard_calibration`，错误`CALIBRATION_SAMPLING_DEADLINE`。校准候选6、只读请求54、采样UI动作0；elapsedMs=12039.276916999981仅为本次观察值。
+- 两样本：未证实；ready：未证实；统一入口：未证实；生成入口：未证实。主投影业务提交计数为未知(null)；代理动作、setup与fixture业务分别计证，不由未进入MCP推成真实业务0。
+
+机器记录中的`currentIOS22`保留独立终态完整safeProjection；全套、SDK和设备证据不相加为全球独立总数。旧第20轮完整回归/SDK及第21轮校准通过、学习失败事实保留原值。本文不发布npm、不合并main，也不宣称物理设备或通用网站/App已验证。
+
+---
+
+## 已发布attempt21及更早检查点原文
+
 # 普通 iOS 第21次验收：校准通过，学习仍未完成
 
 本次只调整两份验收脚本，产品运行时仍为 `software-to-mcp-20`，基于已提交的 [d42c502](https://github.com/8eeth0ven/bfs-clicker/commit/d42c502736a87de5509609fddddc1fd6797c25ac)。产品运行时、Python源码及安装包业务代码没有变化。第20轮完整回归和SDK结果保留原始范围；当前449份公开代码中两份harness已改变，不将旧505项通过换贴为新510项全套。

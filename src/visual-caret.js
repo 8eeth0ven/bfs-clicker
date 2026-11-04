@@ -147,9 +147,12 @@ function approvedColor(data, offset, policy) {
 function pairedUnderlay(before, after, masks, value, geometry, policy) {
   const {width, height} = before, scaleX = width / geometry[0], scaleY = height / geometry[1];
   const result = (equivalent, mode, changedPixels) => ({width, height, equivalent, mode, changedPixels});
+  // Preserve the old peak check. Extra candidates are actual white-pixel
+  // projections only, fixed-cap and side-local; excess work keeps rejection.
+  const maxCandidates = 32, maxCandidateBoxPixels = 4096;
   const permission = policy.underlay, sides = [
-    {revealed: before.data, covered: after.data, possible: true, nonwhite: 0, peak: 0},
-    {revealed: after.data, covered: before.data, possible: true, nonwhite: 0, peak: 0},
+    {revealed: before.data, covered: after.data, possible: true, nonwhite: 0, peak: 0, alphas: new Set(), overflow: false},
+    {revealed: after.data, covered: before.data, possible: true, nonwhite: 0, peak: 0, alphas: new Set(), overflow: false},
   ];
   const whiteDelta = policy.color.map(c => c - 255), denominator = whiteDelta.reduce((sum, c) => sum + c * c, 0);
   const rows = new Map(); let count = 0, x0 = width, y0 = height, x1 = 0, y1 = 0;
@@ -177,6 +180,10 @@ function pairedUnderlay(before, after, masks, value, geometry, policy) {
         // neither infer nor tune it, and white antialias may only be weaker.
         const alpha = Math.max(0, Math.min(1, whiteDelta.reduce((sum, c, i) => sum + (side.covered[offset + i] - 255) * c, 0) / denominator));
         side.peak = Math.max(side.peak, alpha);
+        if (alpha >= permission.minSharedOpacity && !side.overflow) {
+          side.alphas.add(alpha);
+          if (side.alphas.size > maxCandidates) { side.alphas.clear(); side.overflow = true; }
+        }
       } else if (++side.nonwhite > permission.maxUnderlayPixels) side.possible = false;
     }
   }
@@ -191,19 +198,27 @@ function pairedUnderlay(before, after, masks, value, geometry, policy) {
   }
   for (const side of sides) {
     if (!side.possible || !side.nonwhite || side.peak < permission.minSharedOpacity) continue;
-    let whiteCore = 0, matches = true;
-    // A second bounded-box pass uses the same owned pixels, not another file
-    // read. It tests every gray point against the already fixed white alpha.
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      const offset = (y * width + x) * 4;
-      if (before.data[offset] === after.data[offset] && before.data[offset + 1] === after.data[offset + 1]
-          && before.data[offset + 2] === after.data[offset + 2] && before.data[offset + 3] === after.data[offset + 3]) continue;
-      const g = side.revealed[offset];
-      const shared = policy.color.every((c, i) => Math.abs(side.covered[offset + i] - (g + side.peak * (c - g))) <= policy.colorTolerance);
-      if (g === 255) { if (shared) whiteCore++; }
-      else if (!shared) matches = false;
+    const extra = !side.overflow && (x1 - x0) * (y1 - y0) <= maxCandidateBoxPixels
+      ? [...side.alphas].filter(alpha => alpha !== side.peak).sort((a, b) => b - a) : [];
+    for (const opacity of [side.peak, ...extra]) {
+      let whiteCore = 0, matches = true;
+      // Revisit every changed coordinate using the same two owned snapshots.
+      // Gray pixels never propose opacity or invent an unseen endpoint.
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const offset = (y * width + x) * 4;
+        if (before.data[offset] === after.data[offset] && before.data[offset + 1] === after.data[offset + 1]
+            && before.data[offset + 2] === after.data[offset + 2] && before.data[offset + 3] === after.data[offset + 3]) continue;
+        const g = side.revealed[offset];
+        const shared = policy.color.every((c, i) => Math.abs(side.covered[offset + i] - (g + opacity * (c - g))) <= policy.colorTolerance);
+        if (g === 255) {
+          const observed = Math.max(0, Math.min(1, whiteDelta.reduce((sum, c, i) => sum + (side.covered[offset + i] - 255) * c, 0) / denominator));
+          const weaker = Math.min(opacity, observed);
+          if (!policy.color.every((c, i) => Math.abs(side.covered[offset + i] - (255 + weaker * (c - 255))) <= policy.colorTolerance)) matches = false;
+          if (shared) whiteCore++;
+        } else if (!shared) matches = false;
+      }
+      if (matches && whiteCore >= Math.ceil(permission.minWhiteCoreFraction * count)) return result(true, 'caret', count);
     }
-    if (matches && whiteCore >= Math.ceil(permission.minWhiteCoreFraction * count)) return result(true, 'caret', count);
   }
   return result(false, 'changed', count);
 }
