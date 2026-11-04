@@ -59,6 +59,32 @@ WebDriver iOS/Android 的普通可编辑控件在输入前后读取新鲜语义�
 
 例如 UI 预算 480 秒时，Python 外层时限为 490 秒；设备验收辅助代码对每个后台操作设置单一 512 秒轮询窗口，逐次扣除已用时间，进度通知不重置期限。这不是整个多操作验收脚本的总时长，也不表示其他 MCP 客户端自动采用相同等待设置。耗时能力仍返回 operationId；客户端应设置自己的有界请求/轮询期限，并在停止后等待任务实际结束。
 
+### 原生跨屏阶段规划
+
+compiler20 可在可信设备配置中启用 `nativeStagePlanning`，为 Android/iOS 的有限原生语义流程生成 `native-stages-v1` 候选。配置与来源身份绑定；既有 `actionAllowlist` 必须按 selector、动作种类及 `effect:"read"` 另行批准输入、选项与提交按钮。规划设置不会增加动作范围。未配置时继续使用原探索与工作流路径。
+
+```json
+{
+  "nativeStagePlanning": {
+    "workflowId": "native_lookup",
+    "seedInputs": [
+      {"kind": "type", "selector": {"resourceId": "demo:id/first"}, "value": "demo-first"},
+      {"kind": "type", "selector": {"resourceId": "demo:id/second"}, "value": "demo-second"}
+    ]
+  }
+}
+```
+
+这是已有设备配置中的字段片段；Android 示例使用 `resourceId`，iOS 可按实际控件使用 `accessibilityId`。`seedInputs` 描述获准探索使用的种子值，后屏字段也在此声明。支持 `type`、`check`、`select`；选择域和每个选项仍须由实际语义控件证明并单独批准。该模式限只读、单一路线、可唯一分组的语义控件，不推测分支、WebView 或自绘界面的业务含义。
+
+通过 `software_discover` 的 `deviceName` 选择预先配置的设备后，调用 `software_workflows({sourceId})` 获取候选，再将发现的 `candidateId`、两组不同样本和逐参数 `resultAssertions` 交给 `software_bind_workflow`。完整验证后，使用 `software_call` 或 `software_generate`。目录读取只读取已保存证据；调用者不能用自填 `specPath` 注入 `stagePlan` 或扩大启动时的授权。
+
+阶段证据绑定实际动作的开始/完成、有序输入准备、阶段观察和迁移事件。每屏提交前复核该屏全部准备值，末端输出另有静态控件合同和参数相关断言；后屏输入不能借用上一屏控件。新阶段证据不保存输入原文、值摘要或节点句柄；这个约束不扩展到原私有设备配置、后端观察及业务结果账本。对种子反射到按钮、标识或祖先元数据的情况拒绝生成证据。
+
+回到入口只允许从唯一匹配已证明的后续阶段开始，逐步验证相邻前屏；未知、歧义或漂移页面不发送自动返回。待确认动作或已有阶段探索记录在任何 App 启动前就拒绝恢复，需另开获准的新探索。未知派发、超时和取消不自动重试。已有动作、深度、时长和步骤限制保留；跨屏隐藏业务状态仍需结果断言和两样本核验，不能由语义合同推定相同。
+
+源码复现见[原生阶段 SDK 测试](../test/software-native-stage-planner.test.mjs)与[证据及恢复反例](../apk_tools/tests/test_mobile_stages.py)。协议夹具、安装包与物理设备的验证范围分别记录在[验证摘要](software-to-mcp-validation.json)，不把协议通过计为真机通过。
+
 ### 当前页面上的多步骤探索
 
 compiler17 在获准动作完整返回后，为新观察到的语义状态建立新的页面许可。冷启动按钮后出现的表单、普通 DOM/open shadow 中销毁重建的表单，以及通过导航策略检查的跨 URL 页面均可继续探索。closed root 的探索可在成功动作后只读检查新一代节点，再销毁旧许可；缺省参数化工作流仍要求同一次执行内节点稳定。compiler18 的[显式闭根多阶段流程](#显式闭根多阶段流程)另需本地阶段合同与启动授权；不能仅由探索覆盖推导学习/调用通过。

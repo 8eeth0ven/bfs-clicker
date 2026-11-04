@@ -832,6 +832,8 @@ class MobileSession:
             if not isinstance(row, dict) or row.get("kind", "click") not in {"click", "type", "swipe", "check", "select"}:
                 raise MobileError("ALLOWLIST_INVALID")
             selector(row.get("selector"))
+        from .mobile_stages import validate_config
+        validate_config(config)
         # Exploration budgets can be raised on resume without changing identity.
         self.identity = digest({k: v for k, v in config.items() if k not in {"limits", "workflowPermissions"}})
         self.source = {"id": source["id"], "kind": source["kind"]}
@@ -1021,10 +1023,15 @@ class MobileSession:
             return self._explore()
 
     def _explore(self):
+        if self.config.get("nativeStagePlanning") is not None and (self.progress.get("pending") is not None or self.progress.get("nativeStageTrace") is not None):
+            raise MobileError("NATIVE_STAGE_RESUME_REQUIRES_FRESH_RUN", "blocked")
         if self.config.get("launchApp", False):
             if not self.config.get("allowLaunch", False):
                 raise MobileError("LAUNCH_NOT_ENABLED", "blocked")
             self.step({"kind": "launch"}, None)
+        if self.config.get("nativeStagePlanning") is not None:
+            from .mobile_stages import explore
+            return explore(self)
         if not self.progress["states"]:
             tree = self.backend.observe()
             self.progress["entry"] = tree["fingerprint"]

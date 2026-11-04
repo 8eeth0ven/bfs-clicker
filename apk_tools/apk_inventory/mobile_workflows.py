@@ -143,7 +143,7 @@ def validate_inputs(schema, inputs):
 
 
 def definition_contract(session, definition):
-    allowed = {"schemaVersion", "id", "name", "description", "inputSchema", "effect", "steps", "entryPrefix"}
+    allowed = {"schemaVersion", "id", "name", "description", "inputSchema", "effect", "steps", "entryPrefix", "stagePlan"}
     if not isinstance(definition, dict) or set(definition) - allowed or definition.get("schemaVersion") != 1 or not isinstance(definition.get("id"), str) or not NAME.fullmatch(definition["id"]) or definition.get("effect") not in {"read", "write"}:
         raise MobileError("WORKFLOW_DEFINITION_INVALID", "blocked")
     approve_workflow(session, definition)
@@ -246,6 +246,9 @@ def definition_contract(session, definition):
             outputs.add(name)
     if not outputs or not assertions or used != set(definition["inputSchema"]["properties"]):
         raise MobileError("WORKFLOW_REQUIRES_BOUND_INPUT_ASSERTION_AND_OUTPUT", "blocked")
+    if "stagePlan" in definition:
+        from .mobile_stages import validate_definition
+        validate_definition(session, definition)
     return copy.deepcopy(definition)
 
 
@@ -316,6 +319,10 @@ def assertion_matches(expect, text, bound, baseline=None):
 
 def _run(session, definition, inputs, contracts):
     outputs, assertions, evidence = {}, 0, []
+    stage_plan = definition.get("stagePlan")
+    if stage_plan is not None:
+        from .mobile_stages import restore_entry
+        restore_entry(session, stage_plan)
     prefix = definition.get("entryPrefix")
     if prefix is not None:
         session.budget.check()
@@ -330,7 +337,7 @@ def _run(session, definition, inputs, contracts):
         if step["kind"] == "assert" and any(step["expect"].get(key) not in bound for key in ("equalsInput", "containsInput") if key in step["expect"]):
             raise MobileError("WORKFLOW_INPUT_INVALID", "blocked")
     controls = [(number, step) for number, step in enumerate(definition["steps"]) if step["kind"] in {"check", "select"}]
-    if controls:
+    if controls and stage_plan is None:
         # Validate all boolean controls before any mutable workflow action.
         # Controls introduced only by later write actions are not guessed.
         check_tree = session.backend.observe()
@@ -371,6 +378,18 @@ def _run(session, definition, inputs, contracts):
         if kind in {"type", "click", "swipe", "check", "select"}:
             tree = session.backend.observe()
             session.budget.check()
+            if stage_plan is not None:
+                from .mobile_stages import guard
+                boundary = next((r for r in stage_plan["ranges"] if r["start"] == number), None)
+                if boundary is not None:
+                    guard(session, tree, stage_plan["proof"]["trace"]["stages"][boundary["stageIndex"]])
+                final = next((r for r in stage_plan["ranges"] if r["end"] == number), None)
+                if final is not None:
+                    guard(session, tree, stage_plan["proof"]["trace"]["stages"][final["stageIndex"]])
+                    from .mobile_stages import verify_input
+                    for prepared in definition["steps"][final["start"]:final["end"]]:
+                        verify_input(tree, prepared, inputs)
+                    evidence.append(session.event("workflow_stage_inputs_reverified", workflowId=definition["id"], stage=final["stageIndex"], parameters=final["end"] - final["start"]))
             if kind == "select":
                 selection = contract_selection(contracts, number, selection_state(tree, step))
                 target = locate(tree, step["selector"])
@@ -420,7 +439,11 @@ def _run(session, definition, inputs, contracts):
             while True:
                 session.budget.check()
                 try:
-                    node = contract_node(contracts, number, locate(session.backend.observe(), step["selector"]), kind)
+                    assertion_tree = session.backend.observe()
+                    node = contract_node(contracts, number, locate(assertion_tree, step["selector"]), kind)
+                    if stage_plan is not None:
+                        from .mobile_stages import guard
+                        guard(session, assertion_tree, stage_plan["proof"]["trace"]["stages"][-1])
                     session.budget.check()
                     expect = step["expect"]
                     guarded = expect.get("changed") is True or "equalsInput" in expect or "containsInput" in expect
@@ -443,7 +466,11 @@ def _run(session, definition, inputs, contracts):
                     raise MobileError("WORKFLOW_FRESHNESS_NOT_OBSERVED" if step["expect"].get("changed") is True else "WORKFLOW_ASSERTION_FAILED", "blocked")
                 time.sleep(min(.05, max(0, deadline - time.monotonic())))
         else:
-            node = contract_node(contracts, number, locate(session.backend.observe(), step["selector"]), kind)
+            extraction_tree = session.backend.observe()
+            node = contract_node(contracts, number, locate(extraction_tree, step["selector"]), kind)
+            if stage_plan is not None:
+                from .mobile_stages import guard
+                guard(session, extraction_tree, stage_plan["proof"]["trace"]["stages"][-1])
             session.budget.check()
             if node["editable"] or node["secure"]:
                 raise MobileError("WORKFLOW_INPUT_EXTRACTION_REJECTED", "blocked")
@@ -474,11 +501,18 @@ def _run(session, definition, inputs, contracts):
         session.budget.check()
         final_tree = session.backend.observe()
         session.budget.check()
+        if stage_plan is not None:
+            from .mobile_stages import guard
+            guard(session, final_tree, stage_plan["proof"]["trace"]["stages"][-1])
         for guarded in guarded_outputs:
             final_node = contract_node(contracts, guarded["number"], locate(final_tree, guarded["selector"]), "extract")
             if guarded["generation"] != generation or final_node["text"] != guarded["text"]:
                 raise MobileError("WORKFLOW_RESULT_CHANGED_AFTER_ASSERTION", "blocked")
         evidence.append(session.event("workflow_outputs_reverified", workflowId=definition["id"], outputs=len(guarded_outputs)))
+    if stage_plan is not None:
+        session.backend.verify_artifact()
+        session.backend.foreground()
+        session.budget.check()
     return {"outputs": scrub_outputs(definition["inputSchema"], inputs, outputs), "assertionsPassed": assertions, "actionsPerformed": actions_performed, "checkStateVerifications": check_observations, "selectionStateVerifications": select_observations, "resultFreshness": {"changedAssertions": changed_count, "inputCorrelatedAssertions": correlated_count, "outputs": output_freshness, "scope": "configured_ui_text_transition_or_input_association; not_request_completion_or_business_proof"}, "evidenceIds": evidence[-12:]}
 
 
@@ -498,6 +532,12 @@ def _learn_workflow(session, definition, samples):
     session.features = session.backend.probe()
     sample_evidence, outputs = [], []
     contracts = [None] * len(definition["steps"])
+    if "stagePlan" in definition:
+        saved = definition["stagePlan"]["controlContracts"]
+        contracts[:len(saved)] = copy.deepcopy(saved)
+        stage_output_contracts = {digest(row["selector"]): row["contract"] for row in definition["stagePlan"]["proof"]["trace"]["stages"][-1]["outputs"]}
+        for number, step in enumerate(definition["steps"][len(saved):], start=len(saved)):
+            contracts[number] = copy.deepcopy(stage_output_contracts[digest(step["selector"])])
     session.progress["status"] = "running"
     with DeviceLease(session.backend):
         for number, inputs in enumerate(samples):

@@ -314,6 +314,12 @@ def _observed_states(session, checkpoint, events):
 
 
 def plan_tree(session, tree, checkpoint=None, events=None):
+    if isinstance(checkpoint, dict) and "nativeStageTrace" in checkpoint:
+        from .mobile_stages import plan
+        try:
+            return plan(session, checkpoint, events or [])
+        except (MobileError, KeyError, ValueError, TypeError) as error:
+            return {"schemaVersion": 1, "source": {**session.source, "revision": digest([session.identity, "stage-proof-rejected"])}, "items": [], "specs": {}, "total": 0, "nextOffset": None, "truncated": False, "gaps": [error.code if isinstance(error, MobileError) else "NATIVE_STAGE_PROOF_INVALID"]}
     items, specs, gaps = _tree_candidates(session, tree)
     if checkpoint is not None:
         stored, inventory_gaps = _observed_states(session, checkpoint, events or [])

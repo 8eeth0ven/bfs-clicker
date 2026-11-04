@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import {keyboardEnvelope,approvedKeyboardEnvelope} from './ios-keyboard-envelope.mjs';
 import {keyboardOwnerApproval} from './ios-keyboard-owner-approval.mjs';
+import {sampleOwnerKeyboardCalibration} from './ios-keyboard-calibration-sampling.mjs';
 import {assertDeviceRequestWindow} from './ios-keyboard-request-audit.mjs';
 import {nativeWorkflowBudget,nativeMcpRequestOptions,waitNativeOperation} from '../src/native-workflow-budget.js';
 import {runPython} from '../src/software-python.js';
@@ -43,22 +44,31 @@ async function trackedRequests(label,operation){
 const save=async(file,value)=>{await mkdir(path.dirname(file),{recursive:true});await writeFile(file,JSON.stringify(value,null,2)+'\n',{mode:0o600});};
 const json=async file=>JSON.parse(await readFile(file,'utf8'));
 const log=(phase,fields={})=>{const row={phase,at:new Date().toISOString(),...fields};record.steps.push(row);process.stdout.write(JSON.stringify(row)+'\n')};
-async function run(exe,args,{timeout=180000,allowFailure=false,env={}}={}){
+async function run(exe,args,{timeout=180000,allowFailure=false,env={},signal}={}){
+ if(signal?.aborted)throw signal.reason||Error('interrupted');
  const child=spawn(exe,args,{cwd:project,env:{...process.env,PYTHONPATH:path.join(project,'apk_tools'),PYTHONDONTWRITEBYTECODE:'1',...env},stdio:['ignore','pipe','pipe']});ownedCommands.add(child);let stdout=[],stderr=[],bytes=0;
  child.stdout.on('data',part=>{bytes+=part.length;if(bytes>8*1024*1024)child.kill('SIGTERM');else stdout.push(part)});child.stderr.on('data',part=>{stderr.push(part);if(Buffer.concat(stderr).length>131072)stderr=stderr.slice(-4)});
- let killTimer;const timer=setTimeout(()=>{child.kill('SIGTERM');killTimer=setTimeout(()=>child.kill('SIGKILL'),1500)},timeout);
- const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)}).finally(()=>{clearTimeout(timer);clearTimeout(killTimer);ownedCommands.delete(child)});const result={code,stdout:Buffer.concat(stdout).toString(),stderr:Buffer.concat(stderr).toString()};
+ let killTimer,stopReason;const stop=reason=>{if(stopReason)return;stopReason=reason;child.kill('SIGTERM');killTimer=setTimeout(()=>child.kill('SIGKILL'),1500);};
+ const abort=()=>stop('cancelled'),timer=setTimeout(()=>stop('timeout'),timeout);signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
+ const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)}).finally(()=>{clearTimeout(timer);clearTimeout(killTimer);signal?.removeEventListener('abort',abort);ownedCommands.delete(child)});const result={code,stdout:Buffer.concat(stdout).toString(),stderr:Buffer.concat(stderr).toString()};
  await appendFile(path.join(output,'host-commands.jsonl'),JSON.stringify({at:new Date().toISOString(),exe,args,code,stderr:result.stderr.slice(-4000)})+'\n');
- if(!allowFailure&&(code!==0||bytes>8*1024*1024))throw Error(path.basename(exe)+' failed ('+code+'): '+result.stderr.slice(-3000));return result;
+ if(!allowFailure&&(stopReason||code!==0||bytes>8*1024*1024))throw Error(path.basename(exe)+' failed ('+code+'): '+result.stderr.slice(-3000));return result;
 }
 const simctl=(...args)=>run('/usr/bin/xcrun',['simctl',...args]);
 async function until(fn,label,timeout=180000){const deadline=Date.now()+timeout;let last=0;while(Date.now()<deadline){if(interrupted)throw Error('interrupted');const result=await fn();if(result)return result;if(Date.now()-last>15000){log('waiting',{for:label});last=Date.now()}await delay(500)}throw Error('Timeout: '+label)}
 async function portFree(port){return new Promise(resolve=>{const server=createNetServer();server.once('error',()=>resolve(false));server.listen(port,'127.0.0.1',()=>server.close(()=>resolve(true)))})}
 async function choosePort(start){while(!await portFree(start))start++;return start}
-async function httpJson(method,route,body,{timeout=180000,allowError=false,port=appiumPort}={}){
+async function httpJson(method,route,body,{timeout=180000,allowError=false,port=appiumPort,signal}={}){
+ if(signal?.aborted)throw signal.reason||Error('interrupted');
  if(method==='POST')record.lastOperationObservation=null;
  const raw=body===undefined?undefined:JSON.stringify(body);
- const response=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>request.destroy(Object.assign(new Error('HTTP_RESPONSE_TIMEOUT'),{code:'HTTP_RESPONSE_TIMEOUT'})),timeout);const request=httpRequest({hostname:'127.0.0.1',port,path:route,method,headers:{'content-type':'application/json',...(raw===undefined?{}:{'content-length':Buffer.byteLength(raw)})}},reply=>{let chunks=[],size=0;reply.on('data',chunk=>{size+=chunk.length;if(size>8*1024*1024)request.destroy(new Error('HTTP_RESPONSE_LIMIT'));else chunks.push(chunk)});reply.on('end',()=>{clearTimeout(timer);resolve({status:reply.statusCode,text:Buffer.concat(chunks).toString()})});reply.on('error',error=>{clearTimeout(timer);reject(error)})});request.on('error',error=>{clearTimeout(timer);reject(error)});request.end(raw)});
+ const response=await new Promise((resolve,reject)=>{
+  const abort=()=>request.destroy(signal.reason||Error('interrupted'));
+  const clean=()=>{clearTimeout(timer);signal?.removeEventListener('abort',abort);};
+  const timer=setTimeout(()=>request.destroy(Object.assign(new Error('HTTP_RESPONSE_TIMEOUT'),{code:'HTTP_RESPONSE_TIMEOUT'})),timeout);
+  const request=httpRequest({hostname:'127.0.0.1',port,path:route,method,headers:{'content-type':'application/json',...(raw===undefined?{}:{'content-length':Buffer.byteLength(raw)})}},reply=>{let chunks=[],size=0;reply.on('data',chunk=>{size+=chunk.length;if(size>8*1024*1024)request.destroy(new Error('HTTP_RESPONSE_LIMIT'));else chunks.push(chunk)});reply.on('end',()=>{clean();resolve({status:reply.statusCode,text:Buffer.concat(chunks).toString()})});reply.on('error',error=>{clean();reject(error)})});
+  request.on('error',error=>{clean();reject(error)});signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();request.end(raw);
+ });
  const text=response.text;let value;try{value=JSON.parse(text)}catch{throw Error('Non-JSON actual Appium reply: '+text.slice(0,500))}if(!allowError&&(response.status<200||response.status>=300||value.value?.error))throw Error('Actual Appium '+method+' '+route+' ('+response.status+'): '+text.slice(0,3000));return {status:response.status,...value};
 }
 function ownedAppiumAlive(){if(!appiumChild?.pid)return false;try{const cmd=execFileSync('ps',['-p',String(appiumChild.pid),'-o','command='],{encoding:'utf8'});return cmd.includes(appiumEntry)&&cmd.includes(String(appiumPort))}catch{return false}}
@@ -243,18 +253,36 @@ async function main(){
   // measured diff or parent AX node cannot broaden this declared rectangle.
   const ownerEnvelope=values['owner-keyboard-envelope']?keyboardOwnerApproval(path.resolve(values['owner-keyboard-envelope']),{root:reportDir,appId,window:rect}):null;
   if(ownerEnvelope)record.keyboardEnvelopeApproval=ownerEnvelope.record;
+  const caretPolicy={enabled:true,color:[66,107,242],background:[255,255,255],colorTolerance:2,maxWidthPoints:3,minHeightPoints:8,maxHeightPoints:48,maxAreaPoints:144};
   const tap=async(x,y)=>httpJson('POST','/session/'+sessionId+'/actions',{actions:[{type:'pointer',id:'calibration',parameters:{pointerType:'touch'},actions:[{type:'pointerMove',duration:0,x:Math.round(x*rect.width),y:Math.round(y*rect.height),origin:'viewport'},{type:'pointerDown',button:0},{type:'pointerUp',button:0}]}]});
-  const proposal=async(label)=>{const xml=(await httpJson('GET','/session/'+sessionId+'/source')).value,file=path.join(output,label+'.xml');await writeFile(file,xml);const result=await run(python,[path.join(project,'test/ios-keyboard-inspect.py'),'--source',file,'--width',String(rect.width),'--height',String(rect.height),'--app-id',appId]);return JSON.parse(result.stdout).proposal};
+  const proposal=async(label)=>{const xml=(await httpJson('GET','/session/'+sessionId+'/source')).value,file=path.join(output,label+'.xml');await writeFile(file,xml,ownerEnvelope?{flag:'wx',mode:0o600}:undefined);const result=await run(python,[path.join(project,'test/ios-keyboard-inspect.py'),'--source',file,'--width',String(rect.width),'--height',String(rect.height),'--app-id',appId]);return JSON.parse(result.stdout).proposal};
   assert.equal(await proposal('calibration-before'),null);
-  const calibrationBefore=path.join(output,'calibration-before.png');await writeFile(calibrationBefore,Buffer.from((await httpJson('GET','/session/'+sessionId+'/screenshot')).value,'base64'));
+  const calibrationBefore=path.join(output,'calibration-before.png');await writeFile(calibrationBefore,Buffer.from((await httpJson('GET','/session/'+sessionId+'/screenshot')).value,'base64'),ownerEnvelope?{flag:'wx',mode:0o600}:undefined);
+  const calibrationOrientation=ownerEnvelope?(await httpJson('GET','/session/'+sessionId+'/orientation',undefined,{timeout:1500,signal:commandAbort.signal})).value:null;
   await tap(.22,.15);
-  const measured=await until(()=>proposal('calibration-visible'),'actual system keyboard calibration',60000);
-  assert(measured.keyCount>0);assert.equal(measured.region.x,0);assert.equal(measured.region.width,1);
-  const calibrationPng=Buffer.from((await httpJson('GET','/session/'+sessionId+'/screenshot')).value,'base64');
-  await writeFile(path.join(output,'calibration-keyboard.png'),calibrationPng);
-  const envelopeOptions={valueRegion:definition.valueRegion,resultRegion:definition.resultRegion,sourceRegion:measured.region,geometry:rect};
-  const envelope=ownerEnvelope?approvedKeyboardEnvelope(calibrationBefore,path.join(output,'calibration-keyboard.png'),{...envelopeOptions,approval:ownerEnvelope.approval,visibleSourcePath:path.join(output,'calibration-visible.xml')}):keyboardEnvelope(calibrationBefore,path.join(output,'calibration-keyboard.png'),envelopeOptions);
-  record.keyboardCalibration={observation:measured,visualEnvelopeProposal:envelope,ownerApproved:true,configuredRegion:envelope.region,configuredSourceRegion:measured.region,publicMcpAuthorization:false,preparationTouches:2};
+  let measured,envelope,sampled;
+  if(ownerEnvelope){
+   sampled=await sampleOwnerKeyboardCalibration({beforePath:calibrationBefore,output,appId,geometry:rect,
+    orientation:calibrationOrientation,approval:ownerEnvelope.approval,valueRegion:definition.valueRegion,
+    resultRegion:definition.resultRegion,caretPolicy,signal:commandAbort.signal,
+    read:async(kind,{timeoutMs,signal})=>{
+     const routes={source:'/source',screenshot:'/screenshot',window:'/window/rect',orientation:'/orientation'};
+     if(kind==='app')return(await httpJson('POST','/session/'+sessionId+'/execute/sync',{script:'mobile: activeAppInfo',args:[]},{timeout:timeoutMs,signal,port:proxyPort})).value;
+     assert(Object.hasOwn(routes,kind),'Calibration permits readonly observations only');
+     return(await httpJson('GET','/session/'+sessionId+routes[kind],undefined,{timeout:timeoutMs,signal,port:proxyPort})).value;
+    },
+    inspectSource:async(file,{timeoutMs,signal})=>JSON.parse((await run(python,[path.join(project,'test/ios-keyboard-calibration-inspect.py'),'--source',file,'--width',String(rect.width),'--height',String(rect.height),'--app-id',appId],{timeout:timeoutMs,signal})).stdout),
+   });({measured,envelope}=sampled);
+  }else{
+   // The unapproved legacy proposal path retains its original one-shot guard.
+   measured=await until(()=>proposal('calibration-visible'),'actual system keyboard calibration',60000);
+   assert(measured.keyCount>0);assert.equal(measured.region.x,0);assert.equal(measured.region.width,1);
+   const calibrationPng=Buffer.from((await httpJson('GET','/session/'+sessionId+'/screenshot')).value,'base64');
+   await writeFile(path.join(output,'calibration-keyboard.png'),calibrationPng);
+   envelope=keyboardEnvelope(calibrationBefore,path.join(output,'calibration-keyboard.png'),{valueRegion:definition.valueRegion,resultRegion:definition.resultRegion,sourceRegion:measured.region,geometry:rect});
+  }
+  record.keyboardCalibration={observation:measured,visualEnvelopeProposal:envelope,ownerApproved:true,configuredRegion:envelope.region,configuredSourceRegion:measured.region,publicMcpAuthorization:false,preparationTouches:2,
+   ...(sampled?{sampling:sampled.sampling,acceptedPng:sampled.pngPath,acceptedSource:sampled.visibleSourcePath}: {})};
   await tap(.72,.36);await delay(700);
   assert.equal(await proposal('calibration-restored'),null,'Dismiss must actually remove Keyboard before learning');
   log('keyboard_calibrated',{region:measured.region,keyCount:measured.keyCount});
@@ -266,7 +294,6 @@ async function main(){
    assert.equal(record.transportProbe.echo,record.transportProbe.expected,'Onscreen keyboard text was not independently echoed');
    record.status='passed';return;
   }
-  const caretPolicy={enabled:true,color:[66,107,242],background:[255,255,255],colorTolerance:2,maxWidthPoints:3,minHeightPoints:8,maxHeightPoints:48,maxAreaPoints:144};
   // The fixture owner explicitly grants this narrow pixel exception. Geometry
   // calibration and OCR cannot establish that a thin blue glyph is an OS caret.
   const keyboardPolicy={enabled:true,region:envelope.region,sourceRegion:measured.region,dismissAnchor:'Dismiss',caret:caretPolicy};

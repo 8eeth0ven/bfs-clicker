@@ -1,8 +1,35 @@
 # 软件转 MCP：能力与验证范围
 
+本页记录`software-to-mcp-20`的有限契约。分发为[草稿PR检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)，main未合并、npm未发布；[compiler19历史检查点](https://github.com/8eeth0ven/bfs-clicker/commit/d4b8c7e157e532fe107bd01ec0e3e014bd376a07)不是未来20提交声明。机器摘要见[公开验证结果](software-to-mcp-validation.json)。
+
+## compiler20 当前证据
+
+| 项目 | 实际证据 | 范围 |
+| --- | --- | --- |
+| 完整JS回归 | 主项目239/239；software 505/505，均0失败/跳过 | 121 runtime /449公开代码，终态bytes/modes一致 |
+| 完整Python | 606项，605通过、1已知fixture跳过 | 81源码范围；跳过不计通过 |
+| 原生自动阶段 | Android/iOS有限协议fixture，4字段、两样本、统一与生成入口 | 实际安装包生产Python；外部fixture只作测试服务，不证明真机/OCR/任意App |
+| iOS校准采样 | 完整software回归覆盖有界只读采样/来源守卫 | 不重放tap/业务，不放宽完整校准guard；不是当前设备通过 |
+| 官方生产安装SDK | 370文件/32dist，28工具，9个producer文件，6业务场景 | 21实际SDK客户端exit0/stderr0；86正常观察子进程exit0；预期拒绝另1个worker exit1 |
+| 当前普通iOS设备证据 | 本轮有限设备终态：terminal_failed；phase=keyboard_calibration；错误码=CALIBRATION_SAMPLING_REQUEST_TIMEOUT | 旧19实际失败、清理和source范围完整保留，不能由新采样或协议fixture追认为成功 |
+
+第20轮在校准阶段因 `CALIBRATION_SAMPLING_REQUEST_TIMEOUT` 停止。只读采样候选1，只读请求6，采样UI动作0；接受候选=未知，完整校准回放通过=否，完整原始source/PNG对已核=否。发现/学习/两样本/ready/统一/生成/MCP均未通过，setup focus=1、MCP键=0、业务提交=0。复制源516份、121runtime/449code/81Python/32dist，前后bytes匹配=是/是；共享host依赖，非hermetic。六清理全部成立=是，fresh审计=是，剩余owned进程/监听端口=0/0。缓存WDA使用/字节复用核验=是/是，最低OS兼容性=未知；未知不追认为兼容。原19失败保留，采样不授予OS光标身份或整条MCP通过。
+
+android：探索1、学习2、统一1、生成1，共5业务；只读规划新增业务/UI均0。ios：探索1、学习2、统一1、生成1，共5业务；只读规划新增业务/UI均0。候选ID稳定，输入类型为string/string/boolean/string；生成目录保留全部候选，cap工具仅注册ready能力，ID/schema/provider/fidelity与统一入口一致。源码、安装包原件bytes/modes、归档及锁文件终态匹配，生产运行时从安装目录解析。既有DOM/open、provider/显式HTTP、手写closed、自动closed、OpenAPI刷新5条SDK场景继续分别核验；它们不增加物理设备、OCR或任意业务等价承诺。
+
+缺少closed-stage owner grant的反例仍单独校验：精确操作与安装包worker绑定，预期exit1/null，父SDK exit0/stderr0；业务/HTTP/UI新增均0。正常trace保持全部exit0，预期拒绝不计入正常通过子进程数。不得将已清理的临时task/status宣称为本次末尾重读。
+
+原生恢复仅允许已证明阶段/入口的路径；未知屏幕拒绝自动返回。iOS采样只重新只读观察fresh图像并核对app/window/source身份；完整校准guard保留，未知像素差异不自动扩大shell或放宽。视觉等价仍不能证明系统光标身份、隐藏buffer或源字符串精确。
+
+完整回归、局部合同、安装SDK和设备证据来源不同且交叠，计数分列不相加。提交前还须独立核验实际index、精确最终tar、两验证文档delta和全文敏感上下文；本投影不自批提交。19及更早失败、Android中文未闭环、OCR空格研究假接受均完整保留。
+
+## compiler19 及更早历史（以下原文保留）
+
+# 软件转 MCP：能力与验证范围
+
 本页记录`software-to-mcp-19`的有限契约与验证范围。统一服务保留28工具；ready不表示任意网站/App全部业务都覆盖。分发为[草稿PR检查点](https://github.com/8eeth0ven/bfs-clicker/pull/1)，main未合并、npm未发布；[compiler18历史检查点](https://github.com/8eeth0ven/bfs-clicker/commit/bed2d4c55f3758d7772c957d40460f9aece60504)不是未来compiler19提交声明。机器状态见[公开验证摘要](software-to-mcp-validation.json)，配置见[指南](software-to-mcp.md)。
 
-## compiler19 当前证据
+## compiler19 历史证据
 
 | 项目 | 实际证据 | 范围 |
 | --- | --- | --- |
