@@ -6,6 +6,7 @@ import {PROJECT_ROOT} from './config.js';
 import {atomicJson,readAtomic,secureDirectory} from './store.js';
 import {redact,redactText} from './redact.js';
 import {persistedWriteOutcome, mergeWriteOutcomes} from './write-outcome.js';
+import {hasWebviewOperation, persistedWebviewOutcome, mergeWebviewOutcomes, projectWebviewOutcomeFields} from './webview-outcome.js';
 
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const TERMINAL=new Set(['completed','failed','cancelled','interrupted']);
@@ -43,7 +44,9 @@ export function createSoftwareOperations(runtime,{spawnWorker=spawn,shutdownGrac
   const running=owned||lockOwned||(!TERMINAL.has(value.status)&&alive(pid));
   const {owner:privateOwner,...publicValue}=value;
   const writeOutcome=mergeWriteOutcomes(['execute','validate','bind-workflow'].includes(task.type)?persistedWriteOutcome(out):undefined,value.writeOutcome,value.result?.result?.writeOutcome,value.result?.writeOutcome);
-  const base={...redact(publicValue),...(writeOutcome?{writeOutcome}:{}),...(Number.isInteger(pid)?{pid}:{}),operationId:id,type:task.type,active:running,owned,canStop:owned,canResume:!running&&resumable(task)};
+  const trustedWebview=['execute','validate','bind-workflow'].includes(task.type)&&hasWebviewOperation(out);
+  const webviewOutcome=trustedWebview?mergeWebviewOutcomes(persistedWebviewOutcome(out),value.webviewOutcome,value.result?.result?.webviewOutcome,value.result?.webviewOutcome):undefined;
+  const base={...redact(projectWebviewOutcomeFields(publicValue,{trusted:trustedWebview})),...(writeOutcome?{writeOutcome}:{}),...(webviewOutcome?{webviewOutcome}:{}),...(Number.isInteger(pid)?{pid}:{}),operationId:id,type:task.type,active:running,owned,canStop:owned,canResume:!running&&resumable(task)};
   if(TERMINAL.has(value.status))return running?{...base,status:'finishing',outcome:value.status}:base;
   if(!running)return {...base,status:'interrupted',reason:'worker_not_alive'};
   return base;

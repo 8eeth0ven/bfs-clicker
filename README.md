@@ -32,7 +32,7 @@ Canvas 页面可从可信流程定义接入本地 OCR：固定文字锚点定位
 
 移动来源可按来源启用只读截图 OCR，使用 `software_observe_mobile` 获取带时间和坐标的视觉观察；生成入口在相同配置下提供 `observe_mobile`。详情见 [移动视觉观察](docs/software-to-mcp.md#移动视觉观察)。
 
-Android 自绘界面的固定枚举、英文视觉文本替换，以及 iOS 固定枚举和无系统键盘的视觉文本替换，已在自建模拟器通过统一与生成 MCP 调用。当前编译器 `software-to-mcp-20` 保留可信同图 Vision ROI 和 iOS 普通软键盘的可选合同：ROI 保留整图与边界证据，按严格词界处理冲突；键盘合同区分实际 AX 框和本地批准的有限视觉区域，恢复完整界面后才提交。**Android 中文视觉文本曾以 Vision 完成北京/上海两样本并发布 ready，但新参数调用仍失败；普通 UIKit 软键盘的完整双入口验收仍在推进。** 已通过的中文 Web/Vision 与 Android Unicode 输入有各自范围。配置见 [Android 原生视觉动作](docs/software-to-mcp.md#android-原生视觉动作)、[iOS 普通系统软键盘](docs/software-to-mcp.md#ios-普通系统软键盘)；当前状态和可运行测试见 [验证记录](docs/software-to-mcp-verification.md) 与 [公开验证摘要](docs/software-to-mcp-validation.json)。
+Android 自绘界面的固定枚举、英文视觉文本替换，以及 iOS 固定枚举和无系统键盘的视觉文本替换，已在自建模拟器通过统一与生成 MCP 调用。当前编译器 `software-to-mcp-26` 保留可信同图 Vision ROI 和 iOS 普通软键盘的可选合同：ROI 保留整图与边界证据，按严格词界处理冲突；键盘合同区分实际 AX 框和本地批准的有限视觉区域，恢复完整界面后才提交。**Android 中文视觉文本曾以 Vision 完成北京/上海两样本并发布 ready，但新参数调用仍失败；普通 UIKit 软键盘的完整双入口验收仍在推进。** 已通过的中文 Web/Vision 与 Android Unicode 输入有各自范围。配置见 [Android 原生视觉动作](docs/software-to-mcp.md#android-原生视觉动作)、[iOS 普通系统软键盘](docs/software-to-mcp.md#ios-普通系统软键盘)；当前状态和可运行测试见 [验证记录](docs/software-to-mcp-verification.md) 与 [公开验证摘要](docs/software-to-mcp-validation.json)。
 
 compiler13 补充显式多文档 OpenAPI 引用映射、原生 Tesseract 分隔信息合同，以及 DOM/ARIA 提交前结果基线。多文件规范可经过统一入口与生成入口调用；当前实验设备状态以验证摘要为准。
 
@@ -51,6 +51,8 @@ compiler18 另减少 ADB 截图前更早的一组重复身份核验，最终截�
 compiler19 增加[自动闭根阶段候选](docs/software-to-mcp.md#自动规划闭根多阶段候选)：启动配置选定 workflow ID 后，从真实连续探索生成参数化阶段计划，仍需单独的阶段授权、完整有序的填写/点击证据、双样本与独立结果验证。无法确认的路径、输入回显或多个不同路线保留缺口。iOS 另增加只作用于屏幕按键新鲜度的显式灰底光标像素等价选项，默认关闭；它不证明 OS 光标或隐藏字符身份。第19轮自建模拟器在校准阶段因 `CALIBRATION_UNRELATED_PIXELS_CHANGED` 停止，未进入发现与学习；自有设备、进程与端口已清理，完整设备结论以验证记录为准。
 
 compiler20 增加可选的[原生跨屏阶段规划](docs/software-to-mcp.md#原生跨屏阶段规划)：Android/iOS 的获准语义控件可按连续探索证据生成多阶段候选，经过两组参数样本与结果断言后供统一入口及生成 MCP 调用。后续页面的文本、开关与单选控件按阶段复核；未知页面不会自动返回，未完成的探索在启动 App 前拒绝恢复。普通 iOS 键盘的设备验收脚本另增加有界只读校准采样，仍要求原完整像素守卫通过；当前设备状态以验证记录为准。
+
+显式 [iOS WebView DOM 通路](docs/software-to-mcp.md#ios-webview-的-dom-通路)和 compiler25 新增的 [Android WebView 通路](docs/android-webview-mcp.md)，将已配置的线性文本查询接入探索、两样本学习、统一与独立生成 MCP。Android 通过前台包、调试进程和页面建立观测关联；管理者显式启用固定 CDP 文本输入，精确回读中文、空格、emoji 与组合字符。提交前核对全部输入，未知动作由持久记录阻断重放；学习失败和取消也返回有证据的 `webviewOutcome`，私有完成记录不向调用者公开。协议模型和实际设备结果分开列于[验证记录](docs/software-to-mcp-verification.md)，任意第三方 App 仍需逐目标验证。
 
 iOS 混合控件已完成真实模拟器验收：文本、Switch 与 SegmentedControl 自动识别为三字段流程，生成入口同值控件零切换；非法枚举和域漂移在 UI 动作前拒绝。保留拉伸 Switch 点击未生效的失败证据，详见 [验证记录](docs/software-to-mcp-verification.md)。
 

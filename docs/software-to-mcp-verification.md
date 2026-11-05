@@ -1,3 +1,120 @@
+# 第28轮验证：WebView 结果共同观测与请求减少
+
+本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/55b860bc6a777fb8dc83caf01ee92ef370966e49)，运行时为 `software-to-mcp-26`，继续提交[草稿 PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)。PR #1 已由用户合并；本轮不合并 main、不发布 npm。下方第27轮及更早原文完整保留。
+
+修复同一结果区的参数断言被逐条覆盖的问题。原生产 CLI 在独立回环模型中，先于A帧通过第一个参数、再于B帧通过第二个参数，学出两样本 ready，后续执行还返回缺少首参数的文本；记录的完整观察从未同时含两参数。该基线为1224次本地透传请求、模型业务3笔，未执行 SDK 或设备，不扩大成第三方 App 结果。
+
+现在同一结果区全部断言在一份完整观察上 AND 求值，支持被其他输出步骤隔开，也支持提取夹在两条断言之间。每条断言仍计数；提取和返回前继续独立回读，并与共同通过的文本匹配。WebView 新鲜度校验强制 `same_output_snapshot_v1` 标记。原生流程默认顺序断言保留。组内使用最短成员超时且不重置期限；在途观察仍受原请求/总预算约束，不声称硬截断或重试 UI。
+
+- 同一566文件冻结（536公开文件减2份随后编写的验证文档，加32份 dist）完成主项目239/239、software567/567；Python734项中733通过、1个既有 Hermes fixture 跳过。新15项 Python、旧39项原生及25项 WebView 规划器、3项 SDK 与9项元数据检查均有重叠，不再合计为全局总数。
+- 官方 SDK 的三个独立 Android/CDP 模型场景通过。分帧学习停止于1笔实际模型业务且不发布 ready，保留 unknown/noRetry；rebind 有42次只读规划请求、0 UI/业务新增。稳定学2后切分帧，统一调用拒绝错误结果，账本总3；下一 worker HTTP/UI/业务均零新增。另一稳定队列完成 Unicode 两样本、统一与生成调用，共4笔业务、28条变更。4个 SDK 与3个模型父进程退出0，3个模型端口关闭；未把它们当设备故障注入。
+- 新建自有 Android API36 模拟器的实际生产 MCP 完成初始0、发现0、规划0、学习2、统一3、生成4。两个学习样本、私有 CLI 及两公开调用均核对共同观测标记。1653次实际透传 HTTP 全部成功，154次生产 DOM 探针、77次完整观察和28条变更（clear/focus/insertText各8、click4、W3C value0）分别记录；保留全部 Unicode 字符及空间。
+- 与第27轮相同演示 APK、同 harness、同四组输入相比，HTTP由1737降为1653，少84次，约4.84%；完整观察81降为77，UI变更仍28。观察内的21请求、归属前后核对、固定探针与独立提取/终态回读保留。这是该稳定查询的请求数改善，不是旧 BFS 或任意软件的时间倍率。
+- 本轮 SDK 观察终态耗时：发现3.258秒、两样本学习43.873秒、统一14.599秒、生成入口文件0.403秒、生成调用12.121秒，均含轮询延迟。整个设备队列含启动和清理为148.538秒，未计此前准备。学习耗时未因请求减少而同步下降；独立运行的负载与时序不同，不推断因果提速。
+- 新405文件/32dist包经全新锁定依赖离线安装，官方 SDK 实际调用安装目录代码；学习产物的两样本、能力及统一/生成结果均有共同观测标记。独立模型正向4笔、28条变更；插入已生效后返回500，保留 unknown，下一 worker HTTP/UI/业务均零新增。2个 SDK、15个正常子进程（7Node、8Python）及另列的2个外部 Python 均退出0。模型、源码与安装成员/锁前后逐项核对，不复用旧轮成功。
+- 自有设备 `.avd` 与 `.ini` 已移除，8个自有端口及默认 ADB 状态复核，10个跟踪宿主 PID 退出、相关残留0；原2份 AVD 配置与566来源、旧驱动/WDA缓存、新驱动和共享 SDK/镜像保持一致。任务 AVD 父目录为空保留；初稿审计把空父目录也要求删除的谓词已纠正，原稿保留，无新业务或设备重跑。实际设备未单独采集每个内部 Python worker 的退出 trace。全程保留10GiB以上，原始请求、标识和日志仅私有保存。
+
+配置见[Android WebView说明](android-webview-mcp.md)与[设备示例](../examples/software/android-webview-device.example.json)。data-testid 定位、无手工 controls 的自动提案、跨文档流程与任意软件全部业务仍需继续实现和验证；本轮没有把设计报告当成已支持。旧 iOS WebView、原生分支、普通 iOS 视觉键盘失败及研究分区保持原源码范围。
+
+安装验证的原始包保留第27轮两份验证文档；最终审阅归档仅更新这两份文档，其余403份成员字节/模式与实际安装包一致。文档投影不是新的 SDK 执行。完整来源与计数见[验证 JSON](software-to-mcp-validation.json)。
+
+---
+
+## 第27轮及更早检查点原文（完整保留）
+
+# 第27轮验证：Android WebView 完成 Unicode MCP 调用链
+
+本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/2b652f29f9e2d4bb8c95fd382f1ebc602604b64a)，运行时更新为 `software-to-mcp-25`，继续提交到[草稿 PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)。PR #1 已由用户合并；本轮不合并 main、不发布 npm。下方第26轮及更早原文完整保留当时范围。
+
+- 新增显式 Android WebView 通路：前台包、DevTools socket/进程、唯一页面及裸32位 window ID 必须相互匹配。管理者明确启用固定 CDP 文本输入；clear 后确认空值，固定 focus 写入及只读焦点核查后使用 `Input.insertText`，精确回读中文、首尾/连续空格、emoji 与 NFD。点击前再核对全部输入。iOS 继续使用原 W3C 文本通路。
+- 新建自有 API36 模拟器、系统 WebView 133、UiAutomator2 8.7.3 和匹配的 ChromeDriver 上，实际生产 MCP 账本为初始0、发现0、规划0、学习2、统一后3、生成入口后4。1737次透传 HTTP 全部成功，包含162次生产 DOM 探针；四笔业务共28条变更请求：clear/focus/insertText 各8、click4、W3C value0。四组样本逐项核对完整字符串，统一与生成入口的顶层和嵌套 outcome 均为 observed/noRetry，私有完成 receipt 未外泄。
+- 独立的 driver-only 首轮曾在 W3C value 发送 emoji 时遭 ChromeDriver 133 BMP 限制，业务账本0，原失败不追认为通过，也不据此推断没有输入事件。固定 CDP 的新 driver-only 队列通过1笔业务；上面的生产 MCP 是另一个新队列，计数不混加。实际设备尚未做未知派发或控件替换故障注入。
+- 同一563文件冻结（533公开文件减2份随后编写的验证文档，加32份 dist）完成主项目239/239、software564/564；Python719项中718通过、1个既有 Hermes fixture 跳过。各套件前后字节/模式与保留夹具一致。78项后端/规划器、26项路由/元数据、3项协议工作流及21项 outcome 单元/SDK 检查包含于完整回归，重叠不另加总数。
+- 新404文件/32dist包经全新锁定依赖离线安装，官方 SDK 调用安装目录中的生产模块；独立 Android/CDP 模型完成 Unicode 学习2、统一1、生成1，共4笔业务和28条变更。随后模拟插入已生效再返回500：业务仍为4，公开两层均为 unknown/noRetry，下一 worker HTTP/UI/业务均零新增。原成功 receipt 保留，但不匹配新的未知意图。2个 SDK 客户端、15个正常子进程（7Node、8Python）均退出0；模型及模块解析的2个外部 Python 进程另列，不把模型证据当设备结果。
+- 失败学习、合作取消与成功结果现在保留有证据的 `webviewOutcome`，公开对象仅允许 status、automaticRetry 与固定 storageWarning。学习 rebind 可有只读规划请求，UI与业务不重放；没有结果或强制结束时不伪造 not_started。显式 iOS association:null 的元数据与默认配置一致。实际 WebView SIGKILL 未验收。
+- 实际 SDK 首次观察到终态的耗时：发现2.023秒、两样本学习39.257秒、统一18.645秒、生成入口文件0.403秒、生成入口调用15.818秒；含轮询观察延迟。整个设备队列含启动和清理为141.009秒，未计此前构建。81次完整观察各有21次请求，重复观察与固定只读合并是后续优化候选；本轮没有旧 BFS 同条件基线，不宣称提速倍率。
+- 自有设备已移除，自有端口关闭、相关进程清理；原2份 AVD 配置与默认 ADB 状态保留，旧 iOS 驱动/WDA 缓存和新 Android 驱动、共享 SDK/镜像按各自冻结逐字节核对。2个设备验收 SDK 客户端退出0，未把未单独采样的每个内部 worker 都称为 OS 退出验收。全程保留10GiB以上；原始会话、设备标识、HTTP及日志只存私有目录。
+
+配置见[Android WebView 说明](android-webview-mcp.md)、[Android 设备示例](../examples/software/android-webview-device.example.json)与[iOS 通路](software-to-mcp.md#ios-webview-的-dom-通路)。当前只覆盖可检查、已显式配置的单文档只读线性查询；iframe、Shadow DOM、跨页、写业务、物理设备与任意第三方软件的全部业务仍未证明。旧 iOS WebView、第25轮原生分支和第23轮普通 iOS 视觉键盘失败各保留原源码范围。
+
+安装验证使用的原始包仍包含第26轮两份验证文档。最终审阅归档只更新这两份文档，其余402份成员字节/模式与实际安装验证一致；文档投影不算新的 SDK 执行。结构化来源与计数见[验证 JSON](software-to-mcp-validation.json)。
+
+---
+
+## 第26轮及更早检查点原文（完整保留）
+
+# 第26轮验证：iOS WebView 接通完整 MCP 调用链
+
+本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/2954ccdb55eb6ac950699e2d0561973f80ac54ae)，运行时更新为 `software-to-mcp-24`，在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)增加显式 WebView DOM 后端。PR #1 已由用户合并；下方第25轮及更早原文保持当时范围。
+
+- 已选定的 iOS WKWebView 可只读发现和规划，两组不同文本样本通过后供统一与独立生成 MCP 调用。每次复核实际 App/context/window/URL、DOM 合同及 worker 内真实引用；输入后精确回读，点击前核对全部字段。固定 DOM 探针与 W3C clear/value/click 分别标注，原生与视觉路径保留各自合同。
+- 新建自有 iOS27.0 模拟器的真实 App 账本为初始0、探索0、规划0、学习2、统一后3、生成入口后4。四笔逐项核对中文、首尾/连续空格、emoji 与 NFD；透传记录1261次实际HTTP、146次生产探针和20次W3C输入/点击均成功。两个SDK客户端正常退出；这些结果仅覆盖自建App的正向线性查询。
+- 同一份550文件冻结（520公开文件减2份随后编写的报告，加32份dist）完成主项目239/239、software537/537；Python704项中703通过、1个既有Hermes fixture跳过。127份运行时、485份公开代码与95份Python来源前后字节/模式相同。63项WebView定向检查和26个DOM夹具检查有交叠，不另加为全局总数。
+- 新395文件/32dist包经全新锁定依赖离线安装，由实际SDK验证安装目录生产代码：学习2、统一1、生成1，共4笔协议模型业务。另一次click执行后返回HTTP500，模型账本总5；后续新worker的HTTP/UI/业务均零新增。2个SDK客户端与15个正常运行子进程（7Node、8Python）均退出0；外部模型与模块解析进程另列。它们是协议模型证据，与真实模拟器分开计数。
+- 真实SDK请求起点至首次观察到终态：探索1.644秒、两样本学习7.277秒、统一调用3.250秒、生成入口调用2.852秒；同步规划0.469秒，生成入口文件0.408秒。这些时间含轮询观察延迟，未计入此前构建准备。整个device run含启动和清理为218.045秒。73次完整DOM观察各有17次请求，重复观察与同结果区断言是后续优化候选，尚无对应提速实测。
+- schema2在派发前持久记录intent，只有完整执行范围的匹配完成receipt才解除阻断。保留输入事件改写另一字段的旧错误学习证据；修复后在click前拒绝，零提交。等值W3C/legacy双标识只在内存规范化，冲突或额外键拒绝。首次intent发布前失败且未派发为not_started；已落盘或已尝试UI的未知结果保持阻断。
+- 两次driver-only失败保留：首次未取得可确认归属的WebView，独立账本0；第二次虽完成引用往返和Unicode输入，仍因自有fixture将布尔值输出为数字而失败，独立账本1，替换/重载检查未完成。修正fixture布尔类型并冻结新源码后，才执行本轮独立MCP验收；不追认旧轮通过。
+- 自建模拟器已删除，5个自有端口关闭、相关自有进程0；原11台设备profiles与运行前状态保留。550来源、1042份已安装驱动来源与236份原WDA缓存均核对字节/模式；共享Simulator/DeviceHub偏好保留前后快照，不盲目回滚。全程预留10GiB以上，原始设备/HTTP/会话日志仅私有保存。
+
+当前范围限显式iOS会话、已观察控件和单文档只读type/click。实际设备本轮未做控件替换、同URL重载或未知提交故障注入；对应拒绝合同由协议/DOM夹具覆盖。MCP学习失败暂未透传结构化webviewOutcome，私有CLI/intent仍保留结果且不会重放；显式association:null可能得到unknown元数据，默认配置省略该字段。Android WebView、跨页、写流程、物理设备与任意第三方软件的全部业务仍未证明。原生分支第25轮设备结果和普通iOS视觉键盘第23次失败各保留原范围。本轮未合并main、未发布npm。
+
+配置见[iOS WebView DOM通路](software-to-mcp.md#ios-webview-的-dom-通路)与[设备示例](../examples/software/ios-webview-device.example.json)，完整来源及计数见[验证JSON](software-to-mcp-validation.json)。安装验证使用的原始包仍含第25轮两份验收文档；最终审阅归档仅更新这两份文档，其余393份包成员字节/模式与实际安装验证一致，不把元数据投影称为新SDK执行。
+
+---
+
+## 第25轮及更早检查点原文（完整保留）
+
+# 第25轮验证：Android/iOS 原生分支 MCP 通过真实模拟器验收
+
+本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/f411107494d54955aef1deb069a10c6bd3aaede8)，产品运行时为 `software-to-mcp-23`，继续在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)完善。此前 PR #1 已由用户合并；下方第24轮及更早原文保留当时范围。
+
+- 修复 iOS 键盘辅助按钮混入原生表单的问题：解析与 XPath 同步排除 Keyboard 类、精确 KeyboardKey 角色及其后代，普通重名、输入回读和选择域守卫保留。App 自声明同类角色也在域外；这不证明系统键盘身份或授予按键权限，能力元数据明确列出边界。
+- Android API36 与 iOS27.0 新建自有模拟器均完成：探索2、四样本学习4、统一调用2、独立生成2，每平台10次真实业务。App 从实际输入控件另存私有账本，逐笔核对中文、首尾/连续空格、emoji及NFD。Android额外真实错臂测试阻断后续输入和提交；iOS未做该设备故障测试。
+- 最终主项目239/239、software525/525；Python641项中640通过、1个既有Hermes fixture跳过。software先完成，之后仅两份未被该套件加载的测试文件修正；124份运行时及82份注册software测试未变，最终主项目和Python重新执行。它们不被宣称为同一整仓快照，计数分列不相加。
+- 新384文件/32dist包完成全新锁定依赖离线安装，实际SDK协议夹具每平台10次业务；4客户端与36正常子进程exit0，生产Python为安装目录的20次驱动。协议夹具、真实设备和重叠定向检查独立计证，六组更早SDK场景未在此重跑。
+- 失败原件保留：iOS首次runtime22因重复控件停止，独立账本0；Android第二次runtime23有系统界面无响应，未读成初始账本，业务与Next仍未知。第三次Android使用有界只读初始化等待，第1次即就绪，未实际覆盖“先缺失后就绪”分支；该分支仅有离线验证。旧IME源码冻结缺口、旧Python超时测试失败均保留。
+- Android自有13进程/3端口清理；iOS自有服务进程0/4端口关闭，原2份AVD配置与11台iOS设备profiles保留。Appium曾写共享Simulator偏好，缺少运行前逐键快照，未声称整个主机偏好未变。运行始终预留10GiB以上。
+
+本轮范围是自建App的原生语义双路径。普通iOS视觉键盘第23次失败保持原范围；物理设备、任意第三方软件及WebView生产路径尚未证明。本轮未合并main、未发布npm。配置见[原生条件分支指南](software-to-mcp.md#原生条件分支)，完整结果与来源摘要见[验证JSON](software-to-mcp-validation.json)。
+
+---
+
+## 第24轮及更早检查点原文（完整保留）
+
+# 第24轮验证：原生条件分支 MCP 与 Android 输入证据修复
+
+当前产品运行时为 `software-to-mcp-22`。本轮基于[已发布检查点](https://github.com/8eeth0ven/bfs-clicker/commit/e271fb204653d1c37058edcc684f43a9b23ae997)，继续在[PR #2](https://github.com/8eeth0ven/bfs-clicker/pull/2)完善；下方第23轮及更早原文保留当时范围。
+
+- 新增可信 `nativeBranchPlanning`：实际探索两条原生路径，共用逻辑参数和输出。分叉动作完成后，从同一份 fresh UI 正向匹配唯一后屏，并核对路由参数，才执行该路径后续步骤。支持两值 enum 或 boolean，限单分叉、无汇合、只读、每条路径3–30步。
+- 两条路径各需两组不同输入及独立结果，总共至少四样本；缺路径、缺样本、未选路径缺权限或错误分叉均阻断。结果默认要求本次变化和输入关联。WebDriver明确核对 `NATIVE_APP`；未知动作和完成记录写入失败保留 pending，不重发分叉或试另一条路径。
+- 修复 Android Unicode 输入把缺失或 secure 回显误作空串证明的问题：聚焦前、聚焦后和单次提交后均要求明确值证据；合法空串、UTF8逐码点、替换/追加及IME nonce合同保留。定向14项与本轮Python全套均覆盖，未据此宣称新真机验收。
+- 本次实际主项目239/239、software524/524；Python633项中632通过、1个既有Hermes fixture跳过。三套范围分列，重叠定向用例不累加。当前124份运行时、459份公开代码、88份Python-linked与32份dist按同一源码快照核对。
+- 新打包的377份文件（含32份dist）完成锁文件固定的生产依赖安装后，实际SDK验证Android/iOS本地W3C分支夹具：每平台探索2、学习4、统一2、独立生成2，共10次夹具业务提交；两入口均核对中文、首尾/连续空格、emoji和NFD原码点。错路只派发一次分叉、无新增搜索、分叉后无路径动作。安装场景仅本轮新增分支，其他六组旧SDK场景保持历史范围。
+- 本轮没有新普通iOS键盘或物理设备验收。第23次runtime21普通iOS仍是校准 `CALIBRATION_SAMPLING_REQUEST_TIMEOUT` 失败；保留原投影、未知业务计数及清理证据，不能换贴为runtime22设备通过。任意第三方App或网站全部业务仍未证明，main未合并本轮、npm未发布。
+
+配置和调用步骤见[原生条件分支指南](software-to-mcp.md#原生条件分支)。机器摘要完整保留新安装场景投影，并可精确恢复上轮JSON与Markdown；最终index、归档及脱敏检查另行绑定实际提交。
+
+---
+
+## 第23轮及更早检查点原文（完整保留）
+
+# 第23次验收：校准像素比较优化，普通iOS仍未通过
+
+用户已将此前PR#1合并到[主分支检查点](https://github.com/8eeth0ven/bfs-clicker/commit/44be51b12ef6eb01ac6a172287eec5bb4596821a)。本轮在新分支继续，产品运行时仍为 `software-to-mcp-21`，设备编号为 `attempt23`；本轮提交和新PR尚未预填。下方原文中的Draft、main未合并等表述保留为当时的历史发布状态。
+
+- 一份校准验收helper改为直接比较RGBA四字节，减少逐像素临时Buffer视图；alpha、ROI、完整外壳、PNG/CRC/尺寸、source身份、caret及全部超时守卫保持。该helper不进入npm生产包，生产运行时未改变。
+- 当前目标测试实际39/39，0失败、0跳过。第22轮主项目239/239、software516/516、Python606项中605通过和1个既有Hermes fixture跳过，以及安装SDK结果均为历史运行。当前121运行时、81 Python-linked及368份非文档包业务原件未变；449份公开代码有1份harness变化，本轮未重跑全套或安装SDK。
+- 离线保留图像的6对样本各做3轮配对，结果与拒绝码一致；第6对同进程中位耗时约397.03→120.88毫秒。它只说明该图像对上的局部比较耗时，受n=3、重复PNG及JIT等限制，不代表设备端到端或任意App提速。
+- 普通iOS第23次在键盘校准阶段以 `CALIBRATION_SAMPLING_REQUEST_TIMEOUT` 失败，约12007.65毫秒；候选6、只读采样请求51、采样UI动作0、接受候选为null。第6候选的末次source-after请求发出时仅剩151毫秒全局完成预算，未完成返回；这不是4秒source单请求上限被超过。
+- 本次未进入MCP发现、学习和两样本验证，ready、统一及生成入口均未完成。setup focus为1，MCP键动作为0；主投影业务提交仍为未知(null)，代理写动作0不推成第三方真实业务0。
+- 独立终态复核确认六项清理标志均为真、原有11台设备保留，自有模拟器已移除，自有进程和监听端口均为0，结束时10GiB存储保留要求满足。516份源副本及32份dist按本次原件核对，依赖共享，非hermetic。
+
+机器摘要的 `currentIOS23` 与 `deviceEvidence.iosOrdinarySoftKeyboard.attempt23` 完整保留独立审计和终态摘要一致的safeProjection。审计通过表示终态与清理证据核对通过，设备验收结果仍为失败。历史全套、当前39、离线配对、安装SDK及设备结果不累加为独立总数；本轮不宣称任意网站/App、物理设备或普通系统键盘MCP已通过，也未发布npm。
+
+---
+
+## 第22次及更早检查点原文（完整保留）
+
 # 源码产品21 / 设备验收第22次：完整回归与安装SDK更新
 
 本轮基于已发布的[cc27c268](https://github.com/8eeth0ven/bfs-clicker/commit/cc27c268708e57eeecd7e95c3ec883eefe4e2c42)，源码产品版本为 `software-to-mcp-21`，设备编号为 `attempt22`；当前轮次提交尚未预填。

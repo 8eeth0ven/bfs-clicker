@@ -51,6 +51,37 @@ WebDriver iOS/Android 的普通可编辑控件在输入前后读取新鲜语义�
 
 测试中的替换流程为精确验证增加3次 source 回读，追加路径另有对应的前后复核。这项改动提升可验证性，不宣称减少原生端到端耗时。无 API 来源的任意界面、多状态业务与物理设备仍需逐目标验收。
 
+### iOS WebView 的 DOM 通路
+
+compiler24 增加显式 `appium-webview` 后端，将已选中的 iOS WKWebView 接到探索、候选规划、两样本学习、统一调用和独立生成 MCP。它读取网页的 DOM 与实际 `.value`，使用固定 W3C element clear/value/click 命令。能力目录标注 `appium_webview_dom` 和 `fixed_w3c_element_commands`，输出标注 `webview_dom_text_projection`。原生语义控件、OCR 和 WebView 各自保留自己的合同。
+
+设备管理者先创建 Appium/XCUITest 会话，允许目标 WKWebView 被检查，并选择实际观察到的 context/window。后端不会安装、启动、导航、切换 context/window 或执行调用者提供的 JavaScript。compiler25 另增加显式 Android WebView 通路，配置见[Android 说明](android-webview-mcp.md)。iframe、Shadow DOM、跨页流程、select/check、文件上传及写流程仍不在 WebView 通路的执行范围。
+
+从 [设备示例](../examples/software/ios-webview-device.example.json) 创建私有设备配置，替换真实 App、会话、context、window、origin、URL 和已授权控件，再在启动配置 `devices` 中绑定别名。示例中的选择器和参数不用于识别任意网页。输入、按钮和结果必须有唯一 ID 选择器；输入和按钮须属于实际观察到的同一个 form/div/section 组，真实表单 owner 也须匹配。独立结果区可设置 `group:null`。动作还需在 `actionAllowlist` 单独授权为 `effect:"read"`；观察到其他控件不授予操作权限。
+
+发现和候选规划只读，DOM 清单另记录未配置的可见控件、稳定 ID/data-testid 与缺口，扫描至多1024个节点、返回至多256项。候选限一个文档中的线性文本查询：
+
+1. `software_discover({kind:"ios", input:清单或App路径, deviceName:设备别名})`，等待操作结束。
+2. `software_workflows({sourceId})`，选取 `planningMode:"webview-dom-linear-v1"` 的候选。
+3. `software_bind_workflow` 使用该 `candidateId`、当前来源 revision、两组不同样本和覆盖全部输入的 `resultAssertions`。每个断言绑定候选公开的 `outputTargetId` 与输入 `param`；此通路默认要求结果相对提交前变化，拒绝显式关闭。不接受 `specPath` 注入定义。
+4. 从 `software_capabilities` 读取 ready 能力，分别经 `software_call` 和 `software_generate` 返回的入口调用。生成入口仍依赖原有会话、可信配置、私有运行目录与来源 revision。
+
+每次执行重新核对前台 App、rich context 的归属、唯一 window、完整 URL/origin、DOM 控件合同和固定探针版本。iOS 的 `nativeWebTap` 与 `nativeWebTapStrict` 均须为 false；后端只读检查设置。一个 worker 内用真实 element 引用的 `===` 比较文档、body、控件、组和 form owner；同 URL 重载、控件替换或归属漂移会拒绝后续动作。引用仅在该 worker 内有效，不写入 recipe；另一个 worker 新鲜附着后再建立自己的引用租约。
+
+文本采用替换模式，至多2048个 Unicode 码点，不裁剪或规范化中文、首尾/连续空格、emoji 与组合字符。C0/C1、DEL、孤立 surrogate 和 WebDriver 保留按键不作为普通文本发送。学习前检查全部样本；每次输入后检查精确回显，点击前用最近一次完整 DOM 观察重新核对所有绑定字段，防止较后字段事件改写先前字段。W3C 输入和点击可触发多个 DOM 事件；观察间仍存在时间窗口，DOM 回显和结果断言不证明隐藏缓冲区或任意业务等价。
+
+默认归属方式 `reported_bundle_id_v1` 要求 context 返回的 bundleId 与实际前台 App 一致。部分已验证版本的 XCUITest/RemoteDebugger 返回 `process-…` 别名；此时只有设备管理者明确配置以下 profile 才会采用进程关联：
+
+```json
+{"association":{"mode":"xcuitest_app_main_pid_v1","reportedBundleId":"process-ObservedAppName"}}
+```
+
+将该片段放入 `backend.webview`，名称必须来自实际 rich context。会话可用精确的 `appium:additionalWebviewBundleIds` 暴露该候选，但它本身不证明归属。执行仍要求实际 `mobile:activeAppInfo` 返回正确 bundleId 和有效主进程 PID，且实际 `WEBVIEW_<PID>.<page>` 使用同一主 PID；不接受 WebKit 子进程别名、通配符、手填 PID 或把别名改写为 App ID。私有来源身份分别保留实际 App ID、原始别名和关联方法。该 profile 是已知驱动来源上的观测关联，不是操作系统身份认证，App/驱动更新后需重新验证。
+
+同一 W3C 会话在首个请求前获取设备租约。clear/value/click，以及 Android 固定 focus/insertText，均在派发前记录持久 intent；只有包含最终断言、提取及能力发布的执行范围完成后，独立且完全匹配的完成 receipt 才解除该 intent 的阻断。超时、取消、未知派发或不匹配 receipt 会使后续执行 worker 在发送 HTTP 前停止，不自动重输或重试业务；只读观察不会重放业务。默认记录按会话保存于当前用户的私有临时目录；可用绝对 `backend.intentJournal` 固定位置，其父目录须属于当前用户且权限为0700。遇到 unknown，需设备管理者核对实际业务和会话状态，不能通过删除记录自动恢复。
+
+协议模型与实际模拟器的验收范围分开记录，见[验证记录](software-to-mcp-verification.md)。已有 Appium 会话不证明已安装 App 字节；DOM 探针不证明页面脚本真实可信，公开输出继续脱敏、有界并保留缺口。
+
 ### 原生流程的时间预算
 
 `limits.maxDurationMs` 仍是 Python 原生执行器的 UI 预算，缺省 60 秒，须为 1–3,600,000 的整数。compiler15 将可信设备配置与派生时限绑定到同一份私有运行快照；修改原配置文件不会改变已经派发的那次运行。
@@ -84,6 +115,45 @@ compiler20 可在可信设备配置中启用 `nativeStagePlanning`，为 Android
 回到入口只允许从唯一匹配已证明的后续阶段开始，逐步验证相邻前屏；未知、歧义或漂移页面不发送自动返回。待确认动作或已有阶段探索记录在任何 App 启动前就拒绝恢复，需另开获准的新探索。未知派发、超时和取消不自动重试。已有动作、深度、时长和步骤限制保留；跨屏隐藏业务状态仍需结果断言和两样本核验，不能由语义合同推定相同。
 
 源码复现见[原生阶段 SDK 测试](../test/software-native-stage-planner.test.mjs)与[证据及恢复反例](../apk_tools/tests/test_mobile_stages.py)。协议夹具、安装包与物理设备的验证范围分别记录在[验证摘要](software-to-mcp-validation.json)，不把协议通过计为真机通过。
+
+### 原生条件分支
+
+compiler22 新增 `nativeBranchPlanning`，让一个 MCP 工作流处理一次分叉后的两条原生页面路径。探索会分别走完两条路径，保存各自的动作和页面证据；执行时先走共同前缀，完成分叉操作后，再读取当前界面。只有一个已观察路径的正向结构合同匹配，且与本次分支参数相符，才执行该路径后续动作。
+
+在可信设备配置中使用下面的字段片段，并按实际 App 替换 selector。它与 `nativeStagePlanning` 互斥；原 `actionAllowlist` 仍须明确批准所有路径中的输入、选项及按钮，选项使用 `kind:"check"` 批准。
+
+```json
+{
+  "nativeBranchPlanning": {
+    "workflowId": "branch_lookup",
+    "forkInput": {"kind": "select", "selector": {"resourceId": "demo:id/route"}},
+    "arms": [
+      {"id": "left", "value": "left", "seedInputs": [
+        {"kind": "type", "selector": {"resourceId": "demo:id/query"}, "value": "example-query"},
+        {"kind": "select", "selector": {"resourceId": "demo:id/route"}, "value": "left"},
+        {"kind": "type", "selector": {"resourceId": "demo:id/detail"}, "value": "example-detail"}
+      ]},
+      {"id": "right", "value": "right", "seedInputs": [
+        {"kind": "type", "selector": {"resourceId": "demo:id/query"}, "value": "example-query"},
+        {"kind": "select", "selector": {"resourceId": "demo:id/route"}, "value": "right"},
+        {"kind": "type", "selector": {"resourceId": "demo:id/alternate_detail"}, "value": "example-detail"}
+      ]}
+    ]
+  }
+}
+```
+
+支持两值完整枚举，或 `kind:"check"` 的 `true/false` 分叉。当前为一次分叉、两条路径、无汇合；对应阶段须有相同字段类型和数量，两条路径共享公开输入及输出 schema，物理 selector 可以不同。合并结构最多16节点，参数最多16，每条完整路径仍受3–30步限制。未探索完整路径、第三个枚举值、歧义分组、种子反射到标识或按钮、共享终点及循环均不能产生完整候选。
+
+调用顺序仍为 `software_discover` → `software_workflows` → `software_bind_workflow`。选择 `planningMode:"native-branch-stages-v1"` 的候选，按返回的共同参数 schema 提供每条路径各两组不同样本，总共至少四组；每个参数都要配置 `resultAssertions`。新分支默认要求结果相对本次开始时变化，并与输入关联，显式 `changedFromBefore:false` 会被拒绝。两条路径都通过独立结果验证，才发布一个 ready 能力；随后 `software_call` 和生成的 MCP 工具使用同一个逻辑 schema。
+
+WebDriver 在本模式下要求当前 context 明确为 `NATIVE_APP`，在读取及派发边界复核，不自动切换 WebView。未确认的分叉、错路、歧义、超时、取消或完成记录写入失败会保留 pending/unknown；不会重发分叉或尝试另一条路径。返回入口仅从已证明且前驱唯一的页面逐步校验。协议夹具的通过范围和设备结果分别见[验证记录](software-to-mcp-verification.md)；普通 iOS 键盘视觉输入仍有独立的未通过项。
+
+复现见[两平台 MCP 分支测试](../test/software-native-branch-planner.test.mjs)、[探索证据反例](../apk_tools/tests/test_mobile_branches.py)和[执行及恢复反例](../apk_tools/tests/test_mobile_branch_workflows.py)。
+
+compiler23 的 iOS 原生语义表单排除 `XCUIElementTypeKeyboard` 类，以及 `traits` 中含精确逗号分隔 `KeyboardKey` 角色的节点及其全部后代。解析和实际 XPath 定位采用同一范围，避免键盘辅助按钮混入表单；普通 App 的重名控件仍严格拒绝，不按按钮名、文字或语言隐藏。App 自行声明的同类角色也在此范围之外，这个边界不证明系统键盘身份，也不授权按键。相应能力在 `fidelity.limits` 返回 `ios_keyboard_role_subtrees_out_of_semantic_scope`；视觉键盘路径继续使用其独立合同。回归见[角色边界测试](../apk_tools/tests/test_mobile_ios_keyboard_roles.py)。
+
+自建原生分支演示与设备验收脚本分别见 [Android App](../apk_tools/examples/native-branch-android/)、[Android 验收](../test/android-native-branch-e2e.mjs)、[iOS App](../apk_tools/examples/native-branch-ios/)和[iOS 验收](../test/ios-native-branch-e2e.mjs)。两端从实际输入控件读取参数，另存 App 私有业务账本，供统一与独立生成 MCP 的结果交叉核对。脚本使用新建自有模拟器并清理；需要已有 Android SDK 镜像，或已初始化的 Xcode、iOS runtime、Appium/XCUITest 与匹配的 WDA 构建。它们是有限自建 App 验收，当前各次运行结果及失败范围以[验证记录](software-to-mcp-verification.md)为准。
 
 ### 当前页面上的多步骤探索
 

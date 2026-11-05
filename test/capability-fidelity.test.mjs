@@ -17,6 +17,18 @@ test('a visual mobile recipe never inherits semantic fidelity from its webdriver
  const result=capabilityFidelity({adapter:'mobile-workflow',recipe,device,sourceKind:'ios'});
  assert.deepEqual(result.modality.channels,['fixed_ui_actions','rendered_ocr']);assert.equal(result.fidelity.inputText[0].contract,'rendered_ocr_echo_required');assert.equal(result.fidelity.outputs[0].sourceCodepointsProven,false);assert(!JSON.stringify(result).includes('provider_codepoint_echo_required'));
 });
+test('iOS semantic interfaces disclose their keyboard role boundary',()=>{
+ const limit='ios_keyboard_role_subtrees_out_of_semantic_scope';
+ const primitive={schemaVersion:1,steps:[{action:{kind:'type',input:'query',replace:true}}]};
+ for(const [adapter,recipe]of [['mobile-workflow',semantic],['mobile',primitive]]){
+  const result=capabilityFidelity({adapter,recipe,device,sourceKind:'ios'});
+  assert(result.fidelity.limits.includes(limit));
+  for(const backend of [{type:'adb'},{type:'webdriver',platform:'android'}])assert(!capabilityFidelity({adapter,recipe,device:{backend},sourceKind:'apk'}).fidelity.limits.includes(limit));
+ }
+ const visual=capabilityFidelity({adapter:'mobile-workflow',recipe:{schemaVersion:1,recipeType:'ios_visual_workflow',definition:{mode:'text-replace',inputName:'query'}},device,sourceKind:'ios'});
+ assert(!visual.fidelity.limits.includes(limit));
+ assert.deepEqual(visual.modality.channels,['fixed_ui_actions','rendered_ocr']);
+});
 test('unknown recipe fields and mobile kind alone cannot assert semantic quality',()=>{
  for(const recipe of [null,{schemaVersion:1,recipeType:'custom-exact',fidelity:{exact:true}},{schemaVersion:1,recipeType:'workflow',definition:{steps:[{kind:'type',input:'query'}]}}]){
   const result=capabilityFidelity({adapter:'mobile-workflow',recipe,device,sourceKind:'ios'});assert.deepEqual(result.modality.channels,['unknown']);assert.equal(result.fidelity.inputText.length,0);

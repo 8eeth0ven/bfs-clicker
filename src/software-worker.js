@@ -4,6 +4,7 @@ import {watchWorkerParent} from './worker-parent.js';
 import {atomicJson,readAtomic,acquireLock} from './store.js';
 import {redact,redactText} from './redact.js';
 import {persistedWriteOutcome, mergeWriteOutcomes} from './write-outcome.js';
+import {hasWebviewOperation, persistedWebviewOutcome, mergeWebviewOutcomes, projectWebviewOutcomeFields} from './webview-outcome.js';
 
 const cleanup=watchWorkerParent(),abort=new AbortController();
 const stop=()=>abort.abort(new Error('cancelled')),disconnected=()=>abort.abort(new Error('parent_disconnected'));
@@ -39,11 +40,15 @@ try{
  else if(task.type==='refresh')result=await runtime.refresh(task.args);
  else if(task.type==='generate')result=runtime.generate(task.args);
  else throw new Error('未知操作');
- publish({status:abort.signal.aborted?'cancelled':'completed',result:redact(result),finishedAt:new Date().toISOString()});
+ const trustedWebview=hasWebviewOperation(task.outputDir);
+ const webviewOutcome=mergeWebviewOutcomes(persistedWebviewOutcome(task.outputDir),trustedWebview?result?.webviewOutcome:undefined,trustedWebview?result?.result?.webviewOutcome:undefined);
+ publish({status:abort.signal.aborted?'cancelled':'completed',result:redact(projectWebviewOutcomeFields(result,{trusted:trustedWebview})),...(webviewOutcome?{webviewOutcome}:{}),finishedAt:new Date().toISOString()});
 }catch(error){
  const explicit=typeof error.code==='string'&&/^[A-Z][A-Z0-9_]{1,63}$/.test(error.code)?error.code:null;
  const errorCode=abort.signal.aborted?'CANCELLED':explicit||String(error.message).match(/^([A-Z][A-Z0-9_]{1,63})(?=[:：\s]|$)/)?.[1]||'OPERATION_FAILED';
  const writeOutcome=mergeWriteOutcomes(task?.outputDir?persistedWriteOutcome(task.outputDir):undefined,error.writeOutcome);
- if(statusFile)try{publish({status:abort.signal.aborted?'cancelled':'failed',errorCode,error:redactText(error.message).slice(0,2000),...(writeOutcome?{writeOutcome}:{}),finishedAt:new Date().toISOString()})}catch{}
+ const trustedWebview=task?.outputDir&&hasWebviewOperation(task.outputDir);
+ const webviewOutcome=mergeWebviewOutcomes(trustedWebview?persistedWebviewOutcome(task.outputDir):undefined,trustedWebview?error.webviewOutcome:undefined);
+ if(statusFile)try{publish({status:abort.signal.aborted?'cancelled':'failed',errorCode,error:redactText(error.message).slice(0,2000),...(writeOutcome?{writeOutcome}:{}),...(webviewOutcome?{webviewOutcome}:{}),finishedAt:new Date().toISOString()})}catch{}
  process.exitCode=abort.signal.aborted?0:1;
 }finally{release();cleanup();process.off('SIGTERM',stop);process.off('SIGINT',stop);process.off('disconnect',disconnected)}
