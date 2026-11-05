@@ -13,6 +13,8 @@ test('WebView metadata describes DOM value and W3C commands without native or ph
  const value=profile();assert.deepEqual(value.modality.channels,['appium_webview_dom','fixed_w3c_element_commands']);
  assert.equal(value.fidelity.inputText[0].contract,'dom_value_echo_required');assert.equal(value.fidelity.inputText[0].domain,'utf8_no_controls_surrogates_or_webdriver_keys');assert.equal(value.fidelity.outputs[0].contract,'webview_dom_text_projection');assert.equal(value.fidelity.outputs[0].sourceCodepointsProven,false);
  assert(value.fidelity.limits.includes('fresh_source_checks_are_not_atomic'));assert(value.fidelity.limits.includes('dom_values_are_not_app_buffer_or_business_truth'));
+ assert(value.fidelity.limits.includes('same_output_assertions_require_one_complete_observation'));
+ assert(value.fidelity.limits.includes('asserted_outputs_reobserved_at_extraction_and_completion'));
  assert(!value.modality.channels.includes('native_semantic'));assert(!JSON.stringify(value).includes('https://example.test'));
 });
 test('a native, unsupported-platform or mismatched-context backend cannot inherit WebView fidelity',()=>{

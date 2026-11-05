@@ -93,6 +93,8 @@ MCP 调用顺序沿用统一入口：
 
 操作 wrapper 的终态与业务结果要一并读取：现有 API 中，`completed` 仍可能包含 `result.ok:false` 和 `webviewOutcome.status:"unknown"`。合作取消也不能仅凭 `cancelled` 推导未派发。公开投影不会解释私有 schema2 journal、清除 latch 或新增网络请求。
 
+compiler26 要求同一结果区的全部参数断言在同一次完整观察上共同成立，避免前一帧只含第一个参数、后一帧只含第二个参数也被接受。该结果区的断言即使被其他只读步骤隔开，也按一组验证；每条断言仍单独计入结果。整组使用最短成员超时且不重置期限，单次观察仍受既有请求及总预算约束。提取和返回前继续独立回读并核对已验证文本，输入和业务动作不因断言等待而重放。这项合同用于 WebView 线性查询；原生流程的顺序断言保留自己的执行语义。
+
 iOS 旧通路继续使用 `source.kind:"ios"`、`platform:"ios"`，以及 W3C clear/value/click。默认按实际 rich context bundleId 关联前台应用；显式 `xcuitest_app_main_pid_v1` 仍要求原始别名与实际主进程 PID 的观测关系，见 [iOS WebView 说明](software-to-mcp.md#ios-webview-的-dom-通路)。iOS 不接受 Android 的 `textTransport` 配置；Android 的7意图计数也不套用于 iOS。两者共享固定 DOM 引用、输入回显、结果断言与公开 outcome 合同，保留各自归属与输入实现的范围。
 
 首轮 Android driver-only 探针在 ChromeDriver 133 的 W3C `value` 输入 emoji 时实际返回 BMP 限制错误，原始失败保留。其业务账本为0，不能据此推断没有输入事件或控件未被改变；这也不是生产 MCP intent 的验收。新增 CDP 文本通道的驱动探针、协议模型和实际 MCP 结果分别记录于 [验证说明](software-to-mcp-verification.md) 与 [结构化验证记录](software-to-mcp-validation.json)，只能按对应源码、阶段和设备范围判断，不能互相替代或推为任意第三方 App 支持。

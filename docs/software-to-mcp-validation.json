@@ -2652,10 +2652,10 @@
     "countingRule": "最终同源239/476、Python579、focused/independent、installed SDK与设备证据分列并有交叠；19/191等局部组不累加为全球独立总数。",
     "scopeNote": "完整保留compiler19当时current、focused、package、device、release、limits和storage；不是compiler20重跑。"
   },
-  "compilerVersion": "software-to-mcp-25",
-  "status": "android_webview_unicode_owned_simulator_mcp_and_installed_sdk_passed",
-  "scope": "显式Android/iOS WebView单文档只读线性文本查询；本轮实际Android两样本、统一与生成入口通过，旧iOS/原生证据分别保留。",
-  "asOf": "2026-11-04T22:54:40.090837+00:00",
+  "compilerVersion": "software-to-mcp-26",
+  "status": "webview_coherent_result_assertions_and_owned_android_read_reduction_passed",
+  "scope": "WebView同输出参数断言共同观测修复；同一Android演示查询减少只读HTTP往返。既有Web/原生/iOS及通用软件目标各保留证据范围。",
+  "asOf": "2026-11-05T00:09:47.946368+00:00",
   "currentFullRegression": {
     "legacy": {
       "tests": 239,
@@ -2665,15 +2665,15 @@
       "cancelled": 0
     },
     "software": {
-      "tests": 564,
-      "passed": 564,
+      "tests": 567,
+      "passed": 567,
       "failed": 0,
       "skipped": 0,
       "cancelled": 0
     },
     "python": {
-      "tests": 719,
-      "passed": 718,
+      "tests": 734,
+      "passed": 733,
       "failed": 0,
       "skipped": 1,
       "cancelled": 0,
@@ -2682,8 +2682,8 @@
   },
   "currentPackageCheck": {
     "status": "passed",
-    "verificationAttempt": 27,
-    "runtimeCompilerVersion": "software-to-mcp-25",
+    "verificationAttempt": 28,
+    "runtimeCompilerVersion": "software-to-mcp-26",
     "scope": "fresh_installed_Android_WebView_fixed_CDP_local_protocol_model_only",
     "successfulBusiness": 4,
     "learning": 2,
@@ -2706,8 +2706,8 @@
     "nextWorkerAdditionalBusiness": 0,
     "productionPythonInstalledOnly": true,
     "wholeFrozenSourceBytesAndModesUnchanged": true,
-    "frozenSourceFiles": 563,
-    "installedPackageFileCount": 404,
+    "frozenSourceFiles": 566,
+    "installedPackageFileCount": 405,
     "distFiles": 32,
     "sdkClientsClosed": 2,
     "pythonDriverCounts": {
@@ -2720,42 +2720,46 @@
     "externalPythonProcessesClosed": 2,
     "generatedFullCatalogParity": true,
     "literalSpacesEmojiNfdExact": true,
+    "assertionObservationMode": "same_output_snapshot_v1",
+    "coherentLearningSamplesObserved": 2,
+    "coherentUnifiedAndGeneratedResultsObserved": true,
     "noDeviceOrBrowserClaim": true,
-    "rawInstalledArchiveSha256": "5468c8ea0847c70d64e58340ee3c845999f0bca6bab5917c35ed7a49cdacf830",
+    "rawInstalledArchiveSha256": "332c8329225a07ef6ab501915ac5dda1b00a5380e9921c532c05bb13fa5bd453",
     "productionOnlyOfflineInstall": true,
-    "rawArchiveContainsPrior26VerificationDocuments": true,
+    "rawArchiveContainsPrior27VerificationDocuments": true,
     "finalDocumentationProjection": {
       "changedPackedFiles": [
         "docs/software-to-mcp-validation.json",
         "docs/software-to-mcp-verification.md"
       ],
-      "allOther402PackedFilesBytesAndModesUnchanged": true,
+      "allOther403PackedFilesBytesAndModesUnchanged": true,
       "newSdkExecutionForProjectionClaimed": false
     }
   },
   "currentFocused": {
-    "webviewBackendAndPlanner": {
-      "tests": 78,
-      "backend": 53,
-      "planner": 25,
-      "passed": 78,
+    "coherentAssertionsPython": {
+      "tests": 15,
+      "passed": 15,
+      "includedInPythonFullRegression": true,
+      "subcasesNotAddedToGlobalCount": true
+    },
+    "affectedNativeAndWebviewPlanner": {
+      "tests": 64,
+      "passed": 64,
+      "native": 39,
+      "webviewPlanner": 25,
       "includedInPythonFullRegression": true
     },
-    "routingAndFidelity": {
-      "tests": 26,
-      "passed": 26,
-      "includedInSoftwareFullRegression": true
-    },
-    "sdkProtocolWorkflow": {
+    "coherentOfficialSdk": {
       "tests": 3,
       "passed": 3,
-      "includedInSoftwareFullRegression": true
-    },
-    "outcomeUnitAndSDK": {
-      "tests": 21,
-      "passed": 21,
       "includedInSoftwareFullRegression": true,
-      "modelScope": "independent local iOS protocol models, not device failures"
+      "scope": "three independent local Android/CDP protocol models, not device fault injection"
+    },
+    "webviewMetadata": {
+      "tests": 9,
+      "passed": 9,
+      "includedInSoftwareFullRegression": true
     },
     "countsAreOverlappingAndNotAdded": true
   },
@@ -3124,18 +3128,18 @@
     },
     "historicalPlatforms": "previousCompiler19.deviceEvidence及更早previousCompiler*完整保留；旧失败与其他平台历史不换绑当前20源码。"
   },
-  "deviceEvidenceScope": "旧deviceEvidence/currentIOS23/nativeSemanticDevices25与webviewMcp26保留原源码范围；本轮实际Android仅见androidWebviewMcp27.actualOwnedAndroid。",
+  "deviceEvidenceScope": "旧deviceEvidence/currentIOS23/nativeSemanticDevices25/webviewMcp26/androidWebviewMcp27保留原源码范围；本轮实际Android见webviewCoherentResults28.actualOwnedAndroid。",
   "release": {
-    "runtimeCompilerVersion": "software-to-mcp-25",
-    "verificationAttempt": 27,
+    "runtimeCompilerVersion": "software-to-mcp-26",
+    "verificationAttempt": 28,
     "branch": "codex/ios-calibration-performance",
     "pullRequestUrl": "https://github.com/8eeth0ven/bfs-clicker/pull/2",
     "draft": true,
     "mainMergedThisIteration": false,
     "npmPublished": false,
     "basePublishedCheckpoint": {
-      "commit": "2b652f29f9e2d4bb8c95fd382f1ebc602604b64a",
-      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/2b652f29f9e2d4bb8c95fd382f1ebc602604b64a"
+      "commit": "55b860bc6a777fb8dc83caf01ee92ef370966e49",
+      "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/55b860bc6a777fb8dc83caf01ee92ef370966e49"
     }
   },
   "storagePolicy": {
@@ -3146,15 +3150,16 @@
     "scope": "任务运维约束，不是产品自动删除或并发写入quota。"
   },
   "limits": [
-    "WebView仅显式可信Appium会话、已观察唯一控件与单文档只读线性type/click；iframe、Shadow DOM、跨页、check/select、上传及写流程未支持。",
-    "Android需可检查WebView、已验证UiA2/ChromeDriver观测形态与显式固定CDP文本mode；它是文本插入/IME提交，不是物理键盘或任意CDP调用。",
-    "本轮实际Android仅验自建App正向查询。控件替换、漂移、耦合输入、取消与未知提交的拒绝由独立协议/DOM夹具覆盖，未声称Android设备故障注入通过。",
-    "DOM/驱动观测不构成系统身份或任意业务等价证明；通用配置不证明安装字节，本轮自有APK另核实际安装字节。WebView网络不受浏览器scope策略拦截，观察之间仍有时间窗口。",
-    "失败/取消outcome只采用有效生产证据；缺结果或SIGKILL不自动推导not_started。没有进行实际WebView SIGKILL设备验收。",
-    "第26轮iOS WebView、第25轮原生分支设备与第23轮普通iOS视觉键盘失败保持原范围；不追认为本轮runtime25的设备重验。",
-    "物理设备、不可检查的第三方App与任意软件的全部业务仍未证明；既有HTTP、原生、closed DOM、OCR与研究分区各自限制继续保留。"
+    "同输出AND模式仅用于WebView单文档、只读、先输入及单次click后纯输出的线性查询。原生默认顺序断言行为保留；stage/branch/prefix及后续再UI动作不在该模式范围。",
+    "一组共享最短成员超时，不重置轮询期限；单次在途完整观察仍用已有请求和总预算，不声称组超时就是硬完成时限。取消或失败不自动重输/重放UI。",
+    "HTTP减少仅针对同演示APK、同harness与同四组输入的稳定正向查询；单轮时长与负载有差异，不作为旧BFS或任意软件提速倍率。",
+    "实际Android本轮为自建App正向查询。分帧、迟到和提取后变化的拒绝由独立快照/HTTP/SDK模型覆盖，未声称设备故障注入通过。",
+    "WebView仍需显式可信、可检查的会话与ASCII ID控件配置；data-testid定位、无手工controls自动提案、iframe、Shadow DOM、跨页、check/select、上传及写业务未新增。",
+    "通用驱动/DOM观测不构成系统身份、任意隐藏状态或业务等价证明；WebView网络不受浏览器scope策略拦截，观察间仍有窗口。",
+    "第27轮Android、26轮iOS WebView、25轮原生分支和23轮普通iOS视觉键盘失败各保留原范围，不追认为本轮runtime26设备重验。",
+    "物理设备与任意软件全部业务仍未证明；原有来源、动作授权、unknown latch、OCR与研究分区限制继续保留。"
   ],
-  "countingRule": "三套完整回归、定向检查、全新安装协议模型、driver-only与实际MCP模拟器分列；重叠不累加，跳过不计通过。",
+  "countingRule": "三套完整回归、重叠定向检查、错误基线、三个SDK模型场景、全新安装包模型与实际MCP分列，跳过不计通过，不混加业务数。",
   "postCompiler20HarnessVerification": {
     "schemaVersion": 1,
     "compilerVersion": "software-to-mcp-20",
@@ -3342,9 +3347,9 @@
     }
   },
   "currentFullRegressionScope": {
-    "sourceFreezeSha256": "f56617b515dd9960a795e80e23e429f1a2c77be15673ddd3101ab89b59020aba",
-    "publicFiles": 533,
-    "frozenFiles": 563,
+    "sourceFreezeSha256": "2f2626bb92ffdba0bbca74d44258dc65b459ebbd2e2ad29912e22a3a7aa99e78",
+    "publicFiles": 536,
+    "frozenFiles": 566,
     "gatewayDistFiles": 32,
     "allPhasesSameFrozenBytesAndModes": true,
     "currentPublicCodeFullSuitePassed": true,
@@ -4341,7 +4346,7 @@
       "keyUiActionRetries": 0
     }
   },
-  "verificationAttempt": 27,
+  "verificationAttempt": 28,
   "nativeBranchWorkflows24": {
     "planningMode": "native-branch-stages-v1",
     "optIn": "nativeBranchPlanning",
@@ -5678,6 +5683,354 @@
       "androidGuide": "android-webview-mcp.md",
       "androidConfig": "../examples/software/android-webview-device.example.json",
       "iosGuide": "software-to-mcp.md#ios-webview-的-dom-通路"
+    }
+  },
+  "previousPublishedAttempt27Checkpoint": {
+    "publishedFeatureCommit": "55b860bc6a777fb8dc83caf01ee92ef370966e49",
+    "jsonSha256": "6977bf90160c1899fa76c9388b714dbd248a7357346c7b35cf0c3ad4189d495f",
+    "markdownSha256": "b793f76d43573a4f7a9b251440d3ede31b539c4dc9f06f486bab90340aaad32d",
+    "preservedFields": {
+      "compilerVersion": "software-to-mcp-25",
+      "status": "android_webview_unicode_owned_simulator_mcp_and_installed_sdk_passed",
+      "scope": "显式Android/iOS WebView单文档只读线性文本查询；本轮实际Android两样本、统一与生成入口通过，旧iOS/原生证据分别保留。",
+      "asOf": "2026-11-04T22:54:40.090837+00:00",
+      "currentFullRegression": {
+        "legacy": {
+          "tests": 239,
+          "passed": 239,
+          "failed": 0,
+          "skipped": 0,
+          "cancelled": 0
+        },
+        "software": {
+          "tests": 564,
+          "passed": 564,
+          "failed": 0,
+          "skipped": 0,
+          "cancelled": 0
+        },
+        "python": {
+          "tests": 719,
+          "passed": 718,
+          "failed": 0,
+          "skipped": 1,
+          "cancelled": 0,
+          "knownHermesFixtureSkipOnly": true
+        }
+      },
+      "currentFullRegressionScope": {
+        "sourceFreezeSha256": "f56617b515dd9960a795e80e23e429f1a2c77be15673ddd3101ab89b59020aba",
+        "publicFiles": 533,
+        "frozenFiles": 563,
+        "gatewayDistFiles": 32,
+        "allPhasesSameFrozenBytesAndModes": true,
+        "currentPublicCodeFullSuitePassed": true,
+        "excludedReportDocuments": [
+          "docs/software-to-mcp-validation.json",
+          "docs/software-to-mcp-verification.md"
+        ]
+      },
+      "currentPackageCheck": {
+        "status": "passed",
+        "verificationAttempt": 27,
+        "runtimeCompilerVersion": "software-to-mcp-25",
+        "scope": "fresh_installed_Android_WebView_fixed_CDP_local_protocol_model_only",
+        "successfulBusiness": 4,
+        "learning": 2,
+        "unified": 1,
+        "generated": 1,
+        "discoveryAndPlanUiWrites": 0,
+        "successfulUiMutations": 28,
+        "successfulClear": 8,
+        "successfulFocus": 8,
+        "successfulInsertText": 8,
+        "successfulClick": 4,
+        "w3cValueRequests": 0,
+        "uncertainInsertAdditionalBusiness": 0,
+        "businessTotalIncludingUnknown": 4,
+        "uncertainInsertAdditionalUi": 3,
+        "unknownPublicTopAndNested": true,
+        "noMatchingCompletionForUnknownIntent": true,
+        "nextWorkerAdditionalHttp": 0,
+        "nextWorkerAdditionalUi": 0,
+        "nextWorkerAdditionalBusiness": 0,
+        "productionPythonInstalledOnly": true,
+        "wholeFrozenSourceBytesAndModesUnchanged": true,
+        "frozenSourceFiles": 563,
+        "installedPackageFileCount": 404,
+        "distFiles": 32,
+        "sdkClientsClosed": 2,
+        "pythonDriverCounts": {
+          "webview": 6,
+          "planner": 2,
+          "total": 8
+        },
+        "normalSubprocesses": 15,
+        "normalSubprocessesAllExit0": true,
+        "externalPythonProcessesClosed": 2,
+        "generatedFullCatalogParity": true,
+        "literalSpacesEmojiNfdExact": true,
+        "noDeviceOrBrowserClaim": true,
+        "rawInstalledArchiveSha256": "5468c8ea0847c70d64e58340ee3c845999f0bca6bab5917c35ed7a49cdacf830",
+        "productionOnlyOfflineInstall": true,
+        "rawArchiveContainsPrior26VerificationDocuments": true,
+        "finalDocumentationProjection": {
+          "changedPackedFiles": [
+            "docs/software-to-mcp-validation.json",
+            "docs/software-to-mcp-verification.md"
+          ],
+          "allOther402PackedFilesBytesAndModesUnchanged": true,
+          "newSdkExecutionForProjectionClaimed": false
+        }
+      },
+      "currentFocused": {
+        "webviewBackendAndPlanner": {
+          "tests": 78,
+          "backend": 53,
+          "planner": 25,
+          "passed": 78,
+          "includedInPythonFullRegression": true
+        },
+        "routingAndFidelity": {
+          "tests": 26,
+          "passed": 26,
+          "includedInSoftwareFullRegression": true
+        },
+        "sdkProtocolWorkflow": {
+          "tests": 3,
+          "passed": 3,
+          "includedInSoftwareFullRegression": true
+        },
+        "outcomeUnitAndSDK": {
+          "tests": 21,
+          "passed": 21,
+          "includedInSoftwareFullRegression": true,
+          "modelScope": "independent local iOS protocol models, not device failures"
+        },
+        "countsAreOverlappingAndNotAdded": true
+      },
+      "deviceEvidenceScope": "旧deviceEvidence/currentIOS23/nativeSemanticDevices25与webviewMcp26保留原源码范围；本轮实际Android仅见androidWebviewMcp27.actualOwnedAndroid。",
+      "release": {
+        "runtimeCompilerVersion": "software-to-mcp-25",
+        "verificationAttempt": 27,
+        "branch": "codex/ios-calibration-performance",
+        "pullRequestUrl": "https://github.com/8eeth0ven/bfs-clicker/pull/2",
+        "draft": true,
+        "mainMergedThisIteration": false,
+        "npmPublished": false,
+        "basePublishedCheckpoint": {
+          "commit": "2b652f29f9e2d4bb8c95fd382f1ebc602604b64a",
+          "commitUrl": "https://github.com/8eeth0ven/bfs-clicker/commit/2b652f29f9e2d4bb8c95fd382f1ebc602604b64a"
+        }
+      },
+      "limits": [
+        "WebView仅显式可信Appium会话、已观察唯一控件与单文档只读线性type/click；iframe、Shadow DOM、跨页、check/select、上传及写流程未支持。",
+        "Android需可检查WebView、已验证UiA2/ChromeDriver观测形态与显式固定CDP文本mode；它是文本插入/IME提交，不是物理键盘或任意CDP调用。",
+        "本轮实际Android仅验自建App正向查询。控件替换、漂移、耦合输入、取消与未知提交的拒绝由独立协议/DOM夹具覆盖，未声称Android设备故障注入通过。",
+        "DOM/驱动观测不构成系统身份或任意业务等价证明；通用配置不证明安装字节，本轮自有APK另核实际安装字节。WebView网络不受浏览器scope策略拦截，观察之间仍有时间窗口。",
+        "失败/取消outcome只采用有效生产证据；缺结果或SIGKILL不自动推导not_started。没有进行实际WebView SIGKILL设备验收。",
+        "第26轮iOS WebView、第25轮原生分支设备与第23轮普通iOS视觉键盘失败保持原范围；不追认为本轮runtime25的设备重验。",
+        "物理设备、不可检查的第三方App与任意软件的全部业务仍未证明；既有HTTP、原生、closed DOM、OCR与研究分区各自限制继续保留。"
+      ],
+      "countingRule": "三套完整回归、定向检查、全新安装协议模型、driver-only与实际MCP模拟器分列；重叠不累加，跳过不计通过。",
+      "verificationAttempt": 27
+    },
+    "addedTopLevelKeys": [
+      "webviewCoherentResults28"
+    ]
+  },
+  "webviewCoherentResults28": {
+    "runtimeCompilerVersion": "software-to-mcp-26",
+    "assertionObservationMode": "same_output_snapshot_v1",
+    "sameTargetAllPredicatesShareOneCompleteObservation": true,
+    "nonAdjacentAssertionsAndExtractBetweenAssertionsSupported": true,
+    "eachPredicateCounted": true,
+    "separateExtractionAndFinalObservationPreserved": true,
+    "nativeDefaultSequentialModePreserved": true,
+    "modeRequiredByWebviewFreshnessVerifier": true,
+    "groupDeadline": "shortest_member_single_deadline; positive_late_frames_rejected; zero_timeout_single_read",
+    "fixedDomProbeAndFocusTransportUnchanged": true,
+    "parentSourceCounterexample": {
+      "status": "counterexample_reproduced_on_parent",
+      "sourceCommit": "55b860bc6a777fb8dc83caf01ee92ef370966e49",
+      "scope": "actual production Python CLI over independent paired-probe loopback model; not SDK/device",
+      "falseReadyLearningSamples": 2,
+      "subsequentExecutionReturnedOnlySecondAssertionParameter": true,
+      "noObservedFrameContainedBothParameters": true,
+      "independentModelBusinessCount": 3,
+      "loopbackHttpRequests": 1224,
+      "modelProductionImports": 0,
+      "sourceBeforeAfterExact": true,
+      "sdkOrGeneratedMcpExecuted": false,
+      "originalSetup404AndFailureArtifactsRetained": true,
+      "baselineSha256": "f59c34b6258612c03a04834b015dec59865a77c61fc801dff3ba2b6ca8bc7fa9"
+    },
+    "targetedCoherenceSdkModels": {
+      "cases": 3,
+      "passed": 3,
+      "tornLearning": {
+        "readyRejected": true,
+        "businessCount": 1,
+        "outcome": "unknown",
+        "automaticRetry": false,
+        "rebindAdditionalHttp": 42,
+        "rebindReadonlyOnly": true,
+        "rebindUiAndBusinessAdded": 0
+      },
+      "tornExecuteAfterStableLearning": {
+        "businessCountAfterLearning": 2,
+        "businessCountAfterUncertainExecution": 3,
+        "outcome": "unknown",
+        "nextWorkerAdditionalHttp": 0,
+        "nextWorkerAdditionalUi": 0,
+        "nextWorkerAdditionalBusiness": 0
+      },
+      "stableFlow": {
+        "learning": 2,
+        "unified": 1,
+        "generated": 1,
+        "businessCount": 4,
+        "uiMutations": 28,
+        "unicodeSpacesEmojiNfdPreserved": true,
+        "coherentModeAndFullCatalogParity": true
+      },
+      "sdkParentsClosedExit0": 4,
+      "modelParentsClosedExit0": 3,
+      "modelPortsClosed": 3,
+      "actualDeviceFaultInjectionClaimed": false,
+      "reportSha256": "0459c92e5a961c2761de6d1a6f49ee2beabefc1831743e6005848cbc21b940ef"
+    },
+    "actualOwnedAndroid": {
+      "status": "passed",
+      "scope": "new owned Android API36 debug WebView; production MCP positive query only",
+      "independentLedger": [
+        {
+          "phase": "initial",
+          "count": 0
+        },
+        {
+          "phase": "discovery",
+          "count": 0
+        },
+        {
+          "phase": "planning",
+          "count": 0
+        },
+        {
+          "phase": "learning",
+          "count": 2
+        },
+        {
+          "phase": "unified",
+          "count": 3
+        },
+        {
+          "phase": "generated",
+          "count": 4
+        }
+      ],
+      "independentBusinessCount": 4,
+      "actualHttpRequests": 1653,
+      "allHttp200CaptureCompleteAndDigestsVerified": true,
+      "completeDomObservations": 77,
+      "requestsPerCompleteObservation": 21,
+      "domProbeExecutions": 154,
+      "uiMutations": {
+        "clear": 8,
+        "focus": 8,
+        "insertText": 8,
+        "click": 4,
+        "value": 0
+      },
+      "totalUiMutations": 28,
+      "assertionObservationMode": "same_output_snapshot_v1",
+      "coherentLearningSamples": 2,
+      "privateAndPublicUnifiedGeneratedCoherenceVerified": true,
+      "publicOutcomes": {
+        "unified": {
+          "top": {
+            "status": "observed",
+            "automaticRetry": false
+          },
+          "nested": {
+            "status": "observed",
+            "automaticRetry": false
+          }
+        },
+        "generated": {
+          "top": {
+            "status": "observed",
+            "automaticRetry": false
+          },
+          "nested": {
+            "status": "observed",
+            "automaticRetry": false
+          }
+        }
+      },
+      "sdkClientsClosedExit0": 2,
+      "productionPythonOsExitTraceInstrumented": false,
+      "sourceFrozenFilesExact": 566,
+      "cleanup": {
+        "ownedAvdAndIniRemoved": true,
+        "emptyTaskAvdParentRetained": true,
+        "ownPortsClosed": 8,
+        "defaultAdbStatePreserved": true,
+        "trackedHostPidsGone": 10,
+        "remainingOwnedProcesses": 0,
+        "originalAvdConfigurationFilesExact": 2,
+        "newDriverFilesExact": 6381,
+        "driverSymlinkTargetsExact": 5,
+        "protectedIosAndWdaFilesExact": 1278,
+        "sharedSdkAndImageFilesExact": 8
+      },
+      "lastSharedIntentReceiptDigestMatched": true,
+      "priorReceiptCopiesAreNotReconstructedOverwrittenIntents": true,
+      "preliminaryPrivateAuditCorrectedOnlyEmptyParentPredicate": true,
+      "physicalDeviceOrArbitraryAppsProven": false,
+      "actualTornResultFaultInjectionOnDevice": false
+    },
+    "matchedRequestComparison": {
+      "scope": "same owned debug fixture APK/public harness/four exact inputs; separate fresh emulators",
+      "sameFourInputs": true,
+      "sameInstalledFixtureApk": true,
+      "samePublicDriverAndWorkflowHarness": true,
+      "previousRequests": 1737,
+      "currentRequests": 1653,
+      "requestsRemoved": 84,
+      "requestReductionPercent": 4.8359,
+      "previousCompleteObservations": 81,
+      "currentCompleteObservations": 77,
+      "requestsPerCompleteObservation": 21,
+      "previousDomProbes": 162,
+      "currentDomProbes": 154,
+      "uiMutationsBoth": 28,
+      "wallClockSpeedupClaim": null
+    },
+    "operationPollDurationMs": {
+      "discover": 3258,
+      "learningTwoSamples": 43873,
+      "unified": 14599,
+      "generateEntry": 403,
+      "generatedCall": 12121
+    },
+    "wholeRunIncludingBootCleanupMs": 148538.0,
+    "latencyScope": "SDK operation polling included; startup/cleanup only in wholeRun, not per operation; independent run timings do not prove causal speedup",
+    "newCoverageNotYetImplemented": [
+      "typed ID/data-testid locators",
+      "readonly discovery review proposals and approved derived configs",
+      "discover CAS revision activation"
+    ],
+    "evidenceDigests": {
+      "implementation": "3ee8dbe1c7c858780215a556602a3f395c0f44f84a7fc18c3b9f719188f9a2b0",
+      "rawMcp": "6fa26c3adb9f27f7a7bc624adc3b12911f201303f1853865b9cb06f3951cfeb4",
+      "actualSummary": "3c3af8bce8f8091f9d67eeabf34d51ccc82f5c8bc54625f987cb183bdc5f009f",
+      "actualRootReview": "e104dba7a75d5dd874508b73dd1fb2b41699e5179b10f8697cacad4d35104c89",
+      "installedSdk": "622b373bbe2e609de8c0a0f485dbc886bb12005e68ae167cb0ac3ebf78de5eb7"
+    },
+    "evidenceLinks": {
+      "guide": "android-webview-mcp.md",
+      "config": "../examples/software/android-webview-device.example.json"
     }
   }
 }

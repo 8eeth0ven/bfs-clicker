@@ -17,6 +17,7 @@ from .mobile_ui import (DeviceLease, MobileError, atomic_json, check_target, che
 
 NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 SECRET = re.compile(r"password|passwd|token|secret|authorization|cookie|api.?key", re.I)
+COHERENT_ASSERTION_OBSERVATION_MODE = "same_output_snapshot_v1"
 
 
 def workflow_permissions(config):
@@ -320,7 +321,82 @@ def assertion_matches(expect, text, bound, baseline=None):
     return matches
 
 
-def _run(session, definition, inputs, contracts, branch_context=None):
+def _coherent_assertion_groups(definition, branch_context=None):
+    """Validate the single-submit query shape before any observation/action.
+
+    The pure output suffix has no new UI effects. All predicates for one target
+    may therefore be required together before its first extraction, including
+    predicates declared after an extraction or another target's assertion.
+    """
+    if (branch_context is not None or definition.get("effect") != "read" or
+            any(key in definition for key in ("stagePlan", "branchPlan", "entryPrefix"))):
+        raise MobileError("WORKFLOW_COHERENT_ASSERTION_SHAPE_UNSUPPORTED", "blocked")
+    groups, extracted, typed, clicked = {}, False, 0, False
+    steps = definition.get("steps")
+    if not isinstance(steps, list) or not 3 <= len(steps) <= 30:
+        raise MobileError("WORKFLOW_COHERENT_ASSERTION_SHAPE_UNSUPPORTED", "blocked")
+    for number, step in enumerate(steps):
+        kind = step.get("kind")
+        if kind == "type" and not clicked:
+            typed += 1
+        elif kind == "click" and typed and not clicked:
+            clicked = True
+        elif kind in {"assert", "extract"} and clicked:
+            key = digest(step["selector"])
+            if kind == "assert":
+                groups.setdefault(key, []).append((number, step))
+            else:
+                if key not in groups:
+                    raise MobileError("WORKFLOW_COHERENT_ASSERTION_SHAPE_UNSUPPORTED", "blocked")
+                extracted = True
+        else:
+            raise MobileError("WORKFLOW_COHERENT_ASSERTION_SHAPE_UNSUPPORTED", "blocked")
+    if not groups or not extracted:
+        raise MobileError("WORKFLOW_COHERENT_ASSERTION_SHAPE_UNSUPPORTED", "blocked")
+    return groups
+
+
+def _coherent_assertion_snapshot(session, members, bound, baselines, contracts):
+    # One deadline for the complete group: neither another member nor a failed
+    # observation starts a new polling window. Zero timeout means one read.
+    timeout = min(step.get("timeoutMs", 3000) for _, step in members)
+    deadline = time.monotonic() + timeout / 1000
+    failure = "WORKFLOW_FRESHNESS_NOT_OBSERVED" if any(step["expect"].get("changed") is True for _, step in members) else "WORKFLOW_ASSERTION_FAILED"
+    first_observation = True
+    while True:
+        session.budget.check()
+        if not first_observation and time.monotonic() >= deadline:
+            raise MobileError(failure, "blocked")
+        first_observation = False
+        try:
+            tree = session.backend.observe()
+            session.budget.check()
+            node = locate(tree, members[0][1]["selector"])
+            matches = []
+            for number, step in members:
+                contract_node(contracts, number, node, "assert")
+                expect = step["expect"]
+                guarded = expect.get("changed") is True or "equalsInput" in expect or "containsInput" in expect
+                if guarded and (node["editable"] or node["secure"]):
+                    raise MobileError("WORKFLOW_FRESHNESS_TARGET_INVALID", "blocked")
+                matches.append(assertion_matches(expect, node["text"], bound, baselines.get(number)))
+            # Positive deadlines reject late snapshots. An in-flight observe
+            # still uses its existing transport/global-budget bound; this
+            # helper does not cancel or replay an HTTP request.
+            if all(matches) and (timeout == 0 or time.monotonic() <= deadline):
+                return node["text"]
+        except MobileError as error:
+            if error.code != "SELECTOR_NOT_FOUND":
+                raise
+        if time.monotonic() >= deadline:
+            raise MobileError(failure, "blocked")
+        time.sleep(min(.05, max(0, deadline - time.monotonic())))
+
+
+def _run(session, definition, inputs, contracts, branch_context=None, *, coherent_result_assertions=False):
+    # Internal trusted option, never a caller-supplied workflow field.
+    assertion_groups = _coherent_assertion_groups(definition, branch_context) if coherent_result_assertions else {}
+    completed_assertions = set()
     outputs, assertions, evidence = {}, 0, []
     stage_plan = definition.get("stagePlan")
     stage_session = session
@@ -495,6 +571,27 @@ def _run(session, definition, inputs, contracts, branch_context=None):
                 check_observations["changed"] += 1
             if kind == "select":
                 select_observations["changed"] += 1
+        elif kind == "assert" and coherent_result_assertions:
+            if number not in completed_assertions:
+                members = assertion_groups[digest(step["selector"])]
+                text = _coherent_assertion_snapshot(session, members, bound, baselines, contracts)
+                group_steps = [member_number for member_number, _ in members]
+                for member_number, member in members:
+                    expect = member["expect"]
+                    changed_observed = expect.get("changed") is True
+                    correlated = "equalsInput" in expect or "containsInput" in expect
+                    assertions += 1
+                    changed_count += int(changed_observed)
+                    correlated_count += int(correlated)
+                    evidence.append(session.event("workflow_assertion_passed", workflowId=workflow_id, step=member_number,
+                                                  changedSinceStart=changed_observed, inputCorrelated=correlated,
+                                                  assertionObservationMode=COHERENT_ASSERTION_OBSERVATION_MODE,
+                                                  assertionGroupSteps=group_steps))
+                observed_assertions[digest(step["selector"])] = {"text": text, "generation": generation,
+                    "changedSinceStart": any(member["expect"].get("changed") is True for _, member in members),
+                    "inputCorrelated": any("equalsInput" in member["expect"] or "containsInput" in member["expect"] for _, member in members),
+                    "guarded": any(member["expect"].get("changed") is True or "equalsInput" in member["expect"] or "containsInput" in member["expect"] for _, member in members)}
+                completed_assertions.update(group_steps)
         elif kind == "assert":
             deadline = time.monotonic() + step.get("timeoutMs", 3000) / 1000
             while True:
@@ -575,7 +672,7 @@ def _run(session, definition, inputs, contracts, branch_context=None):
         session.backend.verify_artifact()
         session.backend.foreground()
         session.budget.check()
-    return {"outputs": scrub_outputs(definition["inputSchema"], inputs, outputs), "assertionsPassed": assertions, "actionsPerformed": actions_performed, "checkStateVerifications": check_observations, "selectionStateVerifications": select_observations, "resultFreshness": {"changedAssertions": changed_count, "inputCorrelatedAssertions": correlated_count, "outputs": output_freshness, "scope": "configured_ui_text_transition_or_input_association; not_request_completion_or_business_proof"}, "evidenceIds": evidence[-12:]}
+    return {"outputs": scrub_outputs(definition["inputSchema"], inputs, outputs), "assertionsPassed": assertions, "actionsPerformed": actions_performed, "checkStateVerifications": check_observations, "selectionStateVerifications": select_observations, "resultFreshness": {"changedAssertions": changed_count, "inputCorrelatedAssertions": correlated_count, "outputs": output_freshness, "scope": "configured_ui_text_transition_or_input_association; not_request_completion_or_business_proof", **({"assertionObservationMode": COHERENT_ASSERTION_OBSERVATION_MODE} if coherent_result_assertions else {})}, "evidenceIds": evidence[-12:]}
 
 
 def learn_workflow(session, definition, samples):

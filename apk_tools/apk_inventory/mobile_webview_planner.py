@@ -320,9 +320,10 @@ def _definition(session, definition):
     group = clicks[0][1]["domContract"]["groupSelector"]
     if group is None or any(row["domContract"]["groupSelector"] != group for _, row in inputs):
         fail("WEBVIEW_WORKFLOW_GROUP_MISMATCH")
+    assertion_groups = linear._coherent_assertion_groups(clean)
     for number, extract in extracts:
-        assertions = [step for step in clean["steps"][:number] if step["kind"] == "assert" and step["selector"] == extract["selector"]]
-        if not assertions or any(step["expect"].get("changed") is not True or
+        assertions = [step for _, step in assertion_groups[digest(extract["selector"])]]
+        if any(step["expect"].get("changed") is not True or
                                  not any(key in step["expect"] for key in ("equalsInput", "containsInput"))
                                  for step in assertions):
             fail("WEBVIEW_WORKFLOW_FRESH_INPUT_RESULT_REQUIRED")
@@ -419,6 +420,8 @@ def _inputs(session, schema, values):
 
 
 def _freshness(result):
+    if result.get("assertionObservationMode") != linear.COHERENT_ASSERTION_OBSERVATION_MODE:
+        fail("WEBVIEW_WORKFLOW_OUTPUT_FRESHNESS_UNVERIFIED")
     outputs = result.get("outputs", {})
     if not outputs or any(not isinstance(row, dict) or row.get("changedSinceStart") is not True or row.get("inputCorrelated") is not True
                           for row in outputs.values()):
@@ -444,7 +447,7 @@ def learn_workflow(session, definition, samples):
             session.progress["status"] = "running"
             contracts, evidence, outputs = [None] * len(clean["steps"]), [], []
             for number, values in enumerate(samples):
-                observed = linear._run(session, clean, values, contracts)
+                observed = linear._run(session, clean, values, contracts, coherent_result_assertions=True)
                 _freshness(observed["resultFreshness"])
                 outputs.append(observed["outputs"])
                 evidence.append({"sample": number, "assertionsPassed": observed["assertionsPassed"],
@@ -508,7 +511,7 @@ def execute_workflow(session, recipe, revision, inputs):
     with session.execution(), _bound_backend(session, plan, clean):
         session.features = session.backend.probe()
         session.progress["status"] = "running"
-        result = linear._run(session, clean, inputs, contracts)
+        result = linear._run(session, clean, inputs, contracts, coherent_result_assertions=True)
         _freshness(result["resultFreshness"])
         session.progress["status"] = "completed"
         session.checkpoint()
