@@ -1,10 +1,7 @@
-# 自建 iOS 静态证据夹具
+# iOS 静态样本
 
-```bash
-python apk_tools/examples/ios_demo/build_demo.py --out output-ios-demo/demo.ipa
-ios_extract output-ios-demo/demo.ipa --out output-ios-demo/inventory
-```
+这个自建样本把 Info.plist、字符串资源和 arm64 Mach-O 对象放在同一个包里，用于核对离线解析出的文件来源。
 
-`--out` 也接受新的 `.app` 目录，`--api-origin http://127.0.0.1:8765` 可将所有合成端点绑定到本地演示服务。构建需要支持 Apple arm64 目标的 clang；不下载 SDK 或第三方应用。
+![未签名包包含属性表、原生对象与嵌套资源](../../../docs/images/readme-light/ios-static.svg)
 
-夹具包含二进制 Info.plist、JSON 请求配置、UTF-16 strings 和自行编译的 arm64 iOS Mach-O 对象，framework 中也放入该对象以测试嵌套原生库识别。它未签名，Mach-O 对象不是可安装、可启动的 iOS 可执行文件；只用于离线提取、验证合并与 MCP 契约的可复现测试，不能替代真实设备运行证据。C 代码不执行网络请求。
+样本未签名，原生对象不是可启动的应用。要查看带查询界面的 UIKit 示例，请打开旁边的[模拟器样例](../ios-demo/README.md)。
