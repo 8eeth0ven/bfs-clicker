@@ -71,7 +71,7 @@ def normalize_url(value: str) -> tuple[str, dict]:
         if ":" in host:
             host = "[" + host + "]"
         port = parts.port
-        authority = host + (f":{port}" if port and (parts.scheme.lower(), port) not in {("http", 80), ("https", 443)} else "")
+        authority = host + (f":{port}" if port is not None and (parts.scheme.lower(), port) not in {("http", 80), ("https", 443)} else "")
         query: dict[str, str | list[str]] = {}
         for key, val in parse_qsl(parts.query, keep_blank_values=True, max_num_fields=4096):
             if key in query:

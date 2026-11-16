@@ -217,9 +217,9 @@ export function createControlPanel({outputRoot=path.join(PROJECT_ROOT,'output-ru
       const report=pathname.match(/^\/runs\/([\w.-]+)\/(.*)$/);
       if(report){let name;try{name=decodeURIComponent(report[2]);}catch{throw new HttpError(400,'invalid path');}
         return serveRunFile(req,res,getJob(report[1]).dir,name||'report.html');}
-      const file={'/':'index.html','/app.js':'app.js','/styles.css':'styles.css'}[pathname];
+      const file={'/':'index.html','/app.js':'app.js','/styles.css':'styles.css','/workhub-design-system.css':'workhub-design-system.css'}[pathname];
       if(!file)return sendText(res,404,'not found');
-      const types={'index.html':'text/html; charset=utf-8','app.js':'text/javascript; charset=utf-8','styles.css':'text/css; charset=utf-8'};
+      const types={'index.html':'text/html; charset=utf-8','app.js':'text/javascript; charset=utf-8','styles.css':'text/css; charset=utf-8','workhub-design-system.css':'text/css; charset=utf-8'};
       res.writeHead(200,{'content-type':types[file],'content-security-policy':PANEL_CSP,'x-content-type-options':'nosniff',
         'cache-control':'no-store','referrer-policy':'no-referrer'});
       res.end(req.method==='HEAD'?undefined:readFileSync(path.join(VIEW_ROOT,file)));
